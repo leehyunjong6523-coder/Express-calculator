@@ -80,6 +80,28 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ── 모바일 반응형 CSS (구글/네이버/삼성 협의) ──
+st.markdown("""<style>
+@media (max-width: 768px) {
+    html, body { overflow-x: hidden !important; }
+    .main .block-container { padding: 0.5rem 0.5rem 2rem !important; max-width: 100% !important; }
+    section[data-testid="stSidebar"] { width: 92vw !important; min-width: 0 !important; }
+    section[data-testid="stSidebar"] > div:first-child { width: 92vw !important; padding: 10px 12px !important; }
+    input[type="number"], input[type="text"], textarea, select { font-size: 15px !important; min-height: 44px !important; }
+    [data-testid="stNumberInput"] button { min-width: 44px !important; min-height: 44px !important; font-size: 18px !important; }
+    .stButton > button { min-height: 44px !important; font-size: 13px !important; padding: 8px 12px !important; border-radius: 8px !important; }
+    [data-testid="column"] { padding: 0 3px !important; min-width: 0 !important; }
+    [data-testid="stMarkdownContainer"] div { max-width: 100% !important; overflow-x: auto !important; word-break: break-word !important; }
+    hr { margin: 8px 0 !important; }
+    iframe { max-width: 100% !important; }
+    table { font-size: 11px !important; }
+}
+@media (max-width: 480px) {
+    .main .block-container { padding: 0.3rem 0.3rem 2rem !important; }
+    section[data-testid="stSidebar"] { width: 98vw !important; }
+}
+</style>""", unsafe_allow_html=True)
+
 # ── 로고 base64 (앱 배너용) ──
 def _load_logo_b64(filename, mime="image/jpeg"):
     p = os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
@@ -2196,9 +2218,10 @@ def generate_pdf(quote_num, customer, dest_country, zone_label, ct_count,
             cc        = CC.get(name, '#333')
             disp_name = pdf_disp(name)
             is_nsvc   = r.get("no_service", False)
+            is_freight_pdf = "__freight__" in r.get("surs_detail", {})
 
             # CARD_H를 is_nsvc 여부와 관계없이 먼저 계산
-            if is_nsvc:
+            if is_nsvc or is_freight_pdf:
                 CARD_H = HDR_H + 34 + 32 + 92 + 28 + 2*ITEM_H + 24 + 58 + 42  # 서비스불가 고정 높이
             else:
                 _ri_pdf = r.get("rate_info", {})
@@ -2234,6 +2257,18 @@ def generate_pdf(quote_num, customer, dest_country, zone_label, ct_count,
                 d.text((cx+30, nsvc_mid),      "서비스 불가 국가", font=fnt(44, bold=True), fill='#b91c1c')
                 d.text((cx+30, nsvc_mid+70),   "2026년 기준 해당 운송사의", font=fnt(30), fill='#94a3b8')
                 d.text((cx+30, nsvc_mid+110),  "서비스 미제공 지역입니다.", font=fnt(30), fill='#94a3b8')
+                continue
+
+            if is_freight_pdf:
+                # ── Freight 전환 카드 ──
+                d.rectangle([cx, cy, cx+cw, cy+CARD_H], fill='#fff7ed', outline='#fb923c', width=4)
+                d.rectangle([cx, cy, cx+cw, cy+HDR_H],  fill='#7c2d12')
+                d.text((cx+30, cy+30), disp_name, font=fnt(40, bold=True), fill='#ffffff')
+                frt_mid = cy + HDR_H + (CARD_H - HDR_H)//2 - 110
+                d.text((cx+30, frt_mid),      "Express Freight 진행 화물", font=fnt(40, bold=True), fill='#92400e')
+                d.text((cx+30, frt_mid+70),   "Express Saver 진행 불가",   font=fnt(40, bold=True), fill='#c2410c')
+                d.text((cx+30, frt_mid+130),  "C/T당 실중량 70kg 초과",     font=fnt(28), fill='#94a3b8')
+                d.text((cx+30, frt_mid+168),  "WW Express Freight 별도 문의", font=fnt(28), fill='#94a3b8')
                 continue
 
             d.rectangle([cx, cy, cx+cw, cy+CARD_H], fill='#ffffff', outline=cc, width=4)
@@ -2346,6 +2381,9 @@ def generate_pdf(quote_num, customer, dest_country, zone_label, ct_count,
                     cx = PAD+LBL_W+i*col_w
                     if r.get("no_service"):
                         ra("서비스불가", fnt(28, bold=False), cx+col_w-22, y+(14 if is_indent else 22), '#b91c1c')
+                        continue
+                    if "__freight__" in r.get("surs_detail",{}):
+                        ra("Freight전환", fnt(28, bold=False), cx+col_w-22, y+(14 if is_indent else 22), '#c2410c')
                         continue
                     v = vfn(r)
                     _is_rpk_lbl = label.strip().startswith("└ 단가/kg")
@@ -2840,7 +2878,7 @@ for ct in ct_data:
         elif _ups_osp:
             s_ups["비규격품(OSP)"] = 21400
         # ※ 70kg 초과 C/T: UPS WW Express Freight 전환 → Saver 진행 불가
-        if ct["wt"] > 70: s_ups["⚠ WW Express Freight — Saver 진행 불가"] = 0
+        if ct["wt"] > 70: s_ups["__freight__"] = 1  # Freight 전환 플래그 (표시용X)
         for k, v in s_ups.items(): sur_ups_ct[k] = sur_ups_ct.get(k, 0) + v
 
         ct_results.append({
@@ -2892,7 +2930,7 @@ for ct in ct_data:
         elif _ups_osp:
             s_ups["비규격품(OSP)"] = 21400
         # ※ 70kg 초과 C/T: UPS WW Express Freight 전환 → Saver 진행 불가
-        if ct["wt"] > 70: s_ups["⚠ WW Express Freight — Saver 진행 불가"] = 0
+        if ct["wt"] > 70: s_ups["__freight__"] = 1  # Freight 전환 플래그 (표시용X)
         for k, v in s_ups.items(): sur_ups_ct[k] = sur_ups_ct.get(k, 0) + v
 
         ct_results.append({
@@ -3208,30 +3246,34 @@ with tab1:
         is_no_svc = res.get("no_service", False)
         # ── UPS 최대한도초과 = Express Freight 전환 필요 ──
         _surs_d = res.get("surs_detail", {})
-        is_ups_freight = ("UPS" in name) and ("최대한도초과" in _surs_d)
+        is_ups_freight = ("UPS" in name) and "__freight__" in _surs_d
         is_best = (name == best_carrier) and not is_no_svc and not is_ups_freight
         extra_cls = "disabled" if (is_no_svc or is_ups_freight) else ""
         best_badge = '<span class="carrier-badge badge-best">🏆 최저견적</span>' if is_best else ''
 
-        # ── UPS Worldwide Express Freight 전환 안내 카드 ──
+        # ── UPS Freight: 서비스불가 카드와 동일 스타일 ──
         if is_ups_freight:
             return f"""
 <div class="carrier-card ups disabled">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;">
     <span class="carrier-badge badge-ups">{name}</span>
-    <span style="font-size:.6rem;background:#fff7ed;color:#c2410c;border-radius:4px;padding:2px 7px;font-weight:700;">운송 불가 (Saver)</span>
+    <span style="font-size:.65rem;background:#fff7ed;color:#c2410c;border-radius:4px;padding:2px 7px;font-weight:700;">Saver 진행불가</span>
   </div>
-  <div style="margin-top:20px;padding:16px 10px;text-align:center;">
-    <div style="font-size:1.6rem;margin-bottom:8px;">🚚</div>
-    <div style="font-size:.82rem;font-weight:800;color:#92400e;line-height:1.6;">
-      UPS Worldwide Express Freight<br>화물로 Saver 진행 불가능
+  <div style="margin-top:24px;text-align:center;padding:20px 10px;">
+    <div style="font-size:1.8rem;margin-bottom:10px;">🚚</div>
+    <div style="font-size:.88rem;font-weight:800;color:#92400e;line-height:1.6;">
+      Express Freight 진행 화물
+    </div>
+    <div style="font-size:.78rem;font-weight:700;color:#c2410c;margin-top:6px;line-height:1.6;">
+      Express Saver 진행 불가
     </div>
     <div style="font-size:.68rem;color:#94a3b8;margin-top:8px;line-height:1.5;">
       C/T당 실중량 70kg 초과 시<br>WW Express Saver 서비스 불가<br>
-      <span style="color:#c2410c;font-weight:700;">WW Express Freight 상품으로 별도 문의 필요</span>
+      WW Express Freight 상품으로 별도 문의 필요
     </div>
   </div>
 </div>"""
+        _freight_banner = ""
 
         # ── 서비스 불가 카드 ──
         if is_no_svc:
@@ -3321,6 +3363,7 @@ with tab1:
 
         return f"""
 <div class="carrier-card {css_class} {extra_cls}">
+  {_freight_banner}
   <div style="display:flex;justify-content:space-between;align-items:flex-start;">
     <span class="carrier-badge {badge_class}">{name}</span>
     {best_badge}
@@ -3465,8 +3508,12 @@ with tab1:
         indent_pad = "padding-left:22px;" if is_indent else ""
         cmp += f'<td style="padding:6px 12px;{fw}{lbl_col}{fs}{indent_pad}">{icon_str}{lbl_clean}</td>'
         for _, res, cc in carriers_5:
+            _is_freight = "__freight__" in res.get("surs_detail",{})
             if res.get("no_service"):
                 cmp += f'<td style="padding:6px 8px;text-align:right;font-size:.75rem;color:#b91c1c;font-weight:700;">🚫 서비스불가</td>'
+                continue
+            if _is_freight:
+                cmp += f'<td style="padding:6px 8px;text-align:right;font-size:.7rem;color:#c2410c;font-weight:700;">🚚 Freight전환</td>'
                 continue
             v   = val_fn(res)
             if is_rpk:
@@ -3480,8 +3527,12 @@ with tab1:
     # 마진율 행
     cmp += f'<tr style="background:#dde2ff;"><td style="padding:8px 12px;font-weight:700;color:#334;">📊 마진율</td>'
     for _, res, cc in carriers_5:
+        _is_freight2 = "__freight__" in res.get("surs_detail",{})
         if res.get("no_service"):
             cmp += f'<td style="padding:8px 8px;text-align:right;font-size:.75rem;color:#b91c1c;font-weight:700;">🚫</td>'
+            continue
+        if _is_freight2:
+            cmp += f'<td style="padding:8px 8px;text-align:right;font-size:.7rem;color:#c2410c;font-weight:700;">🚚</td>'
             continue
         mr = res.get("margin_rate",0)
         mr_col = "#009944" if mr>=tgt_margin else ("#ff7700" if mr>=15 else "#cc0022")
