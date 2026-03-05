@@ -3544,8 +3544,10 @@ for ct in ct_data:
         if ct_data.index(ct) == 0:
             if dest_country in DHL_CONFLICT_COUNTRIES:
                 sur_dhl_ct["분쟁지역 배송"] = sur_dhl_ct.get("분쟁지역 배송", 0) + DHL_CONFLICT_SUR
+                s_dhl["분쟁지역 배송"] = DHL_CONFLICT_SUR  # ← 카드 상세 표시용
             if dest_country in DHL_SANCTION_COUNTRIES:
                 sur_dhl_ct["무역제재국 배송"] = sur_dhl_ct.get("무역제재국 배송", 0) + DHL_SANCTION_SUR
+                s_dhl["무역제재국 배송"] = DHL_SANCTION_SUR  # ← 카드 상세 표시용
 
         # ── FedEx 수출 부가서비스 — C/T별 누적 (운임은 루프 후 총중량으로 단일계산) ──
         w_fx = winfo["rounded"]
@@ -3597,8 +3599,10 @@ for ct in ct_data:
         if ct_data.index(ct) == 0:
             if dest_country in DHL_CONFLICT_COUNTRIES:
                 sur_dhl_ct["분쟁지역 배송"] = sur_dhl_ct.get("분쟁지역 배송", 0) + DHL_CONFLICT_SUR
+                s_dhl["분쟁지역 배송"] = DHL_CONFLICT_SUR  # ← 카드 상세 표시용
             if dest_country in DHL_SANCTION_COUNTRIES:
                 sur_dhl_ct["무역제재국 배송"] = sur_dhl_ct.get("무역제재국 배송", 0) + DHL_SANCTION_SUR
+                s_dhl["무역제재국 배송"] = DHL_SANCTION_SUR  # ← 카드 상세 표시용
 
         # ── FedEx 수입 부가서비스 — C/T별 누적 (운임은 루프 후 총중량으로 단일계산) ──
         w_fx = winfo["rounded"]
