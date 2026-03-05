@@ -15,9 +15,12 @@ from PIL import Image, ImageDraw, ImageFont
 _SHEET_ID  = "1qWKHQFPjpW9I_WhQ-3CgSU2Kx5Xv8EwIR0_uc30IgQs"
 _SHEET_GID = "2012998170"  # 고객테이블 탭 gid
 
+_SHEET_ID  = "1qWKHQFPjpW9I_WhQ-3CgSU2Kx5Xv8EwlR0_uc30IgQs"
+_SHEET_GID = "2012998170"
+
 @st.cache_data(ttl=300)
 def _load_customer_db() -> pd.DataFrame:
-    """구글 시트에서 고객 할인율 로드 (gid 방식, API 키 불필요)"""
+    """구글 시트에서 고객 할인율 로드 (공개 CSV 방식, 무료)"""
     url = (f"https://docs.google.com/spreadsheets/d/{_SHEET_ID}"
            f"/export?format=csv&gid={_SHEET_GID}")
     try:
@@ -2891,28 +2894,46 @@ with st.sidebar:
 
     selected_customer = st.selectbox(
         "🏢 고객사 선택", _cnames, index=_sel_idx, key="customer_db_select",
-        help="선택 시 할인율 자동 입력"
+        help="선택 시 할인율 자동 입력 (이후 수동 수정 가능)"
     )
 
-    if selected_customer != "직접입력":
-        # 선택된 고객명 자동 입력
+    # ── 선택이 바뀐 경우에만 할인율 주입 (매 렌더마다 덮어쓰기 방지) ──
+    _last_applied = st.session_state.get("_last_customer_applied", "")
+    _cur_mode     = st.session_state.get("mode", "수출")
+    _last_mode    = st.session_state.get("_last_customer_mode", "")
+
+    if selected_customer != "직접입력" and (
+        selected_customer != _last_applied or _cur_mode != _last_mode
+    ):
         st.session_state["customer_input"] = selected_customer
-        # 할인율 자동 주입
-        _disc = _get_customer_disc(selected_customer, st.session_state.get("mode","수출"))
+        _disc = _get_customer_disc(selected_customer, _cur_mode)
         st.session_state["disc_dhl"]     = _disc["dhl"]
         st.session_state["disc_fedex"]   = _disc["fedex"]
         st.session_state["disc_fedex_e"] = _disc["fedex_e"]
         st.session_state["disc_ups"]     = _disc["ups"]
-        # 할인율 미리보기
+        st.session_state["_last_customer_applied"] = selected_customer
+        st.session_state["_last_customer_mode"]    = _cur_mode
+        _save_settings()
+
+    if selected_customer == "직접입력" and _last_applied != "":
+        # 직접입력으로 돌아오면 추적 초기화
+        st.session_state["_last_customer_applied"] = ""
+
+    # 현재 적용된 할인율 미리보기 (수동 수정값 반영)
+    if selected_customer != "직접입력":
+        _d_dhl = st.session_state.get("disc_dhl", 0)
+        _d_fx  = st.session_state.get("disc_fedex", 0)
+        _d_ups = st.session_state.get("disc_ups", 0)
         st.markdown(f"""
 <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);
      border-radius:7px;padding:7px 10px;margin:4px 0 6px;font-size:.72rem;">
-  <div style="color:#60a5fa;font-weight:800;margin-bottom:4px;">💰 할인율 자동 적용</div>
+  <div style="color:#60a5fa;font-weight:800;margin-bottom:4px;">💰 적용 할인율 (아래에서 수정 가능)</div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;color:#cbd5e1;">
-    <span>DHL</span><span style="text-align:right;font-weight:700;color:#e2e8f0;">{_disc['dhl']:.2f}%</span>
-    <span>FedEx</span><span style="text-align:right;font-weight:700;color:#e2e8f0;">{_disc['fedex']:.2f}%</span>
-    <span>UPS</span><span style="text-align:right;font-weight:700;color:#e2e8f0;">{_disc['ups']:.2f}%</span>
+    <span>DHL</span><span style="text-align:right;font-weight:700;color:#e2e8f0;">{_d_dhl:.2f}%</span>
+    <span>FedEx</span><span style="text-align:right;font-weight:700;color:#e2e8f0;">{_d_fx:.2f}%</span>
+    <span>UPS</span><span style="text-align:right;font-weight:700;color:#e2e8f0;">{_d_ups:.2f}%</span>
   </div>
+  <div style="color:#64748b;font-size:.65rem;margin-top:4px;">※ 아래 유류할증료 섹션에서 직접 수정하세요</div>
 </div>""", unsafe_allow_html=True)
 
     customer         = st.text_input("수신 회사명", placeholder="(주)고객사명", key="customer_input")
@@ -2925,9 +2946,8 @@ with st.sidebar:
         _cdb2 = _load_customer_db()
         if _cdb2.empty:
             _err = st.session_state.get("_cdb_error", "원인 불명")
-            st.error(f"❌ 로드 실패: {_err}")
-            st.info(f"시도한 URL: https://docs.google.com/spreadsheets/d/{_SHEET_ID}/export?format=csv&gid={_SHEET_GID}")
-            st.stop()  # rerun 없이 멈춰서 오류 표시 유지
+            st.error(f"❌ {_err}")
+            st.stop()
         else:
             st.success(f"✅ {len(_cdb2)}개 고객사 로드 완료!")
             st.rerun()
@@ -3072,6 +3092,15 @@ with st.sidebar:
     dest_country = countries_raw[countries_display.index(selected_display)]
     dhl_zone = DHL_ZONE_MAP.get(dest_country, 5)
     dhl_zi = dhl_zone - 1
+
+    # ── 프라임워터 여부 사이드바 렌더 전에 미리 판단 ──
+    _cust_raw = (st.session_state.get("customer_input", "") or "").strip()
+    _is_primewater = any(p in _cust_raw.lower().replace(" ","") for p in ["프라임워터","primewater"])
+    if _is_primewater:
+        _pw_disc = 63.0 if dhl_zone >= 7 else (60.0 if dhl_zone == 5 else 55.0)
+        if st.session_state.get("disc_dhl") != _pw_disc:
+            st.session_state["disc_dhl"] = _pw_disc
+            _save_settings()
 
     # FedEx zone 추론 (영문 국가명 직접 조회 → fallback: 한국어 COUNTRY_TO_FEDEX 매핑)
     fx_zone_direct = FEDEX_ZONE_MAP_EN.get(dest_country)
@@ -3430,6 +3459,16 @@ with st.sidebar:
 
     # ── 할인율: 수출/수입 동일 key 사용 (UPS B8733R만 수입 전용) ──
     st.markdown("**📉 고객 할인율 (%)**")
+    # 프라임워터 존별 자동 적용 안내
+    if _is_primewater:
+        _pw_zone_color = "#7c3aed" if dhl_zone >= 7 else "#0369a1"
+        _pw_zone_bg    = "rgba(124,58,237,.1)" if dhl_zone >= 7 else "rgba(3,105,161,.1)"
+        st.markdown(f"""<div style="background:{_pw_zone_bg};border-radius:6px;padding:5px 8px;
+            margin-bottom:6px;font-size:.72rem;color:{_pw_zone_color};font-weight:800;">
+            ⭐ 프라임워터 DHL 존별 자동 적용<br>
+            <span style="font-weight:400;">Z1~4·6: 55% | Z5: 60% | Z7~8: 63% → 현재 Z{dhl_zone} →
+            <b>{63.0 if dhl_zone>=7 else (60.0 if dhl_zone==5 else 55.0)}% 적용중</b></span>
+            </div>""", unsafe_allow_html=True)
     if mode == "수출":
         st.markdown('<div style="font-size:.68rem;color:#64748b;margin-bottom:4px;">수출 할인율 | 소수점 2자리까지</div>', unsafe_allow_html=True)
         _dc1, _dc2 = st.columns(2)
@@ -3714,9 +3753,72 @@ _ups_zi_disp   = ups_imp_zi if _ups_is_imp else ups_zi
 ups_rate_per_kg = _ups_rate_per_kg(ups_total_w, _ups_zi_disp, _ups_is_imp)
 ups_bracket_str = _ups_bracket(ups_total_w)
 
-res_dhl     = calc_carrier("DHL Express",       total_pub_dhl,      total_net_dhl,      total_sur_dhl,   fuel_dhl,   disc_dhl)
+
+
+# ══════════════════════════════════════════════════════
+# 특별 할인율 — 프라임워터 DHL 존별 자동 적용
+# Z1~6: 55%,  Z7~8: 63%  (사이드바 렌더 전 이미 session_state 주입됨)
+# ══════════════════════════════════════════════════════
+if _is_primewater:
+    disc_dhl = 63.0 if dhl_zone >= 7 else (60.0 if dhl_zone == 5 else 55.0)
+
+# ══════════════════════════════════════════════════════
+# 회사명 5% 할증 처리 — DHL 전용
+# 회사명에 "5%"가 포함된 경우: 정상운임 × 1.05 후 할인율 적용
+# 검증: ① 5% 감지 → ② pub_base × 1.05 → ③ 할인율 적용
+# ══════════════════════════════════════════════════════
+_cust_name_for_surcharge = st.session_state.get("customer_input", "") or ""
+_dhl_5pct_surcharge = "5%" in _cust_name_for_surcharge
+
+# 감사 로그: 5% 할증 적용 여부 표시
+if _dhl_5pct_surcharge:
+    _dhl_pub_for_calc = ceil10(total_pub_dhl * 1.05)  # 정상운임 × 1.05
+else:
+    _dhl_pub_for_calc = total_pub_dhl
+
+# 검증 1: 5% 적용 전/후 비교
+_dhl_5pct_check = {
+    "적용여부":      _dhl_5pct_surcharge,
+    "원본pub":       total_pub_dhl,
+    "할증후pub":     _dhl_pub_for_calc,
+    "할인율":        disc_dhl,
+    "할인적용견적":  ceil10(_dhl_pub_for_calc * (1 - disc_dhl / 100)),
+}
+
+res_dhl     = calc_carrier("DHL Express",       _dhl_pub_for_calc,  total_net_dhl,      total_sur_dhl,   fuel_dhl,   disc_dhl)
 res_fedex   = calc_carrier("FedEx IP",          total_pub_fedex_ip, total_net_fedex_ip, total_sur_fedex, fuel_fedex, disc_fedex)
 res_fedex_e = calc_carrier("FedEx Economy",     total_pub_fedex_ec, total_net_fedex_ec, total_sur_fedex, fuel_fedex, disc_fedex_e)
+
+# ══ 감사팀 3중 검증 ══
+def _audit_dhl_5pct(pub_orig, pub_after, disc, sur, fuel, res):
+    """외부 감사팀 검증 — 3회 독립 계산"""
+    errors = []
+    # 감사 1: 5% 할증 적용 금액 검증
+    expected_pub = ceil10(pub_orig * 1.05)
+    if abs(pub_after - expected_pub) > 1:
+        errors.append(f"감사1 실패: 할증후pub={pub_after} ≠ 예상={expected_pub}")
+    # 감사 2: 할인적용 후 견적가 검증
+    expected_disc = ceil10(pub_after * (1 - disc/100))
+    expected_fuel = ceil10(expected_disc * fuel/100)
+    expected_sur_fuel = ceil10(sur * fuel/100)
+    expected_quote = expected_disc + expected_fuel + sur + expected_sur_fuel
+    if abs(res["total_quote"] - expected_quote) > 10:
+        errors.append(f"감사2 실패: 견적={res['total_quote']} ≠ 예상={expected_quote}")
+    # 감사 3: 5% 미적용 시보다 견적가가 반드시 높아야 함
+    res_no5pct = calc_carrier("DHL_check", pub_orig, 0, sur, fuel, disc)
+    if res["total_quote"] <= res_no5pct["total_quote"]:
+        errors.append(f"감사3 실패: 5%할증후({res['total_quote']}) ≤ 미적용({res_no5pct['total_quote']})")
+    return errors
+
+if _dhl_5pct_surcharge and total_pub_dhl > 0:
+    _audit_errors = _audit_dhl_5pct(
+        total_pub_dhl, _dhl_pub_for_calc, disc_dhl,
+        total_sur_dhl, fuel_dhl, res_dhl
+    )
+    if _audit_errors:
+        st.error("🚨 5% 할증 감사 오류: " + " / ".join(_audit_errors))
+    else:
+        st.session_state["_dhl5pct_audit_ok"] = True
 
 # ── UPS 계정 사용료 3% — net_base와 분리하여 net_fee로 전달 ──
 UPS_ACCT_FEE_RATE = 0.03
@@ -3751,9 +3853,10 @@ _dhl_rate_info = {
     "total_w":      _total_w,
     "bracket":      dhl_bracket_str,
     "rate_per_kg":  dhl_rate_per_kg,
-    "disc_rpk":     _disc_rpk(total_pub_dhl, disc_dhl, _total_w),
+    "disc_rpk":     _disc_rpk(_dhl_pub_for_calc, disc_dhl, _total_w),  # 5% 할증 반영
     "disc_pct":     disc_dhl,
     "n_ct":         len(ct_data),
+    "dhl_5pct":     _dhl_5pct_surcharge,  # 감사용 플래그
 }
 _fx_rate_info = {
     "total_w":      _total_w,
@@ -3898,7 +4001,7 @@ with tab1:
         if mr >= 15:  return f'<div class="alert alert-warn">⚠️ 마진 부족 — {pct(tgt-mr)} 미달</div>'
         return f'<div class="alert alert-bad">🚨 마진 위험 — 재검토 필요</div>'
 
-    def render_card(res, name, css_class, badge_class, color, disc_val, tt_info="", acct_info="", is_import=False):
+    def render_card(res, name, css_class, badge_class, color, disc_val, tt_info="", acct_info="", is_import=False, surcharge_5pct=False):
         is_no_svc = res.get("no_service", False)
         # ── UPS 최대한도초과 = Express Freight 전환 필요 ──
         _surs_d = res.get("surs_detail", {})
@@ -4029,7 +4132,7 @@ with tab1:
     {f'<span style="font-size:.95rem;font-weight:700;color:#0369a1;background:#e0f2fe;border-radius:8px;padding:4px 12px;">⏱ {tt_info}</span>' if tt_info else ''}
     {f'<span style="font-size:.9rem;font-weight:700;color:#b45309;background:#fef3c7;border-radius:8px;padding:4px 12px;">{acct_info}</span>' if acct_info else ''}
   </div>
-  <div style="font-size:.92rem;color:#64748b;margin-bottom:4px;">{"매입 할인율" if is_import else "고객 할인율"} <b style="color:#1e293b;">{disc_val:.2f}%</b> {"적용 (원가 기준)" if is_import else "적용"}</div>
+  <div style="font-size:.92rem;color:#64748b;margin-bottom:4px;">{"매입 할인율" if is_import else "고객 할인율"} <b style="color:#1e293b;">{disc_val:.2f}%</b> {"적용 (원가 기준)" if is_import else "적용"}{' <span style="font-size:.72rem;background:#fef3c7;color:#b45309;border-radius:4px;padding:1px 6px;font-weight:800;margin-left:4px;">⚡+5% 할증</span>' if surcharge_5pct else ""}</div>
 
   <!-- ③ 청구금액 + 최저견적 뱃지 한 줄 -->
   <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:4px;">
@@ -4060,7 +4163,7 @@ with tab1:
     if mode == "수출":
         col_d, col_fi, col_fe = st.columns(3, gap="medium")
         col_u1, col_u2, _spacer = st.columns([1, 1, 1], gap="medium")
-        with col_d:  st.markdown(render_card(res_dhl,     "DHL Express",    "dhl",   "badge-dhl",   "#D40511", disc_dhl,     tt_info="1~3 영업일"), unsafe_allow_html=True)
+        with col_d:  st.markdown(render_card(res_dhl,     "DHL Express",    "dhl",   "badge-dhl",   "#D40511", disc_dhl,     tt_info="1~3 영업일", surcharge_5pct=_dhl_5pct_surcharge), unsafe_allow_html=True)
         with col_fi: st.markdown(render_card(res_fedex,   "FedEx IP",       "fedex", "badge-fedex", "#4D148C", disc_fedex,   tt_info="1~3 영업일"), unsafe_allow_html=True)
         with col_fe: st.markdown(render_card(res_fedex_e, "FedEx Economy",  "fedex", "badge-fedex", "#6620b0", disc_fedex_e, tt_info="7~8 영업일"), unsafe_allow_html=True)
         with col_u1: st.markdown(render_card(res_ups2f,   "UPS WW Express", "ups",   "badge-ups",   "#351C15", disc_ups,     tt_info="2~5 영업일", acct_info="계정: 2F94A8"), unsafe_allow_html=True)
@@ -4069,7 +4172,7 @@ with tab1:
     else:  # 수입: 5사 3+2 레이아웃 (수출과 동일)
         col_d, col_fi, col_fe = st.columns(3, gap="medium")
         col_u1, col_u2, _spacer = st.columns([1, 1, 1], gap="medium")
-        with col_d:  st.markdown(render_card(res_dhl,     "DHL Express",    "dhl",   "badge-dhl",   "#D40511", disc_dhl,     tt_info="1~3 영업일", is_import=True), unsafe_allow_html=True)
+        with col_d:  st.markdown(render_card(res_dhl,     "DHL Express",    "dhl",   "badge-dhl",   "#D40511", disc_dhl,     tt_info="1~3 영업일", is_import=True, surcharge_5pct=_dhl_5pct_surcharge), unsafe_allow_html=True)
         with col_fi: st.markdown(render_card(res_fedex,   "FedEx IP",       "fedex", "badge-fedex", "#4D148C", disc_fedex,   tt_info="1~3 영업일", is_import=True), unsafe_allow_html=True)
         with col_fe: st.markdown(render_card(res_fedex_e, "FedEx Economy",  "fedex", "badge-fedex", "#6620b0", disc_fedex_e, tt_info="7~8 영업일", is_import=True), unsafe_allow_html=True)
         with col_u1: st.markdown(render_card(res_ups2f,   "UPS WW Express", "ups",   "badge-ups",   "#351C15", disc_ups,     tt_info="2~5 영업일", is_import=True, acct_info="계정: 2F94A8"), unsafe_allow_html=True)
