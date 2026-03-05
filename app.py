@@ -5,8 +5,259 @@ import io
 import os
 import base64
 import json
+import requests
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
+
+# ═══════════════════════════════════════════════════
+# 📋 구글 시트 고객 데이터 로드 (API 키 불필요)
+# ═══════════════════════════════════════════════════
+_SHEET_ID  = "1qWKHQFPjpW9I_WhQ-3CgSU2Kx5Xv8EwIR0_uc30IgQs"
+_SHEET_GID = "2012998170"  # 고객테이블 탭 gid
+
+@st.cache_data(ttl=300)
+def _load_customer_db() -> pd.DataFrame:
+    """구글 시트에서 고객 할인율 로드 (gid 방식, API 키 불필요)"""
+    url = (f"https://docs.google.com/spreadsheets/d/{_SHEET_ID}"
+           f"/export?format=csv&gid={_SHEET_GID}")
+    try:
+        df = pd.read_csv(url, dtype=str)
+        df.columns = df.columns.str.strip()
+        need = ["회사명", "DHL OUT", "UPS OUT", "FedEx OUT", "DHL IN", "UPS IN", "FedEx IN"]
+        for c in need:
+            if c not in df.columns:
+                df[c] = "0"
+        df = df[need].copy()
+        df["회사명"] = df["회사명"].fillna("").str.strip()
+        df = df[df["회사명"] != ""].reset_index(drop=True)
+        for c in need[1:]:
+            df[c] = pd.to_numeric(
+                df[c].astype(str).str.replace("%","").str.strip(),
+                errors="coerce").fillna(0)
+        return df
+    except Exception as e:
+        st.session_state["_cdb_error"] = str(e)[:200]
+        return pd.DataFrame(columns=["회사명","DHL OUT","UPS OUT","FedEx OUT","DHL IN","UPS IN","FedEx IN"])
+
+def _get_customer_disc(company: str, mode: str) -> dict:
+    """고객명 + 모드로 할인율 dict 반환"""
+    df = _load_customer_db()
+    row = df[df["회사명"] == company]
+    if row.empty:
+        return {"dhl":0.0, "fedex":0.0, "fedex_e":0.0, "ups":0.0}
+    r = row.iloc[0]
+    if mode == "수입":
+        return {
+            "dhl":    float(r.get("DHL IN",  0) or 0),
+            "fedex":  float(r.get("FedEx IN",0) or 0),
+            "fedex_e":float(r.get("FedEx IN",0) or 0),
+            "ups":    float(r.get("UPS IN",  0) or 0),
+        }
+    else:
+        return {
+            "dhl":    float(r.get("DHL OUT",  0) or 0),
+            "fedex":  float(r.get("FedEx OUT",0) or 0),
+            "fedex_e":float(r.get("FedEx OUT",0) or 0),
+            "ups":    float(r.get("UPS OUT",  0) or 0),
+        }
+
+# ═══════════════════════════════════════════════════
+# 🤖 AI 이미지/문서 정보 추출 — Anthropic Claude
+# ═══════════════════════════════════════════════════
+def _validate_extract(r: dict) -> dict:
+    """
+    AI 추출 결과 후처리 검증
+    ① 중량: 총중량 → 1C/T 중량으로 변환 (AI가 이미 했어도 재확인)
+    ② 치수: mm → cm 변환 + 소숫점 올림 (정수)
+    """
+    import math as _math
+
+    # ── ① 치수 mm→cm 변환 + 올림 ──
+    dims = [r.get("length_cm"), r.get("width_cm"), r.get("height_cm")]
+    if any(d is not None for d in dims):
+        vals = [float(d) if d is not None else None for d in dims]
+        # 하나라도 150 이상이면 mm로 판단
+        if any(v is not None and v >= 150 for v in vals):
+            vals = [_math.ceil(v / 10) if v is not None else None for v in vals]
+        else:
+            vals = [_math.ceil(v) if v is not None else None for v in vals]
+        r["length_cm"], r["width_cm"], r["height_cm"] = vals
+
+    # ── ② 중량: ct_count > 1 이고 weight_kg이 총중량처럼 보이면 나누기 ──
+    ct = int(r.get("ct_count") or 1)
+    wt = r.get("weight_kg")
+    if wt is not None and ct > 1:
+        # AI가 이미 나눈 경우: 1C/T 중량이 총중량보다 훨씬 작을 것
+        # AI가 안 나눈 경우: weight_kg이 총중량 그대로일 것
+        # → notes에 "총중량" 언급 여부 or weight가 ct*단위중량에 가까운지 판단 어려우므로
+        #   안전하게: notes에 "총" 또는 "total" 이 있으면 나누기
+        notes = (r.get("notes") or "").lower()
+        if "총" in notes or "total" in notes or "합계" in notes:
+            r["weight_kg"] = round(float(wt) / ct, 2)
+
+    return r
+
+
+def _call_claude(image_bytes: bytes, mime_type: str, api_key: str) -> dict:
+    """Claude API로 송장/이메일 이미지에서 배송 정보 추출"""
+    prompt = """이 이미지(또는 문서)에서 국제특송 배송 정보를 추출해주세요.
+반드시 아래 JSON 형식으로만 답변하세요. 추가 설명 없이 JSON만 출력하세요.
+
+{
+  "country": "국가명 (영어, 예: Turkiye)",
+  "address": "전체 주소 (있는 경우)",
+  "ct_count": 박스 수량 (정수, 없으면 1),
+  "weight_kg": 실중량 kg (숫자, 없으면 null),
+  "length_cm": 가로 cm (정수, 없으면 null),
+  "width_cm": 세로 cm (정수, 없으면 null),
+  "height_cm": 높이 cm (정수, 없으면 null),
+  "notes": "기타 특이사항 (없으면 빈 문자열)"
+}
+
+【중량 규칙】
+- 총중량(total weight)이 표기된 경우: weight_kg = 총중량 ÷ ct_count (박스 1개당 중량)
+- 예) 총 3카톤 / 총 중량 27.3kg → weight_kg = 27.3 ÷ 3 = 9.1
+
+【치수 규칙 — 매우 중요】
+- 국제특송(Express)은 반드시 cm 단위 사용. 소숫점 없이 정수로 올림 처리.
+- 입력값이 cm인지 mm인지 반드시 판단할 것:
+  * cm 기준: 국제특송 박스 최대 크기는 약 120cm×80cm×80cm 이하
+  * 만약 치수 중 하나라도 150 이상이면 → mm로 판단하여 ÷10 후 소숫점 올림
+  * 예) 450×410×265 → 150 이상이므로 mm → 45cm, 41cm, 26.5→27cm (올림)
+  * 예) 45×41×27 → 150 미만이므로 cm → 그대로 45, 41, 27
+- 소숫점 올림: 26.5 → 27, 45.0 → 45 (math.ceil 적용)
+
+국가명은 반드시 영어로 입력하세요."""
+
+    # PDF는 document 타입, 이미지는 image 타입
+    if mime_type == "application/pdf":
+        content_block = {
+            "type": "document",
+            "source": {
+                "type": "base64",
+                "media_type": "application/pdf",
+                "data": base64.b64encode(image_bytes).decode()
+            }
+        }
+    else:
+        content_block = {
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": mime_type,
+                "data": base64.b64encode(image_bytes).decode()
+            }
+        }
+
+    headers = {
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+    }
+    payload = {
+        "model": "claude-haiku-4-5-20251001",
+        "max_tokens": 512,
+        "messages": [{
+            "role": "user",
+            "content": [content_block, {"type": "text", "text": prompt}]
+        }]
+    }
+
+    try:
+        resp = requests.post("https://api.anthropic.com/v1/messages",
+                             headers=headers, json=payload, timeout=30)
+        if resp.status_code == 401:
+            return {"error": "API 키 인증 실패 — secrets.toml의 CLAUDE_API_KEY를 확인해주세요."}
+        if resp.status_code == 429:
+            return {"error": "요청 한도 초과 — 잠시 후 다시 시도해주세요."}
+        if resp.status_code != 200:
+            return {"error": f"API 오류 ({resp.status_code})"}
+        text = resp.json()["content"][0]["text"].strip()
+        text = text.replace("```json", "").replace("```", "").strip()
+        result = json.loads(text)
+        return _validate_extract(result)
+    except requests.exceptions.Timeout:
+        return {"error": "응답 시간 초과 — 다시 시도해주세요."}
+    except json.JSONDecodeError:
+        return {"error": "응답 파싱 실패 — 다시 시도해주세요."}
+    except Exception as e:
+        return {"error": f"오류: {str(e)[:150]}"}
+
+def _call_claude_text(text: str, api_key: str) -> dict:
+    """Claude API로 텍스트에서 배송 정보 추출"""
+    prompt = f"""아래 텍스트에서 국제특송 배송 정보를 추출해주세요.
+반드시 아래 JSON 형식으로만 답변하세요. 추가 설명 없이 JSON만 출력하세요.
+
+{{
+  "country": "국가명 (영어, 예: Turkiye)",
+  "address": "전체 주소 (있는 경우)",
+  "ct_count": 박스 수량 (정수, 없으면 1),
+  "weight_kg": 실중량 kg (숫자, 없으면 null),
+  "length_cm": 가로 cm (정수, 없으면 null),
+  "width_cm": 세로 cm (정수, 없으면 null),
+  "height_cm": 높이 cm (정수, 없으면 null),
+  "notes": "기타 특이사항 (없으면 빈 문자열)"
+}}
+
+【중량 규칙】
+- 총중량(total weight)이 표기된 경우: weight_kg = 총중량 ÷ ct_count (박스 1개당 중량)
+- 예) 총 3카톤 / 총 중량 27.3kg → weight_kg = 27.3 ÷ 3 = 9.1
+
+【치수 규칙 — 매우 중요】
+- 국제특송(Express)은 반드시 cm 단위 사용. 소숫점 없이 정수로 올림 처리.
+- 입력값이 cm인지 mm인지 반드시 판단할 것:
+  * 만약 치수 중 하나라도 150 이상이면 → mm로 판단하여 ÷10 후 소숫점 올림
+  * 예) 450×410×265 → 150 이상이므로 mm → 45cm, 41cm, 26.5→27cm (올림)
+  * 예) 45×41×27 → 150 미만이므로 cm → 그대로 45, 41, 27
+- 소숫점 올림: 26.5 → 27, 45.0 → 45
+
+국가명은 반드시 영어로 입력하세요.
+
+--- 텍스트 시작 ---
+{text}
+--- 텍스트 끝 ---"""
+
+    headers = {
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+    }
+    payload = {
+        "model": "claude-haiku-4-5-20251001",
+        "max_tokens": 512,
+        "messages": [{"role": "user", "content": prompt}]
+    }
+    try:
+        resp = requests.post("https://api.anthropic.com/v1/messages",
+                             headers=headers, json=payload, timeout=30)
+        if resp.status_code == 401:
+            return {"error": "API 키 인증 실패 — secrets.toml의 CLAUDE_API_KEY를 확인해주세요."}
+        if resp.status_code == 429:
+            return {"error": "요청 한도 초과 — 잠시 후 다시 시도해주세요."}
+        if resp.status_code != 200:
+            return {"error": f"API 오류 ({resp.status_code})"}
+        text_out = resp.json()["content"][0]["text"].strip()
+        text_out = text_out.replace("```json", "").replace("```", "").strip()
+        result = json.loads(text_out)
+        return _validate_extract(result)
+    except json.JSONDecodeError:
+        return {"error": "응답 파싱 실패 — 다시 시도해주세요."}
+    except Exception as e:
+        return {"error": f"오류: {str(e)[:150]}"}
+
+def _call_ai_extract_text(text: str) -> dict:
+    api_key = st.secrets.get("CLAUDE_API_KEY", "")
+    if not api_key:
+        return {"error": "CLAUDE_API_KEY가 secrets에 설정되지 않았습니다."}
+    return _call_claude_text(text, api_key)
+
+def _call_ai_extract(image_bytes: bytes, mime_type: str) -> dict:
+    """현재: Anthropic Claude Haiku (이미지/PDF)"""
+    api_key = st.secrets.get("CLAUDE_API_KEY", "")
+    if not api_key:
+        return {"error": "CLAUDE_API_KEY가 secrets에 설정되지 않았습니다.\n.streamlit/secrets.toml에 CLAUDE_API_KEY = \"your_key\" 를 추가하세요."}
+    return _call_claude(image_bytes, mime_type, api_key)
+
 
 # ═══════════════════════════════════════════════════
 # 설정값 영구 저장 / 불러오기
@@ -19,6 +270,8 @@ _PERSIST_KEYS = [
     "disc_dhl", "disc_fedex", "disc_fedex_e", "disc_ups",
     "tgt_margin",
     "imp_disc_ups_b8",   # 수입 전용: UPS B8733R 할인율
+    "mode",              # 수출/수입 모드
+    "our_company", "our_phone", "our_email",  # 담당자 정보 (our_contact는 매번 선택)
 ]
 
 def _get_settings_path():
@@ -56,17 +309,42 @@ def _load_settings():
     return {}
 
 def _save_settings():
-    """현재 session_state의 설정값을 즉시 파일에 저장"""
+    """현재 session_state의 설정값을 파일 + session_state 백업에 동시 저장"""
+    _str_keys = {"mode", "our_company", "our_contact", "our_phone", "our_email"}
+    data = {}
+    for k in _PERSIST_KEYS:
+        if k not in st.session_state:
+            continue
+        if k in _str_keys:
+            data[k] = str(st.session_state[k])
+        else:
+            try:
+                data[k] = float(st.session_state[k])
+            except (TypeError, ValueError):
+                pass
+    # ① session_state 백업 (파일 실패해도 이건 무조건 작동)
+    st.session_state["__settings_backup__"] = data.copy()
+    # ② 파일 저장 (실패해도 무시)
     try:
-        data = {k: float(st.session_state[k]) for k in _PERSIST_KEYS if k in st.session_state}
         with open(_SETTINGS_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
     except Exception:
         pass
 
 def _save_if_changed():
-    """렌더 시점에 값 변경 여부를 확인하여 자동 저장 (on_change 보완)"""
-    current = {k: float(st.session_state.get(k, 0)) for k in _PERSIST_KEYS if k in st.session_state}
+    """렌더 시점에 값 변경 여부를 확인하여 자동 저장"""
+    _str_keys = {"mode", "our_company", "our_contact", "our_phone", "our_email"}
+    current = {}
+    for k in _PERSIST_KEYS:
+        if k not in st.session_state:
+            continue
+        if k in _str_keys:
+            current[k] = str(st.session_state[k])
+        else:
+            try:
+                current[k] = float(st.session_state[k])
+            except (TypeError, ValueError):
+                pass
     if current != st.session_state.get("__last_saved__", {}):
         _save_settings()
         st.session_state["__last_saved__"] = current.copy()
@@ -291,38 +569,41 @@ section[data-testid="stSidebar"] ::-webkit-scrollbar-thumb { background:#2d4a8a;
 [data-testid="stVerticalBlock"] > div > div { height:100%; }
 
 /* ── 뱃지 ── */
-.carrier-badge { font-size:.7rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; padding:2px 10px; border-radius:20px; display:inline-block; margin-bottom:8px; }
-.badge-dhl   { background:#fff0f0; color:#b91c1c; border:1px solid #fca5a5; }
-.badge-fedex { background:#f3f0ff; color:#6d28d9; border:1px solid #c4b5fd; }
-.badge-ups   { background:#fff7ed; color:#92400e; border:1px solid #fdba74; }
+.carrier-badge {
+    font-size:1.05rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase;
+    padding:6px 18px; border-radius:24px; display:inline-block; margin-bottom:0;
+    white-space:nowrap;
+}
+.badge-dhl   { background:#fff0f0; color:#b91c1c; border:2px solid #fca5a5; }
+.badge-fedex { background:#f3f0ff; color:#6d28d9; border:2px solid #c4b5fd; }
+.badge-ups   { background:#fff7ed; color:#92400e; border:2px solid #fdba74; }
 .badge-best  {
     background:linear-gradient(135deg,#1d4ed8,#2563eb);
-    color:white; float:right; font-size:.68rem; border:none;
-    padding:3px 12px; letter-spacing:.06em;
-    box-shadow: 0 2px 8px rgba(37,99,235,.35);
+    color:white; font-size:1rem; border:none;
+    padding:6px 16px; letter-spacing:.06em; font-weight:800;
+    box-shadow: 0 3px 12px rgba(37,99,235,.40);
+    border-radius:24px; display:inline-flex; align-items:center; gap:5px;
+    white-space:nowrap;
 }
 
 /* ── 운임 숫자 계층: 3단계 ── */
-/* 1단계: 총 청구금액 — 가장 크고 강하게 */
 .carrier-quote {
     font-family:'JetBrains Mono',monospace;
-    font-size:2.15rem; font-weight:700;
-    margin:8px 0 4px; line-height:1.1;
+    font-size:2.6rem; font-weight:800;
+    margin:10px 0 2px; line-height:1.1;
     letter-spacing:-.02em;
 }
-/* 2단계: 원가 — 중간 */
-.carrier-cost  { font-family:'JetBrains Mono',monospace; font-size:.95rem; color:#64748b; }
-/* 3단계: 기타 정보 — 작게 */
-.carrier-margin{ font-size:1rem; font-weight:700; margin-top:4px; }
+.carrier-cost  { font-family:'JetBrains Mono',monospace; font-size:1.05rem; color:#64748b; }
+.carrier-margin{ font-size:1.15rem; font-weight:800; margin-top:4px; }
 
 .breakdown-row {
     display:flex; justify-content:space-between;
-    padding:5px 0; border-bottom:1px solid rgba(0,0,0,.05);
-    font-size:.78rem;
+    padding:7px 0; border-bottom:1px solid rgba(0,0,0,.06);
+    font-size:.92rem;
 }
 .breakdown-row:last-child { border:none; }
-.bd-label { color:#64748b; }
-.bd-cost  { font-family:'JetBrains Mono',monospace; color:#1e293b; }
+.bd-label { color:#64748b; font-size:.9rem; }
+.bd-cost  { font-family:'JetBrains Mono',monospace; color:#1e293b; font-size:.92rem; }
 
 /* ── 비교 요약 테이블 ── */
 .compare-table {
@@ -348,7 +629,7 @@ section[data-testid="stSidebar"] ::-webkit-scrollbar-thumb { background:#2d4a8a;
 .td-hl    { font-weight:700 !important; }
 
 /* ── 알림 ── */
-.alert { border-radius:10px; padding:9px 14px; font-size:.8rem; font-weight:600; margin:4px 0; }
+.alert { border-radius:10px; padding:11px 16px; font-size:.95rem; font-weight:700; margin:4px 0; }
 .alert-ok   { background:#ecfdf5; border:1px solid #6ee7b7; color:#065f46; }
 .alert-warn { background:#fffbeb; border:1px solid #fcd34d; color:#92400e; }
 .alert-bad  { background:#fff1f2; border:1px solid #fca5a5; color:#9f1239; }
@@ -2033,6 +2314,7 @@ def generate_pdf(quote_num, customer, dest_country, zone_label, ct_count,
 
     info_L = [
         ("수    신", customer or "-"),
+        ("수신담당자", st.session_state.get("customer_contact", "") or "-"),
         ("목 적 지", dest_country),
         ("운송 구분", _mode_str),
         ("화물 구분", _cargo_type_str),
@@ -2491,22 +2773,26 @@ _DEFAULTS = {
     "imp_disc_ups_b8":   0.0,
     # ※ 유류할증료·DHL/FedEx 할인율·목표마진은 수출키(fuel_dhl 등)를 공유사용
     "our_company":  "(주)에어브리지",
-    "our_contact":  "",
-    "our_phone":    "",
-    "our_email":    "",
+    "our_contact":  "",   # 시작 시 공란 (담당자 미선택)
+    "our_phone":    "032-502-1880",  # 공란일 때 대표번호
+    "our_email":    "cs@airos.co.kr",
 }
-# [프로그래머A] 초기화: 파일 저장값 강제 우선 적용
-# "최초 1회" 보호는 __settings_loaded__ 플래그로 처리
+# ── 초기화: 백업 → 파일 → 기본값 순으로 복원 ──
 if "settings_loaded" not in st.session_state:
+    # 최초 실행: 파일에서 로드
     for _k, _v in _DEFAULTS.items():
-        # 파일에 저장된 값이 있으면 무조건 파일값 적용 (기본값 무시)
         st.session_state[_k] = _SAVED.get(_k, _v)
     st.session_state["settings_loaded"] = True
+    st.session_state["__settings_backup__"] = {
+        k: st.session_state[k] for k in _PERSIST_KEYS if k in st.session_state
+    }
 else:
-    # 이후 렌더: 없는 키만 기본값으로 채움 (위젯 변경값 유지)
+    # rerun 시: session_state 백업에서 복원 (파일 실패해도 안전)
+    _backup = st.session_state.get("__settings_backup__", {})
+    _restore_src = _backup if _backup else _SAVED
     for _k, _v in _DEFAULTS.items():
         if _k not in st.session_state:
-            st.session_state[_k] = _v
+            st.session_state[_k] = _restore_src.get(_k, _v)
 
 # ═══════════════════════════════════════════════════
 # 사이드바
@@ -2570,14 +2856,14 @@ with st.sidebar:
     with mode_cols[0]:
         if st.button("✈ 수  출", key="btn_exp", use_container_width=True,
                      type="primary" if st.session_state.get("mode","수출")=="수출" else "secondary"):
-            _save_settings()
             st.session_state["mode"] = "수출"
+            _save_settings()
             st.rerun()
     with mode_cols[1]:
         if st.button("📦 수  입", key="btn_imp", use_container_width=True,
                      type="primary" if st.session_state.get("mode","수출")=="수입" else "secondary"):
-            _save_settings()
             st.session_state["mode"] = "수입"
+            _save_settings()
             st.rerun()
     mode = st.session_state.get("mode", "수출")
     st.markdown(f'''<div data-airbridge-mode="{'imp' if mode=='수입' else 'exp'}"
@@ -2594,21 +2880,134 @@ with st.sidebar:
         border-left:3px solid {_sb_accent};border-radius:8px;padding:8px 10px 2px;margin-bottom:6px;">
         <div style="font-size:.68rem;color:{_sb_title};font-weight:700;letter-spacing:.07em;margin-bottom:6px;">
         📋 기본 정보</div>""", unsafe_allow_html=True)
-    customer  = st.text_input("고객명 (수신)", placeholder="(주)고객사명", key="customer_input")
-    quote_num = st.text_input("견적번호", value=f"AB-{datetime.now().strftime('%Y%m%d')}-001", key="quote_num")
+
+    # 고객 DB 로드
+    _cdb = _load_customer_db()
+    _cnames = ["직접입력"] + sorted(_cdb["회사명"].tolist()) if not _cdb.empty else ["직접입력"]
+
+    # 이전 선택 유지
+    _prev_sel = st.session_state.get("customer_db_select", "직접입력")
+    _sel_idx  = _cnames.index(_prev_sel) if _prev_sel in _cnames else 0
+
+    selected_customer = st.selectbox(
+        "🏢 고객사 선택", _cnames, index=_sel_idx, key="customer_db_select",
+        help="선택 시 할인율 자동 입력"
+    )
+
+    if selected_customer != "직접입력":
+        # 선택된 고객명 자동 입력
+        st.session_state["customer_input"] = selected_customer
+        # 할인율 자동 주입
+        _disc = _get_customer_disc(selected_customer, st.session_state.get("mode","수출"))
+        st.session_state["disc_dhl"]     = _disc["dhl"]
+        st.session_state["disc_fedex"]   = _disc["fedex"]
+        st.session_state["disc_fedex_e"] = _disc["fedex_e"]
+        st.session_state["disc_ups"]     = _disc["ups"]
+        # 할인율 미리보기
+        st.markdown(f"""
+<div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);
+     border-radius:7px;padding:7px 10px;margin:4px 0 6px;font-size:.72rem;">
+  <div style="color:#60a5fa;font-weight:800;margin-bottom:4px;">💰 할인율 자동 적용</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;color:#cbd5e1;">
+    <span>DHL</span><span style="text-align:right;font-weight:700;color:#e2e8f0;">{_disc['dhl']:.2f}%</span>
+    <span>FedEx</span><span style="text-align:right;font-weight:700;color:#e2e8f0;">{_disc['fedex']:.2f}%</span>
+    <span>UPS</span><span style="text-align:right;font-weight:700;color:#e2e8f0;">{_disc['ups']:.2f}%</span>
+  </div>
+</div>""", unsafe_allow_html=True)
+
+    customer         = st.text_input("수신 회사명", placeholder="(주)고객사명", key="customer_input")
+    customer_contact = st.text_input("수신 담당자명", placeholder="홍길동 부장", key="customer_contact")
+    quote_num        = st.text_input("견적번호", value=f"AB-{datetime.now().strftime('%Y%m%d')}-001", key="quote_num")
+
+    # 고객 DB 새로고침 버튼
+    if st.button("🔄 고객 DB 새로고침", key="btn_refresh_cdb", use_container_width=True):
+        st.cache_data.clear()
+        _cdb2 = _load_customer_db()
+        if _cdb2.empty:
+            _err = st.session_state.get("_cdb_error", "원인 불명")
+            st.error(f"❌ 로드 실패: {_err}")
+            st.info(f"시도한 URL: https://docs.google.com/spreadsheets/d/{_SHEET_ID}/export?format=csv&gid={_SHEET_GID}")
+            st.stop()  # rerun 없이 멈춰서 오류 표시 유지
+        else:
+            st.success(f"✅ {len(_cdb2)}개 고객사 로드 완료!")
+            st.rerun()
+
     st.markdown("</div>", unsafe_allow_html=True)
 
     # ── 담당자 정보 섹션 ──
+    # 담당자 고정 목록
+    _STAFF = {
+        "호영준": {"phone": "010-3767-5413", "email": "cs@airos.co.kr"},
+        "양희석": {"phone": "010-4594-0768", "email": "cs@airos.co.kr"},
+        "이현종": {"phone": "010-4767-3264", "email": "cs@airos.co.kr"},
+    }
+    _FIXED_COMPANY = "(주)에어브리지"
+    _FIXED_EMAIL   = "cs@airos.co.kr"
+    _DEFAULT_PHONE = "032-502-1880"
+
     st.markdown(f"""<div style="background:rgba(255,255,255,.04);border:1px solid {_sb_border};
-        border-left:3px solid {_sb_accent};border-radius:8px;padding:8px 10px 2px;margin-bottom:6px;">
-        <div style="font-size:.68rem;color:{_sb_label};font-weight:700;letter-spacing:.07em;margin-bottom:6px;">
+        border-left:3px solid {_sb_accent};border-radius:8px;padding:8px 10px 6px;margin-bottom:6px;">
+        <div style="font-size:.68rem;color:{_sb_label};font-weight:700;letter-spacing:.07em;margin-bottom:4px;">
         🏢 담당자 정보</div>
-        <div style="font-size:.62rem;color:#64748b;margin-bottom:4px;">PDF 견적서에 표시됩니다</div>""",
+        <div style="font-size:.62rem;color:#64748b;margin-bottom:6px;">PDF 견적서에 표시됩니다</div>""",
         unsafe_allow_html=True)
-    our_company = st.text_input("회사명",   key="our_company")
-    our_contact = st.text_input("담당자명", key="our_contact")
-    our_phone   = st.text_input("연락처",   key="our_phone",   placeholder="02-1234-5678")
-    our_email   = st.text_input("이메일",   key="our_email",   placeholder="airbridge@example.com")
+
+    # 회사명 고정 표시
+    st.markdown(f'<div style="font-size:.7rem;color:#94a3b8;margin-bottom:2px;">회사명</div>'
+                f'<div style="font-size:.88rem;font-weight:800;color:#e2e8f0;'
+                f'background:rgba(255,255,255,.06);border-radius:6px;padding:6px 10px;margin-bottom:8px;">'
+                f'🏢 {_FIXED_COMPANY}</div>', unsafe_allow_html=True)
+
+    # 담당자 선택 → 연락처·이메일 자동 입력
+    _staff_names = ["선택하세요"] + list(_STAFF.keys())
+    _cur_contact = st.session_state.get("our_contact", "")
+    _staff_idx   = _staff_names.index(_cur_contact) if _cur_contact in _staff_names else 0
+
+    selected_staff = st.selectbox("담당자 선택", _staff_names, index=_staff_idx, key="staff_select")
+
+    if selected_staff != "선택하세요":
+        _info = _STAFF[selected_staff]
+        st.session_state["our_company"] = _FIXED_COMPANY
+        st.session_state["our_contact"] = selected_staff
+        st.session_state["our_phone"]   = _info["phone"]
+        st.session_state["our_email"]   = _FIXED_EMAIL
+        _save_settings()
+        # 자동 입력된 값 표시
+        st.markdown(f"""
+<div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);
+     border-radius:8px;padding:8px 12px;margin-top:4px;">
+  <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+    <span style="font-size:.7rem;color:#94a3b8;">📞 연락처</span>
+    <span style="font-size:.82rem;font-weight:800;color:#e2e8f0;">{_info['phone']}</span>
+  </div>
+  <div style="display:flex;justify-content:space-between;">
+    <span style="font-size:.7rem;color:#94a3b8;">✉ 이메일</span>
+    <span style="font-size:.78rem;font-weight:700;color:#e2e8f0;">{_FIXED_EMAIL}</span>
+  </div>
+</div>""", unsafe_allow_html=True)
+    else:
+        st.session_state["our_company"] = _FIXED_COMPANY
+        st.session_state["our_contact"] = ""
+        st.session_state["our_phone"]   = _DEFAULT_PHONE
+        st.session_state["our_email"]   = _FIXED_EMAIL
+        # 공란일 때 기본 연락처 표시
+        st.markdown(f"""
+<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);
+     border-radius:8px;padding:8px 12px;margin-top:4px;">
+  <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+    <span style="font-size:.7rem;color:#64748b;">📞 대표 연락처</span>
+    <span style="font-size:.82rem;font-weight:800;color:#94a3b8;">{_DEFAULT_PHONE}</span>
+  </div>
+  <div style="display:flex;justify-content:space-between;">
+    <span style="font-size:.7rem;color:#64748b;">✉ 이메일</span>
+    <span style="font-size:.78rem;font-weight:700;color:#94a3b8;">{_FIXED_EMAIL}</span>
+  </div>
+</div>""", unsafe_allow_html=True)
+
+    our_company = _FIXED_COMPANY
+    our_contact = st.session_state.get("our_contact", "")
+    our_phone   = st.session_state.get("our_phone", _DEFAULT_PHONE)
+    our_email   = _FIXED_EMAIL
     st.markdown("</div>", unsafe_allow_html=True)
 
     # ── 목적지 섹션 ──
@@ -2661,8 +3060,14 @@ with st.sidebar:
     countries_raw = sorted(DHL_ZONE_MAP.keys())
     # 한국어명 (영어명) 형식으로 표시
     countries_display = [f"{COUNTRY_KR.get(c, c)} ({c})" for c in countries_raw]
-    default_idx = countries_raw.index("United States of America")
-    selected_display = st.selectbox("목적지 국가", countries_display, index=default_idx, key="dest_select")
+
+    # AI 추출로 국가가 주입된 경우 → dest_select 키를 직접 덮어씀
+    _ai_forced_country = st.session_state.pop("selected_country_raw", None)
+    if _ai_forced_country and _ai_forced_country in countries_raw:
+        _forced_display = f"{COUNTRY_KR.get(_ai_forced_country, _ai_forced_country)} ({_ai_forced_country})"
+        st.session_state["dest_select"] = _forced_display
+
+    selected_display = st.selectbox("목적지 국가", countries_display, key="dest_select")
     # 선택된 표시문자에서 실제 영어 국가명 추출
     dest_country = countries_raw[countries_display.index(selected_display)]
     dhl_zone = DHL_ZONE_MAP.get(dest_country, 5)
@@ -2716,44 +3121,295 @@ with st.sidebar:
 
     st.markdown("---")
 
-    # FedEx 스타일: 유형별 수량 입력 (동일 스펙 N박스 = 1유형 + 수량)
-    st.markdown(f'<div style="background:rgba(255,255,255,.04);border:1px solid {_sb_border};border-left:3px solid {_sb_accent};border-radius:8px;padding:10px 10px 6px;margin-bottom:6px;"><div style="font-size:.68rem;color:{_sb_label};font-weight:700;letter-spacing:.07em;margin-bottom:6px;">📦 패키지 정보</div>', unsafe_allow_html=True)
+    # ══════════════════════════════════════════════════════════
+    # 🤖 AI 자동 추출 — 3가지 입력 방식
+    # ══════════════════════════════════════════════════════════
+    st.markdown(f"""
+<div style="background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(139,92,246,.15));
+     border:1px solid rgba(139,92,246,.4);border-left:3px solid #8b5cf6;
+     border-radius:8px;padding:8px 12px 6px;margin-bottom:8px;">
+  <div style="font-size:.72rem;color:#a78bfa;font-weight:800;letter-spacing:.06em;">🤖 AI 자동 추출 (Beta)</div>
+  <div style="font-size:.65rem;color:#94a3b8;margin-top:2px;">국가·C/T·중량·사이즈 자동 입력</div>
+</div>""", unsafe_allow_html=True)
+
+    ai_tab1, ai_tab2, ai_tab3 = st.tabs(["📁 파일", "📋 캡처붙넣기", "✏️ 텍스트"])
+
+    # ── 탭1: 파일 업로드 ──
+    with ai_tab1:
+        ai_file = st.file_uploader(
+            "송장 / 이메일 / 패킹리스트",
+            type=["jpg", "jpeg", "png", "webp", "pdf"],
+            key="ai_scan_file",
+            help="사진, 스크린샷, 스캔 PDF 모두 가능"
+        )
+        if ai_file is not None:
+            if ai_file.type.startswith("image"):
+                st.image(ai_file, use_container_width=True)
+            if st.button("🔍 AI 분석", key="btn_ai_scan", use_container_width=True):
+                with st.spinner("AI가 문서를 읽는 중..."):
+                    file_bytes = ai_file.read()
+                    mime = ai_file.type if ai_file.type != "application/octet-stream" else "image/jpeg"
+                    result = _call_ai_extract(file_bytes, mime)
+                if "error" in result:
+                    st.error(f"❌ {result['error']}")
+                else:
+                    st.session_state["ai_extract_result"] = result
+                    st.success("✅ 추출 완료!")
+
+    # ── 탭2: 클립보드 캡처 붙여넣기 ──
+    with ai_tab2:
+        try:
+            from streamlit_paste_button import paste_image_button as pbutton
+
+            # 사용법 안내
+            st.markdown("""
+<div style="background:rgba(99,102,241,.1);border-radius:8px;padding:10px 12px;margin-bottom:10px;">
+  <div style="font-size:.75rem;font-weight:800;color:#a78bfa;margin-bottom:6px;">📌 사용 방법</div>
+  <div style="display:flex;flex-direction:column;gap:5px;">
+    <div style="font-size:.78rem;color:#e2e8f0;">
+      <span style="background:#6366f1;color:white;border-radius:50%;padding:1px 6px;font-size:.7rem;font-weight:800;margin-right:6px;">1</span>
+      화면 캡처: <b style="color:#a78bfa;">Win + Shift + S</b>
+    </div>
+    <div style="font-size:.78rem;color:#e2e8f0;">
+      <span style="background:#6366f1;color:white;border-radius:50%;padding:1px 6px;font-size:.7rem;font-weight:800;margin-right:6px;">2</span>
+      아래 버튼 클릭 후 <b style="color:#a78bfa;">Ctrl + V</b>
+    </div>
+    <div style="font-size:.78rem;color:#e2e8f0;">
+      <span style="background:#6366f1;color:white;border-radius:50%;padding:1px 6px;font-size:.7rem;font-weight:800;margin-right:6px;">3</span>
+      이미지 확인 후 <b style="color:#a78bfa;">🔍 AI 분석</b> 클릭
+    </div>
+  </div>
+</div>""", unsafe_allow_html=True)
+
+            paste_result = pbutton(
+                "② 여기 클릭 후 → Ctrl+V",
+                text_color="#ffffff",
+                background_color="#6366f1",
+                hover_background_color="#4f46e5",
+                key="paste_btn"
+            )
+            if paste_result.image_data is not None:
+                st.image(paste_result.image_data, use_container_width=True)
+                img_buf = io.BytesIO()
+                paste_result.image_data.save(img_buf, format="PNG")
+                img_bytes = img_buf.getvalue()
+                if st.button("🔍 AI 분석", key="btn_ai_paste", use_container_width=True):
+                    with st.spinner("AI가 이미지를 읽는 중..."):
+                        result = _call_ai_extract(img_bytes, "image/png")
+                    if "error" in result:
+                        st.error(f"❌ {result['error']}")
+                    else:
+                        st.session_state["ai_extract_result"] = result
+                        st.success("✅ 추출 완료!")
+            else:
+                st.markdown('<div style="text-align:center;font-size:.7rem;color:#64748b;margin-top:4px;">👆 버튼 클릭 후 Ctrl+V 하면 이미지가 나타납니다</div>', unsafe_allow_html=True)
+
+        except ImportError:
+            st.info("📦 캡처 붙여넣기 기능을 사용하려면 아래 명령어를 실행하세요:")
+            st.code("pip install streamlit-paste-button", language="bash")
+
+    # ── 탭3: 텍스트 붙여넣기 ──
+    with ai_tab3:
+        st.markdown('<div style="font-size:.72rem;color:#94a3b8;margin-bottom:4px;">이메일·메시지 내용을 그대로 붙여넣으세요</div>', unsafe_allow_html=True)
+        ai_text = st.text_area(
+            "텍스트 입력",
+            placeholder="예) 도착지: Istanbul Turkey\n사이즈: 12x12x125cm, 7kg\n수량: 1박스",
+            height=130,
+            key="ai_text_input",
+            label_visibility="collapsed"
+        )
+        if st.button("🔍 AI 분석", key="btn_ai_text", use_container_width=True, disabled=not ai_text):
+            with st.spinner("AI가 텍스트를 분석 중..."):
+                result = _call_ai_extract_text(ai_text)
+            if "error" in result:
+                st.error(f"❌ {result['error']}")
+            else:
+                st.session_state["ai_extract_result"] = result
+                st.success("✅ 추출 완료!")
+
+    # ── 추출 결과 표시 & 적용 (공통) ──
+    _ai_res = st.session_state.get("ai_extract_result")
+    if _ai_res and "error" not in _ai_res:
+        st.markdown(f"""
+<div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.3);
+     border-radius:8px;padding:10px 12px;margin:6px 0;">
+  <div style="font-size:.72rem;font-weight:800;color:#818cf8;margin-bottom:6px;">📋 추출 결과</div>
+  <table style="width:100%;font-size:.78rem;border-collapse:collapse;">
+    <tr><td style="color:#94a3b8;padding:3px 0;">🌍 국가</td>
+        <td style="color:#e2e8f0;font-weight:700;text-align:right;">{_ai_res.get("country","—")}</td></tr>
+    <tr><td style="color:#94a3b8;padding:3px 0;">📦 C/T</td>
+        <td style="color:#e2e8f0;font-weight:700;text-align:right;">{_ai_res.get("ct_count",1)} 박스</td></tr>
+    <tr><td style="color:#94a3b8;padding:3px 0;">⚖ 중량</td>
+        <td style="color:#e2e8f0;font-weight:700;text-align:right;">{_ai_res.get("weight_kg","—")} kg</td></tr>
+    <tr><td style="color:#94a3b8;padding:3px 0;">📐 사이즈</td>
+        <td style="color:#e2e8f0;font-weight:700;text-align:right;">
+          {_ai_res.get("length_cm","—")}×{_ai_res.get("width_cm","—")}×{_ai_res.get("height_cm","—")} cm
+        </td></tr>
+    {f'<tr><td colspan="2" style="color:#fbbf24;font-size:.68rem;padding-top:4px;">💬 {_ai_res.get("notes","")}</td></tr>' if _ai_res.get("notes") else ""}
+  </table>
+</div>""", unsafe_allow_html=True)
+
+        col_apply, col_clear = st.columns(2)
+        with col_apply:
+            if st.button("✅ 적용", key="btn_ai_apply", use_container_width=True):
+                _ai_country = _ai_res.get("country", "")
+                if _ai_country:
+                    # 국가명 별칭 매핑 (AI가 다르게 추출하는 경우 대비)
+                    _aliases = {
+                        "turkey": "Turkiye", "türkiye": "Turkiye", "turkiye": "Turkiye",
+                        "korea": "South Korea", "south korea": "South Korea",
+                        "usa": "United States of America", "us": "United States of America",
+                        "united states": "United States of America", "america": "United States of America",
+                        "uk": "United Kingdom", "england": "United Kingdom", "britain": "United Kingdom",
+                        "uae": "United Arab Emirates",
+                        "taiwan": "Taiwan, China",
+                        "russia": "Russia", "hong kong": "Hong Kong SAR China",
+                        "macau": "Macau SAR China", "macao": "Macau SAR China",
+                        "vietnam": "Vietnam", "viet nam": "Vietnam",
+                        "czech": "Czech Republic", "czechia": "Czech Republic",
+                    }
+                    _matched = None
+                    _ai_lower = _ai_country.lower().strip()
+                    # 1순위: 별칭 직접 매핑
+                    if _ai_lower in _aliases:
+                        _matched = _aliases[_ai_lower]
+                    else:
+                        # 2순위: 완전 일치 (대소문자 무시)
+                        for c in countries_raw:
+                            if c.lower() == _ai_lower:
+                                _matched = c; break
+                        if not _matched:
+                            # 3순위: 포함 관계
+                            for c in countries_raw:
+                                if _ai_lower in c.lower() or c.lower() in _ai_lower:
+                                    _matched = c; break
+                    if _matched:
+                        st.session_state["selected_country_raw"] = _matched
+                _ct = int(_ai_res.get("ct_count") or 1)
+                _wt = float(_ai_res.get("weight_kg") or 35.0)
+                _l  = float(_ai_res.get("length_cm") or 30.0)
+                _w  = float(_ai_res.get("width_cm")  or 30.0)
+                _h  = float(_ai_res.get("height_cm") or 30.0)
+                st.session_state["pkg_types"] = 1
+                st.session_state["qty_0"] = _ct
+                st.session_state["wt_0"]  = _wt
+                st.session_state["L_0"]   = _l
+                st.session_state["W_0"]   = _w
+                st.session_state["H_0"]   = _h
+                st.session_state["ai_extract_result"] = None
+                _save_settings()  # ← rerun 전 반드시 저장
+                st.rerun()
+        with col_clear:
+            if st.button("🗑 초기화", key="btn_ai_clear", use_container_width=True):
+                st.session_state["ai_extract_result"] = None
+                _save_settings()  # ← rerun 전 반드시 저장
+                st.rerun()
+
+    st.markdown("---")
+    st.markdown(f"""
+<div style="background:rgba(255,255,255,.04);border:1px solid {_sb_border};
+     border-left:3px solid {_sb_accent};border-radius:8px;
+     padding:8px 12px 4px;margin-bottom:4px;">
+  <div style="font-size:.68rem;color:{_sb_label};font-weight:700;
+       letter-spacing:.07em;">📦 패키지 정보</div>
+</div>""", unsafe_allow_html=True)
+
     n_types = st.session_state.pkg_types
     ct_data = []
+
     for i in range(n_types):
         qty_cur = int(st.session_state.get(f"qty_{i}", 1))
-        hL, hR = st.columns([4, 1])
+
+        # ── 유형 헤더 행: 라벨 + 삭제 버튼 ──
+        hL, hR = st.columns([5, 1])
         with hL:
-            _bgt = (f' <b style="color:{_sb_ct_fg};">{qty_cur}박스</b>' if qty_cur > 1 else "")
-            st.markdown(f'<div style="font-size:.72rem;font-weight:800;color:{_sb_accent};">유형 {i+1}{_bgt}</div>', unsafe_allow_html=True)
+            _bgt = f'&nbsp;<span style="color:{_sb_ct_fg};font-weight:700;">× {qty_cur}</span>' if qty_cur > 1 else ""
+            st.markdown(
+                f'<div style="font-size:.72rem;font-weight:800;color:{_sb_accent};'
+                f'padding:4px 0 2px;">BOX 유형 {i+1}{_bgt}</div>',
+                unsafe_allow_html=True)
         with hR:
             if n_types > 1 and st.button("✕", key=f"del_{i}", use_container_width=True):
-                for j in range(i, n_types-1):
-                    for k in ["qty","wt","L","W","H"]: st.session_state[f"{k}_{j}"] = st.session_state.get(f"{k}_{j+1}", {"qty":1,"wt":35.,"L":30.,"W":30.,"H":30.}[k])
-                st.session_state.pkg_types -= 1; st.rerun()
-        qa, qb = st.columns([1, 2])
-        with qa: qty_val = st.number_input("수량(박스)", 1, 99, qty_cur, 1, key=f"qty_{i}", help="동일 스펙 박스 수")
-        with qb: wt_i = st.number_input("실중량(kg)", .1, 1000., float(st.session_state.get(f"wt_{i}", 35.)), .5, key=f"wt_{i}")
-        d1,d2,d3 = st.columns(3)
-        with d1: li = st.number_input("가로(cm)", 1., 500., float(st.session_state.get(f"L_{i}", 30.)), 1., key=f"L_{i}")
-        with d2: wi = st.number_input("세로(cm)", 1., 500., float(st.session_state.get(f"W_{i}", 30.)), 1., key=f"W_{i}")
-        with d3: hi = st.number_input("높이(cm)", 1., 500., float(st.session_state.get(f"H_{i}", 30.)), 1., key=f"H_{i}")
-        for _ in range(int(qty_val)): ct_data.append({"wt": wt_i, "L": li, "W": wi, "H": hi})
-        if i < n_types-1: st.markdown(f'<hr style="border:none;border-top:1px dashed {_sb_border};margin:8px 0;">', unsafe_allow_html=True)
+                for j in range(i, n_types - 1):
+                    for k in ["qty", "wt", "L", "W", "H"]:
+                        st.session_state[f"{k}_{j}"] = st.session_state.get(
+                            f"{k}_{j+1}", {"qty":1,"wt":35.,"L":30.,"W":30.,"H":30.}[k])
+                st.session_state.pkg_types -= 1
+                _save_settings()
+                st.rerun()
+
+        # ── 수량 + 실중량: 2칸 균등 ──
+        c_qty, c_wt = st.columns(2)
+        with c_qty:
+            qty_val = st.number_input("수량 (박스)", 1, 99, step=1,
+                                      key=f"qty_{i}", help="동일 스펙 박스 수")
+        with c_wt:
+            wt_i = st.number_input("실중량 (kg)", 0.1, 1000., step=0.5,
+                                   key=f"wt_{i}")
+
+        # ── 가로 / 세로 / 높이: 3칸 균등 ──
+        c_l, c_w, c_h = st.columns(3)
+        with c_l: li = st.number_input("가로 (cm)", 1., 500., step=1., key=f"L_{i}")
+        with c_w: wi = st.number_input("세로 (cm)", 1., 500., step=1., key=f"W_{i}")
+        with c_h: hi = st.number_input("높이 (cm)", 1., 500., step=1., key=f"H_{i}")
+
+        # 부피중량 미리보기
+        _vw_prev = round(li * wi * hi / 5000, 2)
+        _cw_prev = max(wt_i, _vw_prev)
+        _basis_prev = "부피중량" if _vw_prev > wt_i else "실중량"
+        _charge_prev = __import__('math').ceil(_cw_prev * 2) / 2
+        st.markdown(
+            f'<div style="background:rgba(255,255,255,.06);border-radius:6px;'
+            f'padding:5px 10px;margin:2px 0 6px;'
+            f'display:flex;justify-content:space-between;align-items:center;">'
+            f'<span style="font-size:.65rem;color:#94a3b8;">부피중량</span>'
+            f'<span style="font-size:.7rem;color:#cbd5e1;font-family:monospace;">{_vw_prev:.2f} kg</span>'
+            f'<span style="font-size:.65rem;color:#94a3b8;">청구중량</span>'
+            f'<span style="font-size:.75rem;font-weight:700;color:{_sb_accent};font-family:monospace;">'
+            f'{_charge_prev:.1f} kg</span>'
+            f'<span style="font-size:.62rem;color:#64748b;background:rgba(255,255,255,.08);'
+            f'border-radius:3px;padding:1px 5px;">{_basis_prev}</span>'
+            f'</div>',
+            unsafe_allow_html=True)
+
+        for _ in range(int(qty_val)):
+            ct_data.append({"wt": wt_i, "L": li, "W": wi, "H": hi})
+
+        if i < n_types - 1:
+            st.markdown(
+                f'<hr style="border:none;border-top:1px dashed {_sb_border};margin:6px 0;">',
+                unsafe_allow_html=True)
+
+    # ── 하단: ➖ | 총 C/T 뱃지 | ➕ ──
     total_ct = len(ct_data)
     bl, bc, br2 = st.columns([1, 2, 1])
     with bl:
-        if n_types > 1 and st.button("➖ 유형", key="del_type"): st.session_state.pkg_types = max(1, n_types-1); st.rerun()
+        if n_types > 1 and st.button("➖", key="del_type", use_container_width=True,
+                                      help="유형 삭제"):
+            st.session_state.pkg_types = max(1, n_types - 1)
+            _save_settings()
+            st.rerun()
     with bc:
-        _nt = (f" ({n_types}유형)" if n_types > 1 else "")
-        st.markdown(f'<div style="text-align:center;padding:7px;background:{_sb_ct_bg};border-radius:7px;color:{_sb_ct_fg};font-weight:700;border:1px solid {_sb_ct_bdr};font-size:.82rem;">총 {total_ct} C/T{_nt}</div>', unsafe_allow_html=True)
+        _nt = f" / {n_types}유형" if n_types > 1 else ""
+        st.markdown(
+            f'<div style="text-align:center;padding:6px 4px;'
+            f'background:{_sb_ct_bg};border-radius:7px;'
+            f'color:{_sb_ct_fg};font-weight:800;'
+            f'border:1px solid {_sb_ct_bdr};font-size:.8rem;">'
+            f'총 {total_ct} C/T{_nt}</div>',
+            unsafe_allow_html=True)
     with br2:
-        if n_types < 5 and st.button("➕ 유형", key="add_type"):
+        if n_types < 5 and st.button("➕", key="add_type", use_container_width=True,
+                                      help="유형 추가"):
             ni = n_types
-            for k,v in [("qty",1),("wt",35.),("L",30.),("W",30.),("H",30.)]:
-                if f"{k}_{ni}" not in st.session_state: st.session_state[f"{k}_{ni}"] = v
-            st.session_state.pkg_types = n_types+1; st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
+            for k, v in [("qty",1),("wt",35.),("L",30.),("W",30.),("H",30.)]:
+                if f"{k}_{ni}" not in st.session_state:
+                    st.session_state[f"{k}_{ni}"] = v
+            st.session_state.pkg_types = n_types + 1
+            _save_settings()
+            st.rerun()
+
+    st.markdown('<div style="height:4px;"></div>', unsafe_allow_html=True)
 
     # ══════════════════════════════════════════════════════════════════
     # 유류할증료 & 할인율 섹션
@@ -3312,7 +3968,7 @@ with tab1:
         _show_rpk = _disc_rpk or _rpk
         if _show_rpk:
             _rate_ck_html = (
-                f'<div style="font-size:.63rem;color:#64748b;padding:2px 0 4px;">'
+                f'<div style="font-size:.85rem;color:#64748b;padding:2px 0 6px;">'
                 f'({_show_rpk:,}원/kg)'
                 f'</div>'
             )
@@ -3364,24 +4020,40 @@ with tab1:
         return f"""
 <div class="carrier-card {css_class} {extra_cls}">
   {_freight_banner}
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-    <span class="carrier-badge {badge_class}">{name}</span>
-    {best_badge}
+
+  <!-- ① 운송사 뱃지 — 가로 전체 -->
+  <span class="carrier-badge {badge_class}" style="display:block;text-align:center;width:100%;box-sizing:border-box;font-size:1.1rem;padding:8px 0;margin-bottom:10px;">{name}</span>
+
+  <!-- ② T/T · 계정 · 할인율 정보 — 크게 -->
+  <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px;">
+    {f'<span style="font-size:.95rem;font-weight:700;color:#0369a1;background:#e0f2fe;border-radius:8px;padding:4px 12px;">⏱ {tt_info}</span>' if tt_info else ''}
+    {f'<span style="font-size:.9rem;font-weight:700;color:#b45309;background:#fef3c7;border-radius:8px;padding:4px 12px;">{acct_info}</span>' if acct_info else ''}
   </div>
-  <div style="margin-top:6px;min-height:22px;">{tt_html}{acct_html}</div>
-  <div style="font-size:.72rem;color:#64748b;margin-top:2px;margin-bottom:2px;">{"매입 할인율" if is_import else "고객 할인율"} {disc_val:.2f}% {"적용 (원가 기준)" if is_import else "적용"}</div>
-  <div class="carrier-quote" style="color:{color};">{fmt(res['total_quote'])}</div>
-  <div style="font-size:.88rem;font-weight:700;color:{margin_num_color};margin-bottom:6px;">마진 {pct(res['margin_rate'])}</div>
-  <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;padding:6px 10px;background:rgba(0,0,0,.04);border-radius:7px;">
-    <span style="font-size:.72rem;color:#889aaa;font-weight:600;">원가</span>
-    <span style="font-family:'JetBrains Mono',monospace;font-size:1.05rem;font-weight:700;color:#64748b;">{fmt(res["total_cost"])}</span>
-    {(f'<span style="font-size:.65rem;color:#b08030;background:rgba(255,180,0,.13);border-radius:4px;padding:1px 5px;margin-left:4px;">+수수료{fmt(res["net_fee"])}</span>' if res.get("net_fee",0)>0 else '')}
+  <div style="font-size:.92rem;color:#64748b;margin-bottom:4px;">{"매입 할인율" if is_import else "고객 할인율"} <b style="color:#1e293b;">{disc_val:.2f}%</b> {"적용 (원가 기준)" if is_import else "적용"}</div>
+
+  <!-- ③ 청구금액 + 최저견적 뱃지 한 줄 -->
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:4px;">
+    <div class="carrier-quote" style="color:{color};">{fmt(res['total_quote'])}</div>
+    {f'<span class="carrier-badge badge-best" style="font-size:.95rem;padding:6px 16px;">🏆 최저견적</span>' if is_best else ''}
   </div>
-  <hr style="border-color:rgba(0,0,0,.08);margin:8px 0 5px;">
-  <div style="font-size:.7rem;font-weight:700;color:#8899aa;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;">견적가 상세</div>
+
+  <!-- ④ 마진율 -->
+  <div style="font-size:1.1rem;font-weight:800;color:{margin_num_color};margin-bottom:8px;">마진 {pct(res['margin_rate'])}</div>
+
+  <!-- ⑤ 원가 바 -->
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding:8px 14px;background:rgba(0,0,0,.04);border-radius:10px;">
+    <span style="font-size:.88rem;color:#889aaa;font-weight:700;">원가</span>
+    <span style="font-family:'JetBrains Mono',monospace;font-size:1.2rem;font-weight:800;color:#64748b;">{fmt(res["total_cost"])}</span>
+    {(f'<span style="font-size:.82rem;color:#b08030;background:rgba(255,180,0,.15);border-radius:6px;padding:2px 8px;margin-left:4px;font-weight:700;">+수수료{fmt(res["net_fee"])}</span>' if res.get("net_fee",0)>0 else '')}
+  </div>
+
+  <hr style="border-color:rgba(0,0,0,.08);margin:8px 0 6px;">
+
+  <!-- ⑥ 견적가 상세 헤더 -->
+  <div style="font-size:.85rem;font-weight:800;color:#8899aa;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;">견적가 상세</div>
   {_rate_ck_html}
   <div style="flex:1;">{bd_html}</div>
-  <div style="margin-top:10px;">{margin_alert(res['margin_rate'], tgt_margin)}</div>
+  <div style="margin-top:12px;">{margin_alert(res['margin_rate'], tgt_margin)}</div>
 </div>"""
 
     # 카드 렌더링 — 수출/수입 공통: 5사 3+2 레이아웃
@@ -3456,7 +4128,7 @@ with tab1:
 
     row_defs = [
         ("항공운임 (원가)",        lambda r: r.get("net_base",0), "cost"),
-        ("  └ 단가/kg (원가)",     lambda r: round(r.get("net_base",0)/r.get("rate_info",{}).get("total_w",1)) if r.get("rate_info",{}).get("total_w",0)>0 else 0, "cost_rpk"),
+        ("  └ 단가/kg (원가)",     lambda r: round((r.get("net_base",0)+r.get("net_fee",0))/r.get("rate_info",{}).get("total_w",1)) if r.get("rate_info",{}).get("total_w",0)>0 else 0, "cost_rpk"),
         ("  계정수수료 3%",        lambda r: r.get("net_fee",0),  "cost"),
     ]
     for nm in all_sur_names:
@@ -3652,7 +4324,9 @@ with tab3:
     if n_selected > 0:
         st.markdown(f"<div style='background:white;border-radius:10px;padding:14px 18px;border:1px solid #dde2ee;margin:10px 0;'>"
                     f"<b>선택된 운송사:</b> {', '.join(k for k,v in selected_map.items() if v)}<br>"
-                    f"<b>고객사:</b> {customer or '(주)에어브리지'} &nbsp;|&nbsp; "
+                    f"<b>고객사:</b> {customer or '-'}"
+                    f"{(' / ' + st.session_state.get('customer_contact','')) if st.session_state.get('customer_contact') else ''}"
+                    f" &nbsp;|&nbsp; "
                     f"<b>목적지:</b> {dest_country} &nbsp;|&nbsp; "
                     f"<b>청구중량:</b> {total_chargeable:.1f}kg &nbsp;|&nbsp; "
                     f"<b>C/T:</b> {len(ct_data)}개</div>",
