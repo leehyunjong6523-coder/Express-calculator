@@ -2861,36 +2861,117 @@ _tt_color=_T["tt_color"];   _tt_bg=_T["tt_bg"]
 _tbl_hdr_bg=_T["tbl_hdr_bg"]; _tbl_hdr_sub=_T["tbl_hdr_sub"]
 _sb_grad_a=_T["sb_grad_a"]; _sb_grad_b=_T["sb_grad_b"]; _sb_grad_c=_T["sb_grad_c"]
 
+# ════════════════════════════════════════════════════════════════
+# 글로벌 참조 데이터 (사이드바·탑바 공용)
+# ════════════════════════════════════════════════════════════════
+COUNTRY_KR = {
+    "Albania":"알바니아","Algeria":"알제리","American Samoa":"아메리칸사모아",
+    "Andorra":"안도라","Angola":"앙골라","Argentina":"아르헨티나","Armenia":"아르메니아",
+    "Australia":"호주","Austria":"오스트리아","Azerbaijan":"아제르바이잔",
+    "Bahamas":"바하마","Bahrain":"바레인","Bangladesh":"방글라데시","Belarus":"벨라루스",
+    "Belgium":"벨기에","Belize":"벨리즈","Benin":"베냉","Bhutan":"부탄","Bolivia":"볼리비아",
+    "Brazil":"브라질","Brunei":"브루나이","Bulgaria":"불가리아","Burkina Faso":"부르키나파소",
+    "Burundi":"부룬디","Cambodia":"캄보디아","Cameroon":"카메룬","Canada":"캐나다",
+    "Chile":"칠레","China (People's Republic)":"중국","Colombia":"콜롬비아",
+    "Costa Rica":"코스타리카","Croatia":"크로아티아","Cuba":"쿠바","Cyprus":"키프로스",
+    "Czech Republic":"체코","Denmark":"덴마크","Dominican Republic":"도미니카공화국",
+    "Ecuador":"에콰도르","Egypt":"이집트","El Salvador":"엘살바도르","Estonia":"에스토니아",
+    "Ethiopia":"에티오피아","Fiji":"피지","Finland":"핀란드","France":"프랑스",
+    "Gabon":"가봉","Georgia":"조지아","Germany":"독일","Ghana":"가나","Greece":"그리스",
+    "Guatemala":"과테말라","Guinea":"기니","Haiti":"아이티","Honduras":"온두라스",
+    "Hong Kong SAR China":"홍콩","Hungary":"헝가리","Iceland":"아이슬란드","India":"인도",
+    "Indonesia":"인도네시아","Iran, Islamic Rep. of":"이란","Iraq":"이라크","Ireland":"아일랜드","Israel":"이스라엘",
+    "Italy":"이탈리아","Jamaica":"자메이카","Japan":"일본","Jordan":"요르단",
+    "Kazakhstan":"카자흐스탄","Kenya":"케냐","Kuwait":"쿠웨이트","Lao P.D.R.":"라오스",
+    "Latvia":"라트비아","Lebanon":"레바논","Liechtenstein":"리히텐슈타인",
+    "Lithuania":"리투아니아","Luxembourg":"룩셈부르크","Macau SAR China":"마카오",
+    "Madagascar":"마다가스카르","Malaysia":"말레이시아","Maldives":"몰디브","Malta":"몰타",
+    "Martinique":"마르티니크","Mauritius":"모리셔스","Mexico":"멕시코","Moldova":"몰도바",
+    "Monaco":"모나코","Mongolia":"몽골","Montenegro":"몬테네그로","Morocco":"모로코",
+    "Mozambique":"모잠비크","Myanmar":"미얀마","Namibia":"나미비아","Nepal":"네팔",
+    "Netherlands":"네덜란드","New Zealand":"뉴질랜드","Nicaragua":"니카라과","Niger":"니제르",
+    "Nigeria":"나이지리아","Norway":"노르웨이","Oman":"오만","Pakistan":"파키스탄",
+    "Panama":"파나마","Papua New Guinea":"파푸아뉴기니","Paraguay":"파라과이","Peru":"페루",
+    "Philippines":"필리핀","Poland":"폴란드","Portugal":"포르투갈","Puerto Rico":"푸에르토리코",
+    "Qatar":"카타르","Romania":"루마니아","Russia":"러시아","Rwanda":"르완다",
+    "Saudi Arabia":"사우디아라비아","Senegal":"세네갈","Serbia":"세르비아",
+    "Singapore":"싱가포르","Slovakia":"슬로바키아","Slovenia":"슬로베니아",
+    "South Africa":"남아프리카공화국","Spain":"스페인","Sri Lanka":"스리랑카","Sudan":"수단",
+    "Sweden":"스웨덴","Switzerland":"스위스","Syria":"시리아","Taiwan, China":"대만",
+    "Tanzania":"탄자니아","Thailand":"태국","Togo":"토고","Trinidad and Tobago":"트리니다드토바고",
+    "Tunisia":"튀니지","Turkiye":"튀르키예","Uganda":"우간다","Ukraine":"우크라이나",
+    "United Arab Emirates":"아랍에미리트","United Kingdom":"영국",
+    "United States of America":"미국","Uruguay":"우루과이","Uzbekistan":"우즈베키스탄",
+    "Venezuela":"베네수엘라","Vietnam":"베트남","Yemen":"예멘","Zambia":"잠비아","Zimbabwe":"짐바브웨",
+}
+
+_STAFF = {
+    "호영준": {"phone": "010-3767-5413", "email": "cs@airos.co.kr"},
+    "양희석": {"phone": "010-4594-0768", "email": "cs@airos.co.kr"},
+    "이현종": {"phone": "010-4767-3264", "email": "cs@airos.co.kr"},
+}
+_FIXED_COMPANY = "(주)에어브리지"
+_FIXED_EMAIL   = "cs@airos.co.kr"
+_DEFAULT_PHONE = "032-502-1880"
+
+# 국가 목록 (DHL_ZONE_MAP 기반, 전역 사용)
+countries_raw     = sorted(DHL_ZONE_MAP.keys())
+countries_display = [f"{COUNTRY_KR.get(c, c)} ({c})" for c in countries_raw]
+
+# ════════════════════════════════════════════════════════════
+# 고객 할인율 사전 주입 — 반드시 위젯 렌더링 전에 실행
+# disc_dhl 등 위젯이 생성된 후 session_state를 직접 수정하면
+# StreamlitAPIException 발생 → 위젯 생성 전에 처리
+# ════════════════════════════════════════════════════════════
+_pre_cdb       = _load_customer_db()
+_pre_cnames    = ["직접입력"] + sorted(_pre_cdb["회사명"].tolist()) if not _pre_cdb.empty else ["직접입력"]
+_pre_sel       = st.session_state.get("customer_db_select", "직접입력")
+_pre_last      = st.session_state.get("_last_customer_applied", "")
+_pre_cur_mode  = st.session_state.get("mode", "수출")
+_pre_last_mode = st.session_state.get("_last_customer_mode", "")
+
+if (_pre_sel != "직접입력" and _pre_sel in _pre_cnames and (
+        _pre_sel != _pre_last or _pre_cur_mode != _pre_last_mode)):
+    st.session_state["customer_input"] = _pre_sel
+    _pre_disc = _get_customer_disc(_pre_sel, _pre_cur_mode)
+    st.session_state["disc_dhl"]     = _pre_disc["dhl"]
+    st.session_state["disc_fedex"]   = _pre_disc["fedex"]
+    st.session_state["disc_fedex_e"] = _pre_disc["fedex_e"]
+    st.session_state["disc_ups"]     = _pre_disc["ups"]
+    st.session_state["_last_customer_applied"] = _pre_sel
+    st.session_state["_last_customer_mode"]    = _pre_cur_mode
+    _save_settings()
+elif _pre_sel == "직접입력" and _pre_last != "":
+    st.session_state["_last_customer_applied"] = ""
+
+# 프라임워터 DHL 할인율 사전 주입
+_pre_cust_raw   = (st.session_state.get("customer_input", "") or "").strip()
+_pre_is_pw      = any(p in _pre_cust_raw.lower().replace(" ","") for p in ["프라임워터","primewater"])
+_pre_dest_disp  = st.session_state.get("dest_select", countries_display[0])
+_pre_dest       = (countries_raw[countries_display.index(_pre_dest_disp)]
+                   if _pre_dest_disp in countries_display else "Germany")
+_pre_dhl_zone   = DHL_ZONE_MAP.get(_pre_dest, 5)
+if _pre_is_pw:
+    _pre_pw_disc = 63.0 if _pre_dhl_zone >= 7 else (60.0 if _pre_dhl_zone == 5 else 55.0)
+    if st.session_state.get("disc_dhl") != _pre_pw_disc:
+        st.session_state["disc_dhl"] = _pre_pw_disc
+        _save_settings()
+
+# ════════════════════════════════════════════════════════════
+# 사이드바 — 패키지 · 운임 설정 · 특이사항만
+# ════════════════════════════════════════════════════════════
 with st.sidebar:
 
-    # ════════════════════════════════════════════
-    # ① 헤더
-    # ════════════════════════════════════════════
+    # ─── 헤더 ───
     st.markdown(f"""
 <div style="background:linear-gradient(135deg,{_sb_grad_a},{_sb_grad_b},{_sb_grad_c});
-    border-radius:12px;padding:14px 16px;text-align:center;margin-bottom:6px;
+    border-radius:10px;padding:11px 14px;text-align:center;margin-bottom:8px;
     box-shadow:0 4px 20px rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.12);">
-  <div style="color:#ffffff;font-size:1.18rem;font-weight:900;letter-spacing:.14em;">✈ AIRBRIDGE</div>
-  <div style="color:rgba(255,255,255,.55);font-size:.62rem;margin-top:2px;letter-spacing:.07em;">국제특송 운임계산기 v5.0</div>
+  <div style="color:#ffffff;font-size:1.05rem;font-weight:900;letter-spacing:.14em;">✈ AIRBRIDGE</div>
+  <div style="color:rgba(255,255,255,.5);font-size:.58rem;margin-top:2px;letter-spacing:.06em;">계산 파라미터</div>
 </div>""", unsafe_allow_html=True)
 
-    # ════════════════════════════════════════════
-    # ② 수출 / 수입 모드
-    # ════════════════════════════════════════════
-    mode_cols = st.columns(2)
-    with mode_cols[0]:
-        if st.button("✈  수  출", key="btn_exp", use_container_width=True,
-                     type="primary" if st.session_state.get("mode","수출")=="수출" else "secondary"):
-            st.session_state["mode"] = "수출"; _save_settings(); st.rerun()
-    with mode_cols[1]:
-        if st.button("📦  수  입", key="btn_imp", use_container_width=True,
-                     type="primary" if st.session_state.get("mode","수출")=="수입" else "secondary"):
-            st.session_state["mode"] = "수입"; _save_settings(); st.rerun()
-    mode = st.session_state.get("mode", "수출")
-    _IS_IMP = (mode == "수입")
-    st.markdown('<div style="height:6px"></div>', unsafe_allow_html=True)
-
-    # 섹션 헤더 공통 함수
+    # ─── 사이드바 공통 함수 ───
     def _sec(icon, title):
         return (f'<div style="font-size:.68rem;color:{_sb_title};font-weight:800;'
                 f'letter-spacing:.07em;margin-bottom:6px;">{icon} {title}</div>')
@@ -2899,285 +2980,382 @@ with st.sidebar:
                 f'letter-spacing:.05em;margin:5px 0 3px;">{label}</div>')
 
     # ════════════════════════════════════════════
-    # ③ 견적 정보 (수신처 + 발신 담당자 통합)
+    # ⑥ 패키지 정보
     # ════════════════════════════════════════════
     st.markdown(f"""<div style="background:rgba(255,255,255,.04);border:1px solid {_sb_border};
         border-left:3px solid {_sb_accent};border-radius:8px;padding:10px 11px 8px;margin-bottom:6px;">
-        {_sec("📋","견적 정보")}""", unsafe_allow_html=True)
+        {_sec("📦","패키지 정보")}""", unsafe_allow_html=True)
 
-    # ── 수신처 ──
-    st.markdown(_sub("▸ 수신처"), unsafe_allow_html=True)
+    n_types = st.session_state.pkg_types
+    ct_data = []
 
-    _cdb = _load_customer_db()
-    _cnames = ["직접입력"] + sorted(_cdb["회사명"].tolist()) if not _cdb.empty else ["직접입력"]
-    _prev_sel = st.session_state.get("customer_db_select", "직접입력")
-    _sel_idx  = _cnames.index(_prev_sel) if _prev_sel in _cnames else 0
+    for i in range(n_types):
+        qty_cur = int(st.session_state.get(f"qty_{i}", 1))
+        hL, hR = st.columns([5, 1])
+        with hL:
+            _bgt = f'&nbsp;<span style="color:{_sb_ct_fg};font-weight:700;">× {qty_cur}</span>' if qty_cur > 1 else ""
+            st.markdown(
+                f'<div style="font-size:.7rem;font-weight:800;color:{_sb_accent};padding:3px 0 2px;">'
+                f'BOX 유형 {i+1}{_bgt}</div>', unsafe_allow_html=True)
+        with hR:
+            if n_types > 1 and st.button("✕", key=f"del_{i}", use_container_width=True):
+                for j in range(i, n_types - 1):
+                    for k in ["qty","wt","L","W","H"]:
+                        st.session_state[f"{k}_{j}"] = st.session_state.get(
+                            f"{k}_{j+1}", {"qty":1,"wt":35.,"L":30.,"W":30.,"H":30.}[k])
+                st.session_state.pkg_types -= 1
+                _save_settings(); st.rerun()
 
-    selected_customer = st.selectbox(
-        "고객사 선택", _cnames, index=_sel_idx, key="customer_db_select",
-        help="선택 시 할인율 자동 적용 · 이후 수동 수정 가능"
-    )
+        c_qty, c_wt = st.columns(2)
+        with c_qty:
+            qty_val = st.number_input("수량 (박스)", 1, 99, step=1, key=f"qty_{i}", help="동일 스펙 박스 수")
+        with c_wt:
+            wt_i = st.number_input("실중량 (kg)", 0.1, 1000., step=0.5, key=f"wt_{i}")
 
-    # 선택이 바뀐 경우에만 할인율 주입 (매 렌더 덮어쓰기 방지)
-    _last_applied = st.session_state.get("_last_customer_applied", "")
-    _cur_mode     = st.session_state.get("mode", "수출")
-    _last_mode    = st.session_state.get("_last_customer_mode", "")
-    if selected_customer != "직접입력" and (
-        selected_customer != _last_applied or _cur_mode != _last_mode
-    ):
-        st.session_state["customer_input"] = selected_customer
-        _disc = _get_customer_disc(selected_customer, _cur_mode)
-        st.session_state["disc_dhl"]     = _disc["dhl"]
-        st.session_state["disc_fedex"]   = _disc["fedex"]
-        st.session_state["disc_fedex_e"] = _disc["fedex_e"]
-        st.session_state["disc_ups"]     = _disc["ups"]
-        st.session_state["_last_customer_applied"] = selected_customer
-        st.session_state["_last_customer_mode"]    = _cur_mode
-        _save_settings()
-    if selected_customer == "직접입력" and _last_applied != "":
-        st.session_state["_last_customer_applied"] = ""
+        c_l, c_w, c_h = st.columns(3)
+        with c_l: li = st.number_input("가로(cm)", 1., 500., step=1., key=f"L_{i}")
+        with c_w: wi = st.number_input("세로(cm)", 1., 500., step=1., key=f"W_{i}")
+        with c_h: hi = st.number_input("높이(cm)", 1., 500., step=1., key=f"H_{i}")
 
-    # 할인율 자동 적용 미리보기 (선택된 경우만, 3열 컴팩트)
-    if selected_customer != "직접입력":
-        _d_dhl = st.session_state.get("disc_dhl", 0)
-        _d_fx  = st.session_state.get("disc_fedex", 0)
-        _d_ups = st.session_state.get("disc_ups", 0)
-        st.markdown(f"""
-<div style="background:rgba(37,99,235,.1);border:1px solid rgba(96,165,250,.25);
-     border-radius:6px;padding:6px 8px;margin:3px 0 5px;">
-  <div style="color:#60a5fa;font-weight:800;font-size:.68rem;margin-bottom:4px;">💰 할인율 자동 적용</div>
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);text-align:center;gap:0;">
-    <div><div style="color:#64748b;font-size:.59rem;">DHL</div>
-         <div style="color:#e2e8f0;font-weight:700;font-size:.76rem;">{_d_dhl:.1f}%</div></div>
-    <div><div style="color:#64748b;font-size:.59rem;">FedEx</div>
-         <div style="color:#e2e8f0;font-weight:700;font-size:.76rem;">{_d_fx:.1f}%</div></div>
-    <div><div style="color:#64748b;font-size:.59rem;">UPS</div>
-         <div style="color:#e2e8f0;font-weight:700;font-size:.76rem;">{_d_ups:.1f}%</div></div>
-  </div>
-  <div style="color:#475569;font-size:.59rem;margin-top:3px;text-align:right;">아래 운임 설정에서 수동 변경 가능 →</div>
-</div>""", unsafe_allow_html=True)
+        _vw_prev   = round(li * wi * hi / 5000, 2)
+        _cw_prev   = max(wt_i, _vw_prev)
+        _basis_prev = "부피중량" if _vw_prev > wt_i else "실중량"
+        _charge_prev = __import__('math').ceil(_cw_prev * 2) / 2
+        _chg_color  = "#f59e0b" if _basis_prev == "부피중량" else _sb_accent
+        st.markdown(
+            f'<div style="background:rgba(255,255,255,.06);border-radius:5px;'
+            f'padding:5px 9px;margin:2px 0 5px;'
+            f'display:flex;justify-content:space-between;align-items:center;">'
+            f'<span style="font-size:.62rem;color:#64748b;">부피중량 {_vw_prev:.2f}kg</span>'
+            f'<span style="font-size:.7rem;font-weight:800;color:{_chg_color};">'
+            f'청구 {_charge_prev:.1f}kg</span>'
+            f'<span style="font-size:.6rem;color:#64748b;background:rgba(255,255,255,.07);'
+            f'border-radius:3px;padding:1px 5px;">{_basis_prev}</span>'
+            f'</div>', unsafe_allow_html=True)
 
-    customer         = st.text_input("수신 회사명",  placeholder="(주)고객사명", key="customer_input")
-    customer_contact = st.text_input("수신 담당자명", placeholder="홍길동 부장",  key="customer_contact")
-    quote_num        = st.text_input("견적번호", value=f"AB-{datetime.now().strftime('%Y%m%d')}-001", key="quote_num")
+        for _ in range(int(qty_val)):
+            ct_data.append({"wt": wt_i, "L": li, "W": wi, "H": hi})
 
-    # DB 새로고침 (expander로 최소화)
-    with st.expander("🔄 고객 DB 새로고침"):
-        if st.button("새로고침 실행", key="btn_refresh_cdb", use_container_width=True):
-            st.cache_data.clear()
-            _cdb2 = _load_customer_db()
-            if _cdb2.empty:
-                st.error(f"❌ {st.session_state.get('_cdb_error','원인 불명')}")
-            else:
-                st.success(f"✅ {len(_cdb2)}개 고객사 로드 완료!")
-                st.rerun()
+        if i < n_types - 1:
+            st.markdown(f'<hr style="border:none;border-top:1px dashed {_sb_border};margin:5px 0;">', unsafe_allow_html=True)
 
-    # ── 구분선 ──
-    st.markdown('<hr style="border:none;border-top:1px solid rgba(255,255,255,.09);margin:8px 0 6px;">', unsafe_allow_html=True)
+    # ── ➖ | 총 C/T | ➕ ──
+    total_ct = len(ct_data)
+    bl, bc, br2 = st.columns([1, 2, 1])
+    with bl:
+        if n_types > 1 and st.button("➖", key="del_type", use_container_width=True, help="유형 삭제"):
+            st.session_state.pkg_types = max(1, n_types - 1)
+            _save_settings(); st.rerun()
+    with bc:
+        _nt = f" / {n_types}유형" if n_types > 1 else ""
+        st.markdown(
+            f'<div style="text-align:center;padding:6px 4px;background:{_sb_ct_bg};'
+            f'border-radius:7px;color:{_sb_ct_fg};font-weight:800;'
+            f'border:1px solid {_sb_ct_bdr};font-size:.8rem;">총 {total_ct} C/T{_nt}</div>',
+            unsafe_allow_html=True)
+    with br2:
+        if n_types < 5 and st.button("➕", key="add_type", use_container_width=True, help="유형 추가"):
+            ni = n_types
+            for k, v in [("qty",1),("wt",35.),("L",30.),("W",30.),("H",30.)]:
+                if f"{k}_{ni}" not in st.session_state:
+                    st.session_state[f"{k}_{ni}"] = v
+            st.session_state.pkg_types = n_types + 1
+            _save_settings(); st.rerun()
 
-    # ── 발신 담당자 ──
-    _STAFF = {
-        "호영준": {"phone": "010-3767-5413", "email": "cs@airos.co.kr"},
-        "양희석": {"phone": "010-4594-0768", "email": "cs@airos.co.kr"},
-        "이현종": {"phone": "010-4767-3264", "email": "cs@airos.co.kr"},
-    }
-    _FIXED_COMPANY = "(주)에어브리지"
-    _FIXED_EMAIL   = "cs@airos.co.kr"
-    _DEFAULT_PHONE = "032-502-1880"
-
-    st.markdown(_sub("▸ 발신 담당자 · (주)에어브리지"), unsafe_allow_html=True)
-
-    _staff_names = ["선택하세요"] + list(_STAFF.keys())
-    _cur_contact = st.session_state.get("our_contact", "")
-    _staff_idx   = _staff_names.index(_cur_contact) if _cur_contact in _staff_names else 0
-    selected_staff = st.selectbox("담당자", _staff_names, index=_staff_idx, key="staff_select",
-                                  label_visibility="collapsed")
-
-    if selected_staff != "선택하세요":
-        _info = _STAFF[selected_staff]
-        st.session_state.update({"our_company": _FIXED_COMPANY, "our_contact": selected_staff,
-                                  "our_phone": _info["phone"], "our_email": _FIXED_EMAIL})
-        _save_settings()
-        st.markdown(f"""
-<div style="background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.3);
-     border-radius:6px;padding:7px 10px;margin-top:3px;font-size:.72rem;
-     display:grid;grid-template-columns:auto 1fr;gap:3px 8px;align-items:center;">
-  <span style="color:#94a3b8;">📞</span><span style="color:#e2e8f0;font-weight:700;">{_info['phone']}</span>
-  <span style="color:#94a3b8;">✉</span><span style="color:#94a3b8;">{_FIXED_EMAIL}</span>
-</div>""", unsafe_allow_html=True)
-    else:
-        st.session_state.update({"our_company": _FIXED_COMPANY, "our_contact": "",
-                                  "our_phone": _DEFAULT_PHONE, "our_email": _FIXED_EMAIL})
-        st.markdown(f"""
-<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);
-     border-radius:6px;padding:7px 10px;margin-top:3px;font-size:.72rem;
-     display:grid;grid-template-columns:auto 1fr;gap:3px 8px;align-items:center;">
-  <span style="color:#475569;">📞</span><span style="color:#64748b;">{_DEFAULT_PHONE} (대표)</span>
-  <span style="color:#475569;">✉</span><span style="color:#64748b;">{_FIXED_EMAIL}</span>
-</div>""", unsafe_allow_html=True)
-
-    our_company = _FIXED_COMPANY
-    our_contact = st.session_state.get("our_contact", "")
-    our_phone   = st.session_state.get("our_phone", _DEFAULT_PHONE)
-    our_email   = _FIXED_EMAIL
     st.markdown("</div>", unsafe_allow_html=True)
 
     # ════════════════════════════════════════════
-    # ④ 목적지
+    # ⑦ 운임 설정 (유류할증료 + 할인율)
+    # ════════════════════════════════════════════
+    _cur_mode_sb = st.session_state.get("mode", "수출")
+    st.markdown(f"""<div style="background:rgba(255,255,255,.04);border:1px solid {_sb_border};
+        border-left:3px solid rgba(255,255,255,.20);border-radius:8px;padding:10px 11px 8px;margin-bottom:6px;">
+        {_sec("💰","운임 설정")}""", unsafe_allow_html=True)
+
+    st.markdown(_sub("▸ 유류할증료 (%) · DHL:매월 / FedEx·UPS:매주 변동"), unsafe_allow_html=True)
+    _f1, _f2 = st.columns(2)
+    with _f1:
+        fuel_dhl   = st.number_input("DHL",   0., 60., step=.25, key="fuel_dhl",   on_change=_save_settings)
+        fuel_ups   = st.number_input("UPS",   0., 60., step=.25, key="fuel_ups",   on_change=_save_settings)
+    with _f2:
+        fuel_fedex = st.number_input("FedEx", 0., 60., step=.25, key="fuel_fedex", on_change=_save_settings)
+        st.markdown('<div style="height:28px;"></div>', unsafe_allow_html=True)
+
+    st.markdown('<hr style="border:none;border-top:1px solid rgba(255,255,255,.09);margin:6px 0 5px;">', unsafe_allow_html=True)
+    st.markdown(_sub("▸ 고객 할인율 (%)"), unsafe_allow_html=True)
+
+    if _pre_is_pw:
+        _pw_z  = _pre_dhl_zone
+        _pw_d  = 63.0 if _pw_z >= 7 else (60.0 if _pw_z == 5 else 55.0)
+        _pw_c  = "#7c3aed" if _pw_z >= 7 else ("#0369a1" if _pw_z == 5 else "#065f46")
+        _pw_bg = f"rgba({'124,58,237' if _pw_z>=7 else ('3,105,161' if _pw_z==5 else '6,95,70')},.12)"
+        st.markdown(f"""
+<div style="background:{_pw_bg};border-radius:5px;padding:5px 8px;margin-bottom:5px;font-size:.68rem;color:{_pw_c};font-weight:800;">
+  ⭐ 프라임워터 — Z{_pw_z} 자동 적용 중
+  <span style="font-weight:400;"> (Z1~4·6:55% / Z5:60% / Z7·8:63%) → <b>{_pw_d}%</b></span>
+</div>""", unsafe_allow_html=True)
+
+    if _cur_mode_sb == "수출":
+        st.markdown('<div style="font-size:.62rem;color:#475569;margin-bottom:3px;">수출 할인율 · 소수점 2자리</div>', unsafe_allow_html=True)
+        _dc1, _dc2 = st.columns(2)
+        with _dc1:
+            disc_dhl     = st.number_input("DHL",           0.0, 99.99, step=0.01, format="%.2f", key="disc_dhl",     on_change=_save_settings)
+            disc_fedex   = st.number_input("FedEx IP",      0.0, 99.99, step=0.01, format="%.2f", key="disc_fedex",   on_change=_save_settings)
+            disc_fedex_e = st.number_input("FedEx Economy", 0.0, 99.99, step=0.01, format="%.2f", key="disc_fedex_e", on_change=_save_settings)
+        with _dc2:
+            disc_ups     = st.number_input("UPS",           0.0, 99.99, step=0.01, format="%.2f", key="disc_ups",     on_change=_save_settings)
+            tgt_margin   = st.number_input("목표마진(%)",   0.0, 99.99, step=0.01, format="%.2f", key="tgt_margin",   on_change=_save_settings)
+        disc_ups_b8 = disc_ups
+    else:
+        st.markdown('<div style="font-size:.62rem;color:#475569;margin-bottom:3px;">수입 할인율 · UPS는 계정별 별도</div>', unsafe_allow_html=True)
+        _dc1, _dc2 = st.columns(2)
+        with _dc1:
+            disc_dhl     = st.number_input("DHL",           0.0, 99.99, step=0.01, format="%.2f", key="disc_dhl",     on_change=_save_settings)
+            disc_fedex   = st.number_input("FedEx IP",      0.0, 99.99, step=0.01, format="%.2f", key="disc_fedex",   on_change=_save_settings)
+            disc_fedex_e = st.number_input("FedEx Economy", 0.0, 99.99, step=0.01, format="%.2f", key="disc_fedex_e", on_change=_save_settings)
+        with _dc2:
+            disc_ups     = st.number_input("UPS 2F94A8",    0.0, 99.99, step=0.01, format="%.2f", key="disc_ups",     on_change=_save_settings)
+            disc_ups_b8  = st.number_input("UPS B8733R",    0.0, 99.99, step=0.01, format="%.2f", key="imp_disc_ups_b8", on_change=_save_settings)
+            tgt_margin   = st.number_input("목표마진(%)",   0.0, 99.99, step=0.01, format="%.2f", key="tgt_margin",   on_change=_save_settings)
+
+    p_add = 0
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # ════════════════════════════════════════════
+    # ⑧ 특이사항
     # ════════════════════════════════════════════
     st.markdown(f"""<div style="background:rgba(255,255,255,.04);border:1px solid {_sb_border};
-        border-left:3px solid {_sb_accent};border-radius:8px;padding:10px 11px 8px;margin-bottom:6px;">
-        {_sec("🌏","목적지")}""", unsafe_allow_html=True)
+        border-left:3px solid rgba(255,255,255,.15);border-radius:8px;padding:10px 11px 8px;margin-bottom:6px;">
+        {_sec("📝","특이사항")}""", unsafe_allow_html=True)
+    notes_input = st.text_area("견적서 포함 메모", placeholder="예: 위험물 포함 / 냉장 필요 등", height=68,
+                                label_visibility="collapsed")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    # 목적지: 한/영 병기 (한국어명 (영어명) 형식)
-    COUNTRY_KR = {
-        "Albania":"알바니아","Algeria":"알제리","American Samoa":"아메리칸사모아",
-        "Andorra":"안도라","Angola":"앙골라","Argentina":"아르헨티나","Armenia":"아르메니아",
-        "Australia":"호주","Austria":"오스트리아","Azerbaijan":"아제르바이잔",
-        "Bahamas":"바하마","Bahrain":"바레인","Bangladesh":"방글라데시","Belarus":"벨라루스",
-        "Belgium":"벨기에","Belize":"벨리즈","Benin":"베냉","Bhutan":"부탄","Bolivia":"볼리비아",
-        "Brazil":"브라질","Brunei":"브루나이","Bulgaria":"불가리아","Burkina Faso":"부르키나파소",
-        "Burundi":"부룬디","Cambodia":"캄보디아","Cameroon":"카메룬","Canada":"캐나다",
-        "Chile":"칠레","China (People's Republic)":"중국","Colombia":"콜롬비아",
-        "Costa Rica":"코스타리카","Croatia":"크로아티아","Cuba":"쿠바","Cyprus":"키프로스",
-        "Czech Republic":"체코","Denmark":"덴마크","Dominican Republic":"도미니카공화국",
-        "Ecuador":"에콰도르","Egypt":"이집트","El Salvador":"엘살바도르","Estonia":"에스토니아",
-        "Ethiopia":"에티오피아","Fiji":"피지","Finland":"핀란드","France":"프랑스",
-        "Gabon":"가봉","Georgia":"조지아","Germany":"독일","Ghana":"가나","Greece":"그리스",
-        "Guatemala":"과테말라","Guinea":"기니","Haiti":"아이티","Honduras":"온두라스",
-        "Hong Kong SAR China":"홍콩","Hungary":"헝가리","Iceland":"아이슬란드","India":"인도",
-        "Indonesia":"인도네시아","Iran, Islamic Rep. of":"이란","Iraq":"이라크","Ireland":"아일랜드","Israel":"이스라엘",
-        "Italy":"이탈리아","Jamaica":"자메이카","Japan":"일본","Jordan":"요르단",
-        "Kazakhstan":"카자흐스탄","Kenya":"케냐","Kuwait":"쿠웨이트","Lao P.D.R.":"라오스",
-        "Latvia":"라트비아","Lebanon":"레바논","Liechtenstein":"리히텐슈타인",
-        "Lithuania":"리투아니아","Luxembourg":"룩셈부르크","Macau SAR China":"마카오",
-        "Madagascar":"마다가스카르","Malaysia":"말레이시아","Maldives":"몰디브","Malta":"몰타",
-        "Martinique":"마르티니크","Mauritius":"모리셔스","Mexico":"멕시코","Moldova":"몰도바",
-        "Monaco":"모나코","Mongolia":"몽골","Montenegro":"몬테네그로","Morocco":"모로코",
-        "Mozambique":"모잠비크","Myanmar":"미얀마","Namibia":"나미비아","Nepal":"네팔",
-        "Netherlands":"네덜란드","New Zealand":"뉴질랜드","Nicaragua":"니카라과","Niger":"니제르",
-        "Nigeria":"나이지리아","Norway":"노르웨이","Oman":"오만","Pakistan":"파키스탄",
-        "Panama":"파나마","Papua New Guinea":"파푸아뉴기니","Paraguay":"파라과이","Peru":"페루",
-        "Philippines":"필리핀","Poland":"폴란드","Portugal":"포르투갈","Puerto Rico":"푸에르토리코",
-        "Qatar":"카타르","Romania":"루마니아","Russia":"러시아","Rwanda":"르완다",
-        "Saudi Arabia":"사우디아라비아","Senegal":"세네갈","Serbia":"세르비아",
-        "Singapore":"싱가포르","Slovakia":"슬로바키아","Slovenia":"슬로베니아",
-        "South Africa":"남아프리카공화국","Spain":"스페인","Sri Lanka":"스리랑카","Sudan":"수단",
-        "Sweden":"스웨덴","Switzerland":"스위스","Syria":"시리아","Taiwan, China":"대만",
-        "Tanzania":"탄자니아","Thailand":"태국","Togo":"토고","Trinidad and Tobago":"트리니다드토바고",
-        "Tunisia":"튀니지","Turkiye":"튀르키예","Uganda":"우간다","Ukraine":"우크라이나",
-        "United Arab Emirates":"아랍에미리트","United Kingdom":"영국",
-        "United States of America":"미국","Uruguay":"우루과이","Uzbekistan":"우즈베키스탄",
-        "Venezuela":"베네수엘라","Vietnam":"베트남","Yemen":"예멘","Zambia":"잠비아","Zimbabwe":"짐바브웨",
-    }
-    countries_raw = sorted(DHL_ZONE_MAP.keys())
-    countries_display = [f"{COUNTRY_KR.get(c, c)} ({c})" for c in countries_raw]
+# ════════════════════════════════════════════════════════════════════
+# TOPBAR CSS 주입
+# ════════════════════════════════════════════════════════════════════
+_tb_bg   = "linear-gradient(135deg,#4c0519 0%,#9f1239 50%,#c2185b 100%)" if _IS_IMP else "linear-gradient(135deg,#0f172a 0%,#1e3a8a 50%,#1d4ed8 100%)"
+_tb_bdr  = "rgba(251,113,133,.25)" if _IS_IMP else "rgba(96,165,250,.20)"
+_tb_acc  = "#fb7185" if _IS_IMP else "#60a5fa"
 
+st.markdown(f"""
+<style>
+/* ── 탑바 컨테이너 고정 ── */
+.topbar-wrap {{
+    background: {_tb_bg};
+    border-bottom: 1px solid {_tb_bdr};
+    border-radius: 12px;
+    padding: 10px 18px 8px;
+    margin-bottom: 8px;
+    box-shadow: 0 4px 24px rgba(0,0,0,.28);
+    position: sticky;
+    top: 0;
+    z-index: 999;
+}}
+.topbar-label {{
+    font-size: .58rem;
+    color: #64748b;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+}}
+.topbar-brand {{
+    font-size: 1.1rem;
+    font-weight: 900;
+    color: #ffffff;
+    letter-spacing: .12em;
+}}
+.topbar-brand-sub {{
+    font-size: .58rem;
+    color: rgba(255,255,255,.45);
+    margin-top: 1px;
+    letter-spacing: .06em;
+}}
+.tb-divider {{
+    width: 1px;
+    background: rgba(255,255,255,.12);
+    align-self: stretch;
+    margin: 0 4px;
+}}
+/* 탑바 내 셀렉트박스 compact */
+.topbar-wrap [data-testid="stSelectbox"] > div > div {{
+    background: rgba(255,255,255,.06) !important;
+    border: 1px solid {_tb_bdr} !important;
+    border-radius: 6px !important;
+    font-size: .8rem !important;
+    min-height: 34px !important;
+    padding: 0 8px !important;
+}}
+/* 탑바 내 radio compact */
+.topbar-wrap [data-testid="stRadio"] label {{
+    font-size: .75rem !important;
+    padding: 2px 8px !important;
+}}
+/* 탑바 내 버튼 compact */
+.topbar-wrap .stButton > button {{
+    min-height: 34px !important;
+    font-size: .8rem !important;
+    padding: 4px 10px !important;
+    border-radius: 6px !important;
+}}
+/* context bar */
+.ctx-bar {{
+    background: rgba(255,255,255,.04);
+    border: 1px solid {_tb_bdr};
+    border-radius: 8px;
+    padding: 6px 16px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: wrap;
+}}
+</style>
+""", unsafe_allow_html=True)
+
+# ════════════════════════════════════════════════════════════════════
+# TOPBAR 렌더링
+# ════════════════════════════════════════════════════════════════════
+st.markdown('<div class="topbar-wrap">', unsafe_allow_html=True)
+
+_tb_cols = st.columns([0.9, 0.08, 1.6, 0.08, 2.0, 0.08, 1.8, 0.08, 1.3, 0.08, 0.9])
+# col layout: brand | div | mode+dest | div | customer | div | staff+cargo | div | AI | div | quote
+
+# ─── 브랜드 ───
+with _tb_cols[0]:
+    _logo_tb = (f"<img src='{_LOGO_EN_B64}' style='height:38px;object-fit:contain;display:block;margin-bottom:2px;'/>"
+                if _LOGO_EN_B64 else "")
+    st.markdown(f"""
+<div style="padding:2px 0;">
+  {_logo_tb}
+  <div class="topbar-brand-sub" style="margin-top:2px;">국제특송 운임계산기</div>
+</div>""", unsafe_allow_html=True)
+
+# dividers
+for d in [1, 3, 5, 7, 9]:
+    with _tb_cols[d]:
+        st.markdown('<div class="tb-divider" style="min-height:50px;"></div>', unsafe_allow_html=True)
+
+# ─── 수출/수입 모드 + 목적지 ───
+with _tb_cols[2]:
+    _mc1, _mc2 = st.columns(2)
+    with _mc1:
+        _is_exp = st.session_state.get("mode","수출") == "수출"
+        if st.button("✈ 수출", key="tb_btn_exp", use_container_width=True,
+                     type="primary" if _is_exp else "secondary"):
+            st.session_state["mode"] = "수출"; _save_settings(); st.rerun()
+    with _mc2:
+        _is_imp_btn = st.session_state.get("mode","수출") == "수입"
+        if st.button("📦 수입", key="tb_btn_imp", use_container_width=True,
+                     type="primary" if _is_imp_btn else "secondary"):
+            st.session_state["mode"] = "수입"; _save_settings(); st.rerun()
+
+    mode    = st.session_state.get("mode", "수출")
+    _IS_IMP = (mode == "수입")
+
+    # 목적지 셀렉트박스
     _ai_forced_country = st.session_state.pop("selected_country_raw", None)
     if _ai_forced_country and _ai_forced_country in countries_raw:
         _forced_display = f"{COUNTRY_KR.get(_ai_forced_country, _ai_forced_country)} ({_ai_forced_country})"
         st.session_state["dest_select"] = _forced_display
 
-    selected_display = st.selectbox("목적지 국가", countries_display, key="dest_select")
+    st.markdown('<div class="topbar-label" style="margin-top:6px;">🌏 목적지</div>', unsafe_allow_html=True)
+    selected_display = st.selectbox("목적지", countries_display, key="dest_select",
+                                    label_visibility="collapsed")
     dest_country = countries_raw[countries_display.index(selected_display)]
-    dhl_zone = DHL_ZONE_MAP.get(dest_country, 5)
-    dhl_zi = dhl_zone - 1
 
-    # ── 프라임워터 여부 사이드바 렌더 전에 미리 판단 ──
-    _cust_raw = (st.session_state.get("customer_input", "") or "").strip()
-    _is_primewater = any(p in _cust_raw.lower().replace(" ","") for p in ["프라임워터","primewater"])
-    if _is_primewater:
-        _pw_disc = 63.0 if dhl_zone >= 7 else (60.0 if dhl_zone == 5 else 55.0)
-        if st.session_state.get("disc_dhl") != _pw_disc:
-            st.session_state["disc_dhl"] = _pw_disc
-            _save_settings()
+# ─── 고객 정보 ───
+with _tb_cols[4]:
+    st.markdown('<div class="topbar-label">👤 고객사</div>', unsafe_allow_html=True)
+    _cdb   = _load_customer_db()
+    _cnames = ["직접입력"] + sorted(_cdb["회사명"].tolist()) if not _cdb.empty else ["직접입력"]
+    _prev_sel = st.session_state.get("customer_db_select", "직접입력")
+    _sel_idx  = _cnames.index(_prev_sel) if _prev_sel in _cnames else 0
+    selected_customer = st.selectbox("고객사 선택", _cnames, index=_sel_idx,
+                                      key="customer_db_select", label_visibility="collapsed")
+    # ※ 할인율 주입은 sidebar 렌더 전 (_pre_disc 블록)에서 처리 완료
+    # 탑바에서는 UI 표시만 담당 (session_state 직접 수정 금지)
 
-    # FedEx zone 추론
-    fx_zone_direct = FEDEX_ZONE_MAP_EN.get(dest_country)
-    if fx_zone_direct:
-        fx_zone = fx_zone_direct
+    customer         = st.text_input("수신 회사명", placeholder="(주)고객사명",
+                                      key="customer_input", label_visibility="collapsed")
+    customer_contact = st.text_input("수신 담당자", placeholder="홍길동 부장",
+                                      key="customer_contact", label_visibility="collapsed")
+
+# ─── 발신 담당자 + 화물구분 ───
+with _tb_cols[6]:
+    st.markdown('<div class="topbar-label">🙋 발신 담당자</div>', unsafe_allow_html=True)
+    _staff_names = ["선택하세요"] + list(_STAFF.keys())
+    _cur_contact = st.session_state.get("our_contact", "")
+    _staff_idx   = _staff_names.index(_cur_contact) if _cur_contact in _staff_names else 0
+    selected_staff = st.selectbox("담당자", _staff_names, index=_staff_idx,
+                                   key="staff_select", label_visibility="collapsed")
+    if selected_staff != "선택하세요":
+        _info = _STAFF[selected_staff]
+        st.session_state.update({"our_company": _FIXED_COMPANY, "our_contact": selected_staff,
+                                  "our_phone": _info["phone"], "our_email": _FIXED_EMAIL})
+        _save_settings()
+        st.markdown(f'<div style="font-size:.65rem;color:#94a3b8;margin-top:2px;">📞 {_info["phone"]}</div>',
+                    unsafe_allow_html=True)
     else:
-        COUNTRY_TO_FEDEX = {
-            "Japan":"일본","China (People's Republic)":"중국 (남부 제외)","Hong Kong SAR China":"홍콩",
-            "Taiwan, China":"대만","Macau SAR China":"마카오","Singapore":"싱가포르",
-            "Thailand":"태국","Malaysia":"말레이시아","Indonesia":"인도네시아","Philippines":"필리핀",
-            "Vietnam":"베트남","Cambodia":"캄보디아","Lao P.D.R.":"라오스","Brunei":"브루나이",
-            "India":"인도","Bangladesh":"방글라데시","Pakistan":"파키스탄","Sri Lanka":"스리랑카",
-            "Nepal":"네팔","United States of America":"미국 (기타 지역)","Canada":"캐나다",
-            "Australia":"호주","New Zealand":"뉴질랜드","Mexico":"멕시코","Puerto Rico":"푸에르토리코",
-            "Germany":"독일","United Kingdom":"영국","France":"프랑스","Italy":"이탈리아",
-            "Spain":"스페인","Netherlands":"네덜란드","Belgium":"벨기에","Austria":"오스트리아",
-            "Switzerland":"스위스","Denmark":"덴마크","Finland":"핀란드","Greece":"그리스",
-            "Hungary":"헝가리","Ireland":"아일랜드","Luxembourg":"룩셈부르크","Norway":"노르웨이",
-            "Poland":"폴란드","Portugal":"포르투갈","Sweden":"스웨덴","Czech Republic":"체코",
-            "Romania":"루마니아","Bulgaria":"불가리아","Croatia":"크로아티아","Estonia":"에스토니아",
-            "Latvia":"라트비아","Lithuania":"리투아니아","Slovakia":"슬로바키아","Slovenia":"슬로베니아",
-            "Russia":"러시아","Ukraine":"우크라이나","Turkiye":"터키","Kazakhstan":"카자흐스탄",
-            "Moldova":"몰도바","Serbia":"세르비아","Montenegro":"몬테네그로",
-            "Saudi Arabia":"사우디아라비아","United Arab Emirates":"아랍에미리트","Qatar":"카타르",
-            "Kuwait":"쿠웨이트","Bahrain":"바레인","Oman":"오만","Jordan":"요르단","Egypt":"이집트",
-            "Iraq":"이라크","Lebanon":"레바논","Israel":"이스라엘",
-            "Brazil":"브라질","Colombia":"콜롬비아","Argentina":"아르헨티나","Chile":"칠레",
-            "Peru":"페루","Ecuador":"에콰도르","Bolivia":"볼리비아","Paraguay":"파라과이",
-            "Uruguay":"우루과이","Venezuela":"베네수엘라","Costa Rica":"코스타리카","Panama":"파나마",
-            "Guatemala":"과테말라","Honduras":"온두라스","El Salvador":"엘살바도르",
-            "Nicaragua":"니카라과","Jamaica":"자메이카","Dominican Republic":"도미니카공화국",
-            "Nigeria":"나이지리아","Kenya":"케냐","South Africa":"남아프리카",
-            "Ethiopia":"에티오피아","Tanzania":"탄자니아",
-        }
-        fx_country_kr = COUNTRY_TO_FEDEX.get(dest_country, "미국 (기타 지역)")
-        fx_zone = FEDEX_ZONE_MAP.get(fx_country_kr, "F")
-    fx_zi = FEDEX_ZONES.index(fx_zone)
+        st.session_state.update({"our_company": _FIXED_COMPANY, "our_contact": "",
+                                  "our_phone": _DEFAULT_PHONE, "our_email": _FIXED_EMAIL})
 
-    ups_no_service   = dest_country in UPS_NO_SERVICE
-    fedex_no_service = dest_country in FEDEX_NO_SERVICE
-    ups_zone_num = UPS_ZONE_MAP.get(dest_country, 5)
-    ups_zi = ups_zone_num - 1
+    our_company = _FIXED_COMPANY
+    our_contact = st.session_state.get("our_contact", "")
+    our_phone   = st.session_state.get("our_phone", _DEFAULT_PHONE)
+    our_email   = _FIXED_EMAIL
 
-    # 존 정보 한줄 표시
-    _kr_dest = COUNTRY_KR.get(dest_country, dest_country)
-    _conflict_flag = " 🔴분쟁" if dest_country in DHL_CONFLICT_COUNTRIES else ""
-    st.markdown(
-        f'<div style="background:rgba(255,255,255,.06);border-radius:5px;padding:5px 9px;'
-        f'margin:3px 0 5px;font-size:.68rem;color:#94a3b8;display:flex;justify-content:space-between;">'
-        f'<span>DHL Z<b style="color:#e2e8f0;">{dhl_zone}</b> · '
-        f'FedEx Z<b style="color:#e2e8f0;">{fx_zone}</b> · '
-        f'UPS Z<b style="color:#e2e8f0;">{ups_zone_num}</b></span>'
-        f'<span style="color:#f87171;font-size:.62rem;">{_conflict_flag}</span></div>',
-        unsafe_allow_html=True)
+    # 화물구분
+    st.markdown('<div class="topbar-label" style="margin-top:5px;">📦 화물구분</div>', unsafe_allow_html=True)
+    is_doc = st.radio("화물구분", ["물품", "서류"], horizontal=True,
+                       key="tb_is_doc", label_visibility="collapsed") == "서류"
 
-    st.markdown("</div>", unsafe_allow_html=True)
+# ─── AI 추출 ───
+with _tb_cols[8]:
+    st.markdown('<div class="topbar-label">🤖 AI 추출</div>', unsafe_allow_html=True)
+    _ai_bg_btn  = "rgba(233,30,99,.15)" if _IS_IMP else "rgba(99,102,241,.15)"
+    _ai_bdr_btn = "#e91e63" if _IS_IMP else "#8b5cf6"
+    _ai_ttl_btn = "#f48fb1" if _IS_IMP else "#a78bfa"
+    if st.button("🤖 문서 분석", key="tb_ai_open", use_container_width=True):
+        st.session_state["_ai_panel_open"] = not st.session_state.get("_ai_panel_open", False)
+    _ai_res_cur = st.session_state.get("ai_extract_result")
+    if _ai_res_cur and "error" not in _ai_res_cur:
+        st.markdown(f'<div style="font-size:.62rem;color:#34d399;margin-top:2px;">✅ 추출 완료</div>',
+                    unsafe_allow_html=True)
 
-    # ════════════════════════════════════════════
-    # ⑤ AI 자동 추출
-    # ════════════════════════════════════════════
-    _ai_bg  = "linear-gradient(135deg,rgba(233,30,99,.12),rgba(194,24,91,.10))" if _IS_IMP else "linear-gradient(135deg,rgba(99,102,241,.14),rgba(139,92,246,.14))"
-    _ai_bdr = "rgba(233,30,99,.4)" if _IS_IMP else "rgba(139,92,246,.35)"
-    _ai_lft = "#e91e63" if _IS_IMP else "#8b5cf6"
-    _ai_ttl = "#f48fb1" if _IS_IMP else "#a78bfa"
+# ─── 견적번호 ───
+with _tb_cols[10]:
+    st.markdown('<div class="topbar-label">📋 견적번호</div>', unsafe_allow_html=True)
+    quote_num = st.text_input("견적번호", value=f"AB-{datetime.now().strftime('%Y%m%d')}-001",
+                               key="quote_num", label_visibility="collapsed")
 
+st.markdown('</div>', unsafe_allow_html=True)  # end topbar-wrap
+
+# ────────────────────────────────────────────────────────
+# AI 추출 패널 (탑바 버튼 클릭 시 확장)
+# ────────────────────────────────────────────────────────
+if st.session_state.get("_ai_panel_open", False):
+    _ai_bg2  = "linear-gradient(135deg,rgba(233,30,99,.10),rgba(194,24,91,.08))" if _IS_IMP else "linear-gradient(135deg,rgba(99,102,241,.12),rgba(139,92,246,.12))"
+    _ai_bdr2 = "rgba(233,30,99,.35)" if _IS_IMP else "rgba(139,92,246,.30)"
+    _ai_lft2 = "#e91e63" if _IS_IMP else "#8b5cf6"
+    _ai_ttl2 = "#f48fb1" if _IS_IMP else "#a78bfa"
     st.markdown(f"""
-<div style="background:{_ai_bg};border:1px solid {_ai_bdr};border-left:3px solid {_ai_lft};
-     border-radius:8px;padding:9px 11px 7px;margin-bottom:6px;">
-  <div style="display:flex;justify-content:space-between;align-items:center;">
-    <div>
-      <div style="font-size:.68rem;color:{_ai_ttl};font-weight:800;letter-spacing:.06em;">🤖 AI 자동 추출</div>
-      <div style="font-size:.62rem;color:#64748b;margin-top:1px;">국가 · C/T · 중량 · 사이즈 자동 입력</div>
-    </div>
-    <span style="font-size:.58rem;background:rgba(139,92,246,.25);color:{_ai_ttl};
-          border-radius:3px;padding:2px 5px;font-weight:700;">Beta</span>
+<div style="background:{_ai_bg2};border:1px solid {_ai_bdr2};border-left:3px solid {_ai_lft2};
+     border-radius:10px;padding:10px 14px 8px;margin-bottom:8px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+    <div style="font-size:.75rem;font-weight:800;color:{_ai_ttl2};">🤖 AI 자동 추출 — 국가·C/T·중량·사이즈 자동 입력</div>
+    <span style="font-size:.6rem;background:rgba(139,92,246,.25);color:{_ai_ttl2};
+          border-radius:3px;padding:2px 6px;font-weight:700;">Beta</span>
   </div>
 </div>""", unsafe_allow_html=True)
 
     ai_tab1, ai_tab2, ai_tab3 = st.tabs(["📁 파일", "📋 캡처붙넣기", "✏️ 텍스트"])
 
     with ai_tab1:
-        ai_file = st.file_uploader(
-            "송장 / 이메일 / 패킹리스트",
-            type=["jpg","jpeg","png","webp","pdf"],
-            key="ai_scan_file",
-            help="사진, 스크린샷, 스캔 PDF 모두 가능"
-        )
+        ai_file = st.file_uploader("송장 / 이메일 / 패킹리스트",
+            type=["jpg","jpeg","png","webp","pdf"], key="ai_scan_file",
+            help="사진, 스크린샷, 스캔 PDF 모두 가능")
         if ai_file is not None:
             if ai_file.type.startswith("image"):
                 st.image(ai_file, use_container_width=True)
@@ -3189,21 +3367,11 @@ with st.sidebar:
                 if "error" in result:
                     st.error(f"❌ {result['error']}")
                 else:
-                    st.session_state["ai_extract_result"] = result
-                    st.success("✅ 추출 완료!")
+                    st.session_state["ai_extract_result"] = result; st.success("✅ 추출 완료!")
 
     with ai_tab2:
         try:
             from streamlit_paste_button import paste_image_button as pbutton
-            st.markdown(f"""
-<div style="background:rgba(99,102,241,.08);border-radius:7px;padding:9px 11px;margin-bottom:8px;">
-  <div style="font-size:.68rem;font-weight:800;color:{_ai_ttl};margin-bottom:5px;">📌 사용 방법</div>
-  <div style="font-size:.72rem;color:#cbd5e1;display:flex;flex-direction:column;gap:4px;">
-    <div><span style="background:#6366f1;color:#fff;border-radius:50%;padding:0 5px;font-size:.65rem;margin-right:5px;font-weight:800;">1</span>화면 캡처 <b style="color:{_ai_ttl};">Win+Shift+S</b></div>
-    <div><span style="background:#6366f1;color:#fff;border-radius:50%;padding:0 5px;font-size:.65rem;margin-right:5px;font-weight:800;">2</span>버튼 클릭 후 <b style="color:{_ai_ttl};">Ctrl+V</b></div>
-    <div><span style="background:#6366f1;color:#fff;border-radius:50%;padding:0 5px;font-size:.65rem;margin-right:5px;font-weight:800;">3</span>이미지 확인 후 <b style="color:{_ai_ttl};">🔍 AI 분석</b></div>
-  </div>
-</div>""", unsafe_allow_html=True)
             paste_result = pbutton("② 여기 클릭 후 → Ctrl+V",
                                    text_color="#fff", background_color="#6366f1",
                                    hover_background_color="#4f46e5", key="paste_btn")
@@ -3218,17 +3386,14 @@ with st.sidebar:
                         st.error(f"❌ {result['error']}")
                     else:
                         st.session_state["ai_extract_result"] = result; st.success("✅ 추출 완료!")
-            else:
-                st.markdown('<div style="text-align:center;font-size:.68rem;color:#475569;margin-top:4px;">👆 버튼 클릭 후 Ctrl+V</div>', unsafe_allow_html=True)
         except ImportError:
-            st.info("📦 캡처 붙여넣기 기능을 사용하려면:")
-            st.code("pip install streamlit-paste-button", language="bash")
+            st.info("📦 캡처 붙여넣기: pip install streamlit-paste-button")
 
     with ai_tab3:
-        st.markdown('<div style="font-size:.68rem;color:#64748b;margin-bottom:3px;">이메일·메시지 내용을 그대로 붙여넣으세요</div>', unsafe_allow_html=True)
+        st.markdown('<div style="font-size:.72rem;color:#64748b;margin-bottom:3px;">이메일·메시지 내용을 붙여넣으세요</div>', unsafe_allow_html=True)
         ai_text = st.text_area("텍스트 입력",
             placeholder="예) 도착지: Istanbul Turkey\n사이즈: 12x12x125cm, 7kg\n수량: 1박스",
-            height=110, key="ai_text_input", label_visibility="collapsed")
+            height=90, key="ai_text_input", label_visibility="collapsed")
         if st.button("🔍 AI 분석", key="btn_ai_text", use_container_width=True, disabled=not ai_text):
             with st.spinner("AI가 텍스트를 분석 중..."):
                 result = _call_ai_extract_text(ai_text)
@@ -3237,7 +3402,6 @@ with st.sidebar:
             else:
                 st.session_state["ai_extract_result"] = result; st.success("✅ 추출 완료!")
 
-    # ── 추출 결과 표시 & 적용 (공통) ──
     _ai_res = st.session_state.get("ai_extract_result")
     if _ai_res and "error" not in _ai_res:
         st.markdown(f"""
@@ -3291,172 +3455,88 @@ with st.sidebar:
                 _w  = float(_ai_res.get("width_cm")  or 30.0)
                 _h  = float(_ai_res.get("height_cm") or 30.0)
                 st.session_state.update({"pkg_types":1,"qty_0":_ct,"wt_0":_wt,
-                                          "L_0":_l,"W_0":_w,"H_0":_h,"ai_extract_result":None})
+                                          "L_0":_l,"W_0":_w,"H_0":_h,"ai_extract_result":None,
+                                          "_ai_panel_open":False})
                 _save_settings(); st.rerun()
         with col_clear:
             if st.button("🗑 초기화", key="btn_ai_clear", use_container_width=True):
                 st.session_state["ai_extract_result"] = None
+                st.session_state["_ai_panel_open"] = False
                 _save_settings(); st.rerun()
 
-    # ════════════════════════════════════════════
-    # ⑥ 패키지 정보 (화물 구분 포함)
-    # ════════════════════════════════════════════
-    st.markdown(f"""<div style="background:rgba(255,255,255,.04);border:1px solid {_sb_border};
-        border-left:3px solid {_sb_accent};border-radius:8px;padding:10px 11px 8px;margin-bottom:6px;">
-        {_sec("📦","패키지 정보")}""", unsafe_allow_html=True)
+# ════════════════════════════════════════════════════════════════════
+# 목적지 존 계산 (topbar dest_country 기반)
+# ════════════════════════════════════════════════════════════════════
+dhl_zone = DHL_ZONE_MAP.get(dest_country, 5)
+dhl_zi   = dhl_zone - 1
 
-    is_doc = st.radio("화물 구분", ["물품 (Non-Document)", "서류 (Document)"],
-                      horizontal=True).startswith("서류")
-    st.markdown('<div style="height:4px;"></div>', unsafe_allow_html=True)
+# FedEx zone
+fx_zone_direct = FEDEX_ZONE_MAP_EN.get(dest_country)
+if fx_zone_direct:
+    fx_zone = fx_zone_direct
+else:
+    _COUNTRY_TO_FEDEX = {
+        "Japan":"일본","China (People's Republic)":"중국 (남부 제외)","Hong Kong SAR China":"홍콩",
+        "Taiwan, China":"대만","Macau SAR China":"마카오","Singapore":"싱가포르",
+        "Thailand":"태국","Malaysia":"말레이시아","Indonesia":"인도네시아","Philippines":"필리핀",
+        "Vietnam":"베트남","Cambodia":"캄보디아","Lao P.D.R.":"라오스","Brunei":"브루나이",
+        "India":"인도","Bangladesh":"방글라데시","Pakistan":"파키스탄","Sri Lanka":"스리랑카",
+        "Nepal":"네팔","United States of America":"미국 (기타 지역)","Canada":"캐나다",
+        "Australia":"호주","New Zealand":"뉴질랜드","Mexico":"멕시코","Puerto Rico":"푸에르토리코",
+        "Germany":"독일","United Kingdom":"영국","France":"프랑스","Italy":"이탈리아",
+        "Spain":"스페인","Netherlands":"네덜란드","Belgium":"벨기에","Austria":"오스트리아",
+        "Switzerland":"스위스","Denmark":"덴마크","Finland":"핀란드","Greece":"그리스",
+        "Hungary":"헝가리","Ireland":"아일랜드","Luxembourg":"룩셈부르크","Norway":"노르웨이",
+        "Poland":"폴란드","Portugal":"포르투갈","Sweden":"스웨덴","Czech Republic":"체코",
+        "Romania":"루마니아","Bulgaria":"불가리아","Croatia":"크로아티아","Estonia":"에스토니아",
+        "Latvia":"라트비아","Lithuania":"리투아니아","Slovakia":"슬로바키아","Slovenia":"슬로베니아",
+        "Russia":"러시아","Ukraine":"우크라이나","Turkiye":"터키","Kazakhstan":"카자흐스탄",
+        "Moldova":"몰도바","Serbia":"세르비아","Montenegro":"몬테네그로",
+        "Saudi Arabia":"사우디아라비아","United Arab Emirates":"아랍에미리트","Qatar":"카타르",
+        "Kuwait":"쿠웨이트","Bahrain":"바레인","Oman":"오만","Jordan":"요르단","Egypt":"이집트",
+        "Iraq":"이라크","Lebanon":"레바논","Israel":"이스라엘",
+        "Brazil":"브라질","Colombia":"콜롬비아","Argentina":"아르헨티나","Chile":"칠레",
+        "Peru":"페루","Ecuador":"에콰도르","Bolivia":"볼리비아","Paraguay":"파라과이",
+        "Uruguay":"우루과이","Venezuela":"베네수엘라","Costa Rica":"코스타리카","Panama":"파나마",
+        "Guatemala":"과테말라","Honduras":"온두라스","El Salvador":"엘살바도르",
+        "Nicaragua":"니카라과","Jamaica":"자메이카","Dominican Republic":"도미니카공화국",
+        "Nigeria":"나이지리아","Kenya":"케냐","South Africa":"남아프리카",
+        "Ethiopia":"에티오피아","Tanzania":"탄자니아",
+    }
+    fx_country_kr = _COUNTRY_TO_FEDEX.get(dest_country, "미국 (기타 지역)")
+    fx_zone = FEDEX_ZONE_MAP.get(fx_country_kr, "F")
+fx_zi = FEDEX_ZONES.index(fx_zone)
 
-    n_types = st.session_state.pkg_types
-    ct_data = []
+ups_no_service   = dest_country in UPS_NO_SERVICE
+fedex_no_service = dest_country in FEDEX_NO_SERVICE
+ups_zone_num     = UPS_ZONE_MAP.get(dest_country, 5)
+ups_zi           = ups_zone_num - 1
 
-    for i in range(n_types):
-        qty_cur = int(st.session_state.get(f"qty_{i}", 1))
-        hL, hR = st.columns([5, 1])
-        with hL:
-            _bgt = f'&nbsp;<span style="color:{_sb_ct_fg};font-weight:700;">× {qty_cur}</span>' if qty_cur > 1 else ""
-            st.markdown(
-                f'<div style="font-size:.7rem;font-weight:800;color:{_sb_accent};padding:3px 0 2px;">'
-                f'BOX 유형 {i+1}{_bgt}</div>', unsafe_allow_html=True)
-        with hR:
-            if n_types > 1 and st.button("✕", key=f"del_{i}", use_container_width=True):
-                for j in range(i, n_types - 1):
-                    for k in ["qty","wt","L","W","H"]:
-                        st.session_state[f"{k}_{j}"] = st.session_state.get(
-                            f"{k}_{j+1}", {"qty":1,"wt":35.,"L":30.,"W":30.,"H":30.}[k])
-                st.session_state.pkg_types -= 1
-                _save_settings(); st.rerun()
-
-        c_qty, c_wt = st.columns(2)
-        with c_qty:
-            qty_val = st.number_input("수량 (박스)", 1, 99, step=1, key=f"qty_{i}", help="동일 스펙 박스 수")
-        with c_wt:
-            wt_i = st.number_input("실중량 (kg)", 0.1, 1000., step=0.5, key=f"wt_{i}")
-
-        c_l, c_w, c_h = st.columns(3)
-        with c_l: li = st.number_input("가로(cm)", 1., 500., step=1., key=f"L_{i}")
-        with c_w: wi = st.number_input("세로(cm)", 1., 500., step=1., key=f"W_{i}")
-        with c_h: hi = st.number_input("높이(cm)", 1., 500., step=1., key=f"H_{i}")
-
-        _vw_prev = round(li * wi * hi / 5000, 2)
-        _cw_prev = max(wt_i, _vw_prev)
-        _basis_prev = "부피중량" if _vw_prev > wt_i else "실중량"
-        _charge_prev = __import__('math').ceil(_cw_prev * 2) / 2
-        _chg_color = "#f59e0b" if _basis_prev == "부피중량" else _sb_accent
-        st.markdown(
-            f'<div style="background:rgba(255,255,255,.06);border-radius:5px;'
-            f'padding:5px 9px;margin:2px 0 5px;'
-            f'display:flex;justify-content:space-between;align-items:center;">'
-            f'<span style="font-size:.62rem;color:#64748b;">부피중량 {_vw_prev:.2f}kg</span>'
-            f'<span style="font-size:.7rem;font-weight:800;color:{_chg_color};">'
-            f'청구 {_charge_prev:.1f}kg</span>'
-            f'<span style="font-size:.6rem;color:#64748b;background:rgba(255,255,255,.07);'
-            f'border-radius:3px;padding:1px 5px;">{_basis_prev}</span>'
-            f'</div>', unsafe_allow_html=True)
-
-        for _ in range(int(qty_val)):
-            ct_data.append({"wt": wt_i, "L": li, "W": wi, "H": hi})
-
-        if i < n_types - 1:
-            st.markdown(f'<hr style="border:none;border-top:1px dashed {_sb_border};margin:5px 0;">', unsafe_allow_html=True)
-
-    # ── ➖ | 총 C/T | ➕ ──
-    total_ct = len(ct_data)
-    bl, bc, br2 = st.columns([1, 2, 1])
-    with bl:
-        if n_types > 1 and st.button("➖", key="del_type", use_container_width=True, help="유형 삭제"):
-            st.session_state.pkg_types = max(1, n_types - 1)
-            _save_settings(); st.rerun()
-    with bc:
-        _nt = f" / {n_types}유형" if n_types > 1 else ""
-        st.markdown(
-            f'<div style="text-align:center;padding:6px 4px;background:{_sb_ct_bg};'
-            f'border-radius:7px;color:{_sb_ct_fg};font-weight:800;'
-            f'border:1px solid {_sb_ct_bdr};font-size:.8rem;">총 {total_ct} C/T{_nt}</div>',
-            unsafe_allow_html=True)
-    with br2:
-        if n_types < 5 and st.button("➕", key="add_type", use_container_width=True, help="유형 추가"):
-            ni = n_types
-            for k, v in [("qty",1),("wt",35.),("L",30.),("W",30.),("H",30.)]:
-                if f"{k}_{ni}" not in st.session_state:
-                    st.session_state[f"{k}_{ni}"] = v
-            st.session_state.pkg_types = n_types + 1
-            _save_settings(); st.rerun()
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # ════════════════════════════════════════════
-    # ⑦ 운임 설정 (유류할증료 + 할인율)
-    # ════════════════════════════════════════════
-    st.markdown(f"""<div style="background:rgba(255,255,255,.04);border:1px solid {_sb_border};
-        border-left:3px solid rgba(255,255,255,.20);border-radius:8px;padding:10px 11px 8px;margin-bottom:6px;">
-        {_sec("💰","운임 설정")}""", unsafe_allow_html=True)
-
-    # ── 유류할증료: 2열 레이아웃 ──
-    st.markdown(_sub("▸ 유류할증료 (%) · DHL:매월 / FedEx·UPS:매주 변동"), unsafe_allow_html=True)
-    _f1, _f2 = st.columns(2)
-    with _f1:
-        fuel_dhl   = st.number_input("DHL",   0., 60., step=.25, key="fuel_dhl",   on_change=_save_settings)
-        fuel_ups   = st.number_input("UPS",   0., 60., step=.25, key="fuel_ups",   on_change=_save_settings)
-    with _f2:
-        fuel_fedex = st.number_input("FedEx", 0., 60., step=.25, key="fuel_fedex", on_change=_save_settings)
-        st.markdown('<div style="height:28px;"></div>', unsafe_allow_html=True)
-
-    # ── 구분선 ──
-    st.markdown('<hr style="border:none;border-top:1px solid rgba(255,255,255,.09);margin:6px 0 5px;">', unsafe_allow_html=True)
-
-    # ── 고객 할인율 ──
-    st.markdown(_sub("▸ 고객 할인율 (%)"), unsafe_allow_html=True)
-
-    # 프라임워터 존별 자동 적용 안내
-    if _is_primewater:
-        _pw_z  = dhl_zone
-        _pw_d  = 63.0 if _pw_z >= 7 else (60.0 if _pw_z == 5 else 55.0)
-        _pw_c  = "#7c3aed" if _pw_z >= 7 else ("#0369a1" if _pw_z == 5 else "#065f46")
-        _pw_bg = f"rgba({'124,58,237' if _pw_z>=7 else ('3,105,161' if _pw_z==5 else '6,95,70')},.12)"
-        st.markdown(f"""
-<div style="background:{_pw_bg};border-radius:5px;padding:5px 8px;margin-bottom:5px;font-size:.68rem;color:{_pw_c};font-weight:800;">
-  ⭐ 프라임워터 — Z{_pw_z} 자동 적용 중
-  <span style="font-weight:400;"> (Z1~4·6:55% / Z5:60% / Z7·8:63%) → <b>{_pw_d}%</b></span>
+# ── 컨텍스트 바 (존 정보 + 견적 요약) ──
+_kr_dest      = COUNTRY_KR.get(dest_country, dest_country)
+_conflict_flag = " 🔴분쟁" if dest_country in DHL_CONFLICT_COUNTRIES else ""
+_ctx_mode_tag = ("수입" if mode == "수입" else "수출")
+_ctx_mode_col = "#fb7185" if _IS_IMP else "#60a5fa"
+_ctx_cargo    = "서류" if is_doc else "물품"
+_ctx_cust_disp = customer or "─"
+st.markdown(f"""
+<div class="ctx-bar">
+  <div style="display:flex;align-items:center;gap:20px;width:100%;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:6px;">
+      <span style="font-size:.7rem;font-weight:800;color:{_ctx_mode_col};
+            background:{'rgba(251,113,133,.12)' if _IS_IMP else 'rgba(96,165,250,.12)'};
+            border-radius:4px;padding:2px 8px;">{_ctx_mode_tag}</span>
+      <span style="font-size:.78rem;font-weight:800;color:#e2e8f0;">{_kr_dest}</span>
+      <span style="font-size:.65rem;color:#64748b;">({dest_country}){_conflict_flag}</span>
+    </div>
+    <div style="width:1px;height:18px;background:rgba(255,255,255,.1);"></div>
+    <span style="font-size:.68rem;color:#94a3b8;">DHL <b style="color:#e2e8f0;">Z{dhl_zone}</b> · FedEx <b style="color:#e2e8f0;">Z{fx_zone}</b> · UPS <b style="color:#e2e8f0;">Z{ups_zone_num}</b></span>
+    <div style="width:1px;height:18px;background:rgba(255,255,255,.1);"></div>
+    <span style="font-size:.68rem;color:#94a3b8;">{_ctx_cargo} · {total_ct} C/T</span>
+    <div style="width:1px;height:18px;background:rgba(255,255,255,.1);"></div>
+    <span style="font-size:.68rem;color:#94a3b8;">👤 {_ctx_cust_disp}</span>
+  </div>
 </div>""", unsafe_allow_html=True)
-
-    if mode == "수출":
-        st.markdown('<div style="font-size:.62rem;color:#475569;margin-bottom:3px;">수출 할인율 · 소수점 2자리</div>', unsafe_allow_html=True)
-        _dc1, _dc2 = st.columns(2)
-        with _dc1:
-            disc_dhl     = st.number_input("DHL",           0.0, 99.99, step=0.01, format="%.2f", key="disc_dhl",     on_change=_save_settings)
-            disc_fedex   = st.number_input("FedEx IP",      0.0, 99.99, step=0.01, format="%.2f", key="disc_fedex",   on_change=_save_settings)
-            disc_fedex_e = st.number_input("FedEx Economy", 0.0, 99.99, step=0.01, format="%.2f", key="disc_fedex_e", on_change=_save_settings)
-        with _dc2:
-            disc_ups     = st.number_input("UPS",           0.0, 99.99, step=0.01, format="%.2f", key="disc_ups",     on_change=_save_settings)
-            tgt_margin   = st.number_input("목표마진(%)",   0.0, 99.99, step=0.01, format="%.2f", key="tgt_margin",   on_change=_save_settings)
-        disc_ups_b8 = disc_ups
-    else:
-        st.markdown('<div style="font-size:.62rem;color:#475569;margin-bottom:3px;">수입 할인율 · UPS는 계정별 별도</div>', unsafe_allow_html=True)
-        _dc1, _dc2 = st.columns(2)
-        with _dc1:
-            disc_dhl     = st.number_input("DHL",           0.0, 99.99, step=0.01, format="%.2f", key="disc_dhl",     on_change=_save_settings)
-            disc_fedex   = st.number_input("FedEx IP",      0.0, 99.99, step=0.01, format="%.2f", key="disc_fedex",   on_change=_save_settings)
-            disc_fedex_e = st.number_input("FedEx Economy", 0.0, 99.99, step=0.01, format="%.2f", key="disc_fedex_e", on_change=_save_settings)
-        with _dc2:
-            disc_ups     = st.number_input("UPS 2F94A8",    0.0, 99.99, step=0.01, format="%.2f", key="disc_ups",     on_change=_save_settings)
-            disc_ups_b8  = st.number_input("UPS B8733R",    0.0, 99.99, step=0.01, format="%.2f", key="imp_disc_ups_b8", on_change=_save_settings)
-            tgt_margin   = st.number_input("목표마진(%)",   0.0, 99.99, step=0.01, format="%.2f", key="tgt_margin",   on_change=_save_settings)
-
-    p_add = 0
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # ════════════════════════════════════════════
-    # ⑧ 특이사항
-    # ════════════════════════════════════════════
-    st.markdown(f"""<div style="background:rgba(255,255,255,.04);border:1px solid {_sb_border};
-        border-left:3px solid rgba(255,255,255,.15);border-radius:8px;padding:10px 11px 8px;margin-bottom:6px;">
-        {_sec("📝","특이사항")}""", unsafe_allow_html=True)
-    notes_input = st.text_area("견적서 포함 메모", placeholder="예: 위험물 포함 / 냉장 필요 등", height=68,
-                                label_visibility="collapsed")
-    st.markdown("</div>", unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════
 _save_if_changed()   # [프로그래머A] 렌더 시점 자동 저장 (on_change 보완)
@@ -3715,7 +3795,7 @@ ups_bracket_str = _ups_bracket(ups_total_w)
 # 특별 할인율 — 프라임워터 DHL 존별 자동 적용
 # Z1~6: 55%,  Z7~8: 63%  (사이드바 렌더 전 이미 session_state 주입됨)
 # ══════════════════════════════════════════════════════
-if _is_primewater:
+if _pre_is_pw:
     disc_dhl = 63.0 if dhl_zone >= 7 else (60.0 if dhl_zone == 5 else 55.0)
 
 # ══════════════════════════════════════════════════════
@@ -3887,196 +3967,140 @@ else:
     zone_label = f"DHL Zone {dhl_zone} | FedEx Zone {fx_zone} | UPS Zone {ups_imp_zone_num}"
 
 # ═══════════════════════════════════════════════════
-# UI 렌더링
+# UI 렌더링 — Command Center (탑바 이후 결과 영역)
 # ═══════════════════════════════════════════════════
-_logo_en_html = ("<img src='" + _LOGO_EN_B64 + "' style='height:60px;object-fit:contain;' />") if _LOGO_EN_B64 else ""
-_logo_kr_html = ("<img src='" + _LOGO_KR_B64 + "' style='height:32px;object-fit:contain;opacity:0.85;' />") if _LOGO_KR_B64 else ""
-_today_str    = datetime.now().strftime("%Y년 %m월 %d일")
-_mode_color   = "#ffffff"  # 배너 글씨: 항상 흰색 (배경이 핑크/블루 다크 그라데이션)
-_mode_bg      = "rgba(225,29,72,0.15)" if mode == "수입" else "rgba(255,255,255,0.15)"
-_ups_z_str    = f"UPS Z{ups_imp_zone_num}" if mode == "수입" else f"UPS Z{ups_zone_num}"
-# 배너 배경: Python mode 기반 직접 인라인 주입 — JS 타이밍 무관
-_banner_bg = (
-    "linear-gradient(135deg, #4c0519 0%, #9f1239 50%, #e11d48 100%)"
-    if mode == "수입" else
-    "linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #3b82f6 100%)"
-)
-_banner_shadow = (
-    "0 8px 32px rgba(225,29,72,.30)"
-    if mode == "수입" else
-    "0 8px 32px rgba(37,99,235,.25)"
-)
-_banner_html  = (
-    f'<div class="banner" style="background:{_banner_bg};box-shadow:{_banner_shadow};">'
-    '<div style="display:flex;align-items:center;gap:20px;">'
-    + _logo_en_html + _logo_kr_html +
-    f'<div style="margin-left:8px;padding-left:18px;border-left:3px solid {_mode_color}30;">'
-    f'<div class="banner-title" style="color:{_mode_color};">에어브리지 운임계산기</div>'
-    f'<div style="font-size:1.55rem;font-weight:900;color:{_mode_color};opacity:0.85;margin-top:2px;letter-spacing:.06em;">— {"수  입" if mode=="수입" else "수  출"}</div>'
-    f'<div class="banner-sub" style="margin-top:6px;">국제특송 운임 비교 · {_today_str} · 2026 Rate Card</div>'
-    '</div>'
-    '</div>'
-    '<div style="text-align:right">'
-    f'<div style="font-size:.85rem;color:#64748b;">{"발송지" if mode=="수입" else "목적지"}</div>'
-    f'<div style="font-size:1.15rem;font-weight:800;color:{_mode_color};">{dest_country}</div>'
-    f'<div style="font-size:.76rem;color:#475569;margin-top:2px;">DHL Z{dhl_zone} | FedEx Z{fx_zone} | {_ups_z_str}</div>'
-    f'<div style="margin-top:8px;padding:4px 12px;background:{_mode_bg};border:1px solid {_mode_color}40;border-radius:20px;display:inline-block;">'
-    f'<span style="font-size:.8rem;font-weight:800;color:{_mode_color};">{"📦 수입 모드" if mode=="수입" else "✈ 수출 모드"}</span>'
-    '</div>'
-    '</div></div>'
-)
-st.markdown(_banner_html, unsafe_allow_html=True)
 
-# ── 상단 요약 (수출·수입 공통 7칸) ──
-_dir_lbl = "발송지" if mode == "수입" else "목적지"
-_mc      = "#f43f5e" if mode == "수입" else "#2563eb"
-def _mbox_nsvc(lbl, color, country): return f'<div class="mbox"><div class="mbox-lbl">{lbl}</div><div class="mbox-val" style="color:#b91c1c;font-size:.78rem;">🚫 서비스불가</div><div class="mbox-sub" style="color:#ef4444;">{country[:12]}</div></div>'
-def _mbox_ok(lbl, color, quote, margin): return f'<div class="mbox"><div class="mbox-lbl">{lbl}</div><div class="mbox-val" style="color:{color};font-size:.88rem;">{fmt(quote)}</div><div class="mbox-sub">마진 {pct(margin)}</div></div>'
-s1,s2,s3,s4,s5,s6,s7 = st.columns(7)
-with s1: st.markdown(f'<div class="mbox"><div class="mbox-lbl">{_dir_lbl}</div><div class="mbox-val" style="font-size:.78rem;color:{_mc};">{dest_country[:12]}</div><div class="mbox-sub">{len(ct_data)} C/T</div></div>', unsafe_allow_html=True)
-with s2: st.markdown(f'<div class="mbox"><div class="mbox-lbl">총 청구중량</div><div class="mbox-val" style="color:{_mc};font-size:1.1rem;">{total_chargeable:.1f} kg</div><div class="mbox-sub">실중량 {total_actual_wt:.1f}kg</div></div>', unsafe_allow_html=True)
-with s3: st.markdown(_mbox_nsvc("DHL Express","#D40511",dest_country) if res_dhl.get("no_service") else _mbox_ok("DHL Express","#D40511",res_dhl["total_quote"],res_dhl["margin_rate"]), unsafe_allow_html=True)
-with s4: st.markdown(_mbox_nsvc("FedEx IP","#4D148C",dest_country) if res_fedex.get("no_service") else _mbox_ok("FedEx IP","#4D148C",res_fedex["total_quote"],res_fedex["margin_rate"]), unsafe_allow_html=True)
-with s5: st.markdown(_mbox_nsvc("FedEx Economy","#6620b0",dest_country) if res_fedex_e.get("no_service") else _mbox_ok("FedEx Economy","#6620b0",res_fedex_e["total_quote"],res_fedex_e["margin_rate"]), unsafe_allow_html=True)
-with s6: st.markdown(_mbox_nsvc("UPS 2F94A8","#351C15",dest_country) if res_ups2f.get("no_service") else _mbox_ok("UPS 2F94A8","#351C15",res_ups2f["total_quote"],res_ups2f["margin_rate"]), unsafe_allow_html=True)
-with s7: st.markdown(_mbox_nsvc("UPS B8733R","#5c3a1e",dest_country) if res_upsb8.get("no_service") else _mbox_ok("UPS B8733R","#5c3a1e",res_upsb8["total_quote"],res_upsb8["margin_rate"]), unsafe_allow_html=True)
+# ════════════════════════════════════════════════════════════
+# COMMAND CENTER — 운임 카드 (항상 보임, 탭 외부)
+# ════════════════════════════════════════════════════════════
+st.markdown('''<div style="font-size:.7rem;color:#64748b;font-weight:700;letter-spacing:.06em;
+     text-transform:uppercase;margin-bottom:6px;">💡 5사 운임 비교 — 고객 안내 기준</div>''', unsafe_allow_html=True)
 
-st.markdown("<br>", unsafe_allow_html=True)
+def margin_alert(mr, tgt):
+    if mr >= tgt: return f'<div class="alert alert-ok">✅ 목표 마진 달성 ({pct(mr)})</div>'
+    if mr >= 15:  return f'<div class="alert alert-warn">⚠️ 마진 부족 — {pct(tgt-mr)} 미달</div>'
+    return f'<div class="alert alert-bad">🚨 마진 위험 — 재검토 필요</div>'
 
-# ══ 탭 ══
-tab1, tab2, tab3 = st.tabs(["📊 5사 비교 분석", "📋 상세 명세", "📄 PDF 견적서 발행"])
+def render_card(res, name, css_class, badge_class, color, disc_val, tt_info="", acct_info="", is_import=False, surcharge_5pct=False):
+    is_no_svc = res.get("no_service", False)
+    # ── UPS 최대한도초과 = Express Freight 전환 필요 ──
+    _surs_d = res.get("surs_detail", {})
+    is_ups_freight = ("UPS" in name) and "__freight__" in _surs_d
+    is_best = (name == best_carrier) and not is_no_svc and not is_ups_freight
+    extra_cls = "disabled" if (is_no_svc or is_ups_freight) else ""
+    best_badge = '<span class="carrier-badge badge-best">🏆 최저견적</span>' if is_best else ''
 
-# ─────────────────────────────────────────────
-# TAB 1: 5사 비교 분석
-# ─────────────────────────────────────────────
-with tab1:
-    st.markdown("##### 💡 고객 안내 기준 — 5사 운임 비교")
-
-    def margin_alert(mr, tgt):
-        if mr >= tgt: return f'<div class="alert alert-ok">✅ 목표 마진 달성 ({pct(mr)})</div>'
-        if mr >= 15:  return f'<div class="alert alert-warn">⚠️ 마진 부족 — {pct(tgt-mr)} 미달</div>'
-        return f'<div class="alert alert-bad">🚨 마진 위험 — 재검토 필요</div>'
-
-    def render_card(res, name, css_class, badge_class, color, disc_val, tt_info="", acct_info="", is_import=False, surcharge_5pct=False):
-        is_no_svc = res.get("no_service", False)
-        # ── UPS 최대한도초과 = Express Freight 전환 필요 ──
-        _surs_d = res.get("surs_detail", {})
-        is_ups_freight = ("UPS" in name) and "__freight__" in _surs_d
-        is_best = (name == best_carrier) and not is_no_svc and not is_ups_freight
-        extra_cls = "disabled" if (is_no_svc or is_ups_freight) else ""
-        best_badge = '<span class="carrier-badge badge-best">🏆 최저견적</span>' if is_best else ''
-
-        # ── UPS Freight: 서비스불가 카드와 동일 스타일 ──
-        if is_ups_freight:
-            return f"""
+    # ── UPS Freight: 서비스불가 카드와 동일 스타일 ──
+    if is_ups_freight:
+        return f"""
 <div class="carrier-card ups disabled">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-    <span class="carrier-badge badge-ups">{name}</span>
-    <span style="font-size:.65rem;background:#fff7ed;color:#c2410c;border-radius:4px;padding:2px 7px;font-weight:700;">Saver 진행불가</span>
+<span class="carrier-badge badge-ups">{name}</span>
+<span style="font-size:.65rem;background:#fff7ed;color:#c2410c;border-radius:4px;padding:2px 7px;font-weight:700;">Saver 진행불가</span>
   </div>
   <div style="margin-top:24px;text-align:center;padding:20px 10px;">
-    <div style="font-size:1.8rem;margin-bottom:10px;">🚚</div>
-    <div style="font-size:.88rem;font-weight:800;color:#92400e;line-height:1.6;">
-      Express Freight 진행 화물
-    </div>
-    <div style="font-size:.78rem;font-weight:700;color:#c2410c;margin-top:6px;line-height:1.6;">
-      Express Saver 진행 불가
-    </div>
-    <div style="font-size:.68rem;color:#94a3b8;margin-top:8px;line-height:1.5;">
-      C/T당 실중량 70kg 초과 시<br>WW Express Saver 서비스 불가<br>
-      WW Express Freight 상품으로 별도 문의 필요
-    </div>
+<div style="font-size:1.8rem;margin-bottom:10px;">🚚</div>
+<div style="font-size:.88rem;font-weight:800;color:#92400e;line-height:1.6;">
+  Express Freight 진행 화물
+</div>
+<div style="font-size:.78rem;font-weight:700;color:#c2410c;margin-top:6px;line-height:1.6;">
+  Express Saver 진행 불가
+</div>
+<div style="font-size:.68rem;color:#94a3b8;margin-top:8px;line-height:1.5;">
+  C/T당 실중량 70kg 초과 시<br>WW Express Saver 서비스 불가<br>
+  WW Express Freight 상품으로 별도 문의 필요
+</div>
   </div>
 </div>"""
-        _freight_banner = ""
+    _freight_banner = ""
 
-        # ── 서비스 불가 카드 ──
-        if is_no_svc:
-            return f"""
+    # ── 서비스 불가 카드 ──
+    if is_no_svc:
+        return f"""
 <div class="carrier-card {css_class} disabled">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-    <span class="carrier-badge {badge_class}">{name}</span>
-    <span style="font-size:.65rem;background:#fee2e2;color:#b91c1c;border-radius:4px;padding:2px 7px;font-weight:700;">서비스불가</span>
+<span class="carrier-badge {badge_class}">{name}</span>
+<span style="font-size:.65rem;background:#fee2e2;color:#b91c1c;border-radius:4px;padding:2px 7px;font-weight:700;">서비스불가</span>
   </div>
   <div style="margin-top:24px;text-align:center;padding:20px 10px;">
-    <div style="font-size:1.8rem;margin-bottom:8px;">🚫</div>
-    <div style="font-size:.88rem;font-weight:700;color:#b91c1c;line-height:1.5;">서비스 불가 국가</div>
-    <div style="font-size:.72rem;color:#94a3b8;margin-top:6px;line-height:1.5;">{dest_country}은(는)<br>2026년 기준 {name}<br>서비스 미제공 지역입니다</div>
+<div style="font-size:1.8rem;margin-bottom:8px;">🚫</div>
+<div style="font-size:.88rem;font-weight:700;color:#b91c1c;line-height:1.5;">서비스 불가 국가</div>
+<div style="font-size:.72rem;color:#94a3b8;margin-top:6px;line-height:1.5;">{dest_country}은(는)<br>2026년 기준 {name}<br>서비스 미제공 지역입니다</div>
   </div>
 </div>"""
 
-        tt_html = f'<div style="font-size:.67rem;color:{_tt_color};background:{_tt_bg};border-radius:4px;padding:2px 8px;display:inline-block;margin-right:4px;font-weight:600;">🕐 T/T {tt_info}</div>' if tt_info else '<div style="display:inline-block;height:20px;"></div>'
-        acct_html = f'<div style="font-size:.67rem;color:#997755;background:rgba(255,200,100,.15);border-radius:4px;padding:2px 7px;display:inline-block;font-weight:600;">🔑 {acct_info}</div>' if acct_info else ''
+    tt_html = f'<div style="font-size:.67rem;color:{_tt_color};background:{_tt_bg};border-radius:4px;padding:2px 8px;display:inline-block;margin-right:4px;font-weight:600;">🕐 T/T {tt_info}</div>' if tt_info else '<div style="display:inline-block;height:20px;"></div>'
+    acct_html = f'<div style="font-size:.67rem;color:#997755;background:rgba(255,200,100,.15);border-radius:4px;padding:2px 7px;display:inline-block;font-weight:600;">🔑 {acct_info}</div>' if acct_info else ''
 
-        margin_num_color = "#16a34a" if res["margin_rate"] >= tgt_margin else ("#d97706" if res["margin_rate"] >= 15 else "#dc2626")
+    margin_num_color = "#16a34a" if res["margin_rate"] >= tgt_margin else ("#d97706" if res["margin_rate"] >= 15 else "#dc2626")
 
-        # ── 견적가 상세 ──
-        base_amt   = res["pub_disc"] + res["sur_total"]
-        fuel_amt   = res["pub_fuel"] + res["sur_fuel_pub"]
-        surs_detail = res.get("surs_detail", {})
-        has_sur    = res["sur_total"] > 0
+    # ── 견적가 상세 ──
+    base_amt   = res["pub_disc"] + res["sur_total"]
+    fuel_amt   = res["pub_fuel"] + res["sur_fuel_pub"]
+    surs_detail = res.get("surs_detail", {})
+    has_sur    = res["sur_total"] > 0
 
-        # ── 단가/kg 크로스체크 라인 (할인 적용 후 단가 표시) ──
-        _rate_info = res.get("rate_info", {})
-        _rpk      = _rate_info.get("rate_per_kg")    # 공시 단가/kg
-        _disc_rpk = _rate_info.get("disc_rpk")       # 할인 후 단가/kg
-        _disc_pct = _rate_info.get("disc_pct", 0)
-        _brk = _rate_info.get("bracket","")
-        _tw  = _rate_info.get("total_w", total_chargeable)
-        _nct = _rate_info.get("n_ct", len(ct_data))
-        _show_rpk = _disc_rpk or _rpk
-        if _show_rpk:
-            _rate_ck_html = (
-                f'<div style="font-size:.85rem;color:#64748b;padding:2px 0 6px;">'
-                f'({_show_rpk:,}원/kg)'
-                f'</div>'
-            )
-        else:
-            _rate_ck_html = ""
+    # ── 단가/kg 크로스체크 라인 (할인 적용 후 단가 표시) ──
+    _rate_info = res.get("rate_info", {})
+    _rpk      = _rate_info.get("rate_per_kg")    # 공시 단가/kg
+    _disc_rpk = _rate_info.get("disc_rpk")       # 할인 후 단가/kg
+    _disc_pct = _rate_info.get("disc_pct", 0)
+    _brk = _rate_info.get("bracket","")
+    _tw  = _rate_info.get("total_w", total_chargeable)
+    _nct = _rate_info.get("n_ct", len(ct_data))
+    _show_rpk = _disc_rpk or _rpk
+    if _show_rpk:
+        _rate_ck_html = (
+            f'<div style="font-size:.85rem;color:#64748b;padding:2px 0 6px;">'
+            f'({_show_rpk:,}원/kg)'
+            f'</div>'
+        )
+    else:
+        _rate_ck_html = ""
 
-        if has_sur:
-            bd_rows = [("항공운임", res["pub_disc"])]
-            for sur_name, sur_val in surs_detail.items():
-                bd_rows.append((f"  └ {sur_name}", sur_val))
-            if len(surs_detail) >= 2:
-                bd_rows.append(("부가서비스 소계", res["sur_total"]))
-            bd_rows.append(("유류할증료", fuel_amt))
-            while len(bd_rows) < 4:
-                bd_rows.append(("─", 0))
-        else:
-            bd_rows = [
-                ("항공운임",   res["pub_disc"]),
-                ("유류할증료", fuel_amt),
-                ("─", 0),
-                ("─", 0),
-            ]
+    if has_sur:
+        bd_rows = [("항공운임", res["pub_disc"])]
+        for sur_name, sur_val in surs_detail.items():
+            bd_rows.append((f"  └ {sur_name}", sur_val))
+        if len(surs_detail) >= 2:
+            bd_rows.append(("부가서비스 소계", res["sur_total"]))
+        bd_rows.append(("유류할증료", fuel_amt))
+        while len(bd_rows) < 4:
+            bd_rows.append(("─", 0))
+    else:
+        bd_rows = [
+            ("항공운임",   res["pub_disc"]),
+            ("유류할증료", fuel_amt),
+            ("─", 0),
+            ("─", 0),
+        ]
 
-        bd_html = ""
-        for lbl, v in bd_rows:
-            if lbl == "─":
-                bd_html += '<div class="breakdown-row" style="opacity:0;"><span class="bd-label">-</span><span class="bd-cost">-</span></div>'
-                continue
-            is_sub  = (lbl == "부가서비스 소계")
-            is_item = lbl.startswith("  └")
-            style_extra = "border-top:1px dashed #ccd4e0;margin-top:2px;padding-top:4px;" if is_sub else ""
-            fw      = "font-weight:600;" if is_sub else ""
-            lbl_col = "color:#94a3b8;" if is_item else ""
-            val_col = "color:#94a3b8;" if is_item else ""
-            bd_html += (
-                f'<div class="breakdown-row" style="{style_extra}">'
-                f'<span class="bd-label" style="{fw}{lbl_col}">{lbl}</span>'
-                f'<span class="bd-cost" style="{fw}{val_col}">{fmt(v)}</span>'
-                f'</div>'
-            )
-
+    bd_html = ""
+    for lbl, v in bd_rows:
+        if lbl == "─":
+            bd_html += '<div class="breakdown-row" style="opacity:0;"><span class="bd-label">-</span><span class="bd-cost">-</span></div>'
+            continue
+        is_sub  = (lbl == "부가서비스 소계")
+        is_item = lbl.startswith("  └")
+        style_extra = "border-top:1px dashed #ccd4e0;margin-top:2px;padding-top:4px;" if is_sub else ""
+        fw      = "font-weight:600;" if is_sub else ""
+        lbl_col = "color:#94a3b8;" if is_item else ""
+        val_col = "color:#94a3b8;" if is_item else ""
         bd_html += (
-            f'<div class="breakdown-row" style="border-top:2px solid #d0d8ee;margin-top:4px;padding-top:6px;">'
-            f'<span class="bd-label" style="font-weight:700;">합계</span>'
-            f'<span class="bd-cost" style="font-weight:700;color:{color};">{fmt(res["total_quote"])}</span>'
+            f'<div class="breakdown-row" style="{style_extra}">'
+            f'<span class="bd-label" style="{fw}{lbl_col}">{lbl}</span>'
+            f'<span class="bd-cost" style="{fw}{val_col}">{fmt(v)}</span>'
             f'</div>'
         )
 
-        return f"""
+    bd_html += (
+        f'<div class="breakdown-row" style="border-top:2px solid #d0d8ee;margin-top:4px;padding-top:6px;">'
+        f'<span class="bd-label" style="font-weight:700;">합계</span>'
+        f'<span class="bd-cost" style="font-weight:700;color:{color};">{fmt(res["total_quote"])}</span>'
+        f'</div>'
+    )
+
+    return f"""
 <div class="carrier-card {css_class} {extra_cls}">
   {_freight_banner}
 
@@ -4085,15 +4109,15 @@ with tab1:
 
   <!-- ② T/T · 계정 · 할인율 정보 — 크게 -->
   <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px;">
-    {f'<span style="font-size:.95rem;font-weight:700;color:#0369a1;background:#e0f2fe;border-radius:8px;padding:4px 12px;">⏱ {tt_info}</span>' if tt_info else ''}
-    {f'<span style="font-size:.9rem;font-weight:700;color:#b45309;background:#fef3c7;border-radius:8px;padding:4px 12px;">{acct_info}</span>' if acct_info else ''}
+{f'<span style="font-size:.95rem;font-weight:700;color:#0369a1;background:#e0f2fe;border-radius:8px;padding:4px 12px;">⏱ {tt_info}</span>' if tt_info else ''}
+{f'<span style="font-size:.9rem;font-weight:700;color:#b45309;background:#fef3c7;border-radius:8px;padding:4px 12px;">{acct_info}</span>' if acct_info else ''}
   </div>
   <div style="font-size:.92rem;color:#64748b;margin-bottom:4px;">{"매입 할인율" if is_import else "고객 할인율"} <b style="color:#1e293b;">{disc_val:.2f}%</b> {"적용 (원가 기준)" if is_import else "적용"}{' <span style="font-size:.72rem;background:#fef3c7;color:#b45309;border-radius:4px;padding:1px 6px;font-weight:800;margin-left:4px;">⚡+5% 할증</span>' if surcharge_5pct else ""}</div>
 
   <!-- ③ 청구금액 + 최저견적 뱃지 한 줄 -->
   <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:4px;">
-    <div class="carrier-quote" style="color:{color};">{fmt(res['total_quote'])}</div>
-    {f'<span class="carrier-badge badge-best" style="font-size:.95rem;padding:6px 16px;">🏆 최저견적</span>' if is_best else ''}
+<div class="carrier-quote" style="color:{color};">{fmt(res['total_quote'])}</div>
+{f'<span class="carrier-badge badge-best" style="font-size:.95rem;padding:6px 16px;">🏆 최저견적</span>' if is_best else ''}
   </div>
 
   <!-- ④ 마진율 -->
@@ -4101,9 +4125,9 @@ with tab1:
 
   <!-- ⑤ 원가 바 -->
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding:8px 14px;background:rgba(0,0,0,.04);border-radius:10px;">
-    <span style="font-size:.88rem;color:#889aaa;font-weight:700;">원가</span>
-    <span style="font-family:'JetBrains Mono',monospace;font-size:1.2rem;font-weight:800;color:#64748b;">{fmt(res["total_cost"])}</span>
-    {(f'<span style="font-size:.82rem;color:#b08030;background:rgba(255,180,0,.15);border-radius:6px;padding:2px 8px;margin-left:4px;font-weight:700;">+수수료{fmt(res["net_fee"])}</span>' if res.get("net_fee",0)>0 else '')}
+<span style="font-size:.88rem;color:#889aaa;font-weight:700;">원가</span>
+<span style="font-family:'JetBrains Mono',monospace;font-size:1.2rem;font-weight:800;color:#64748b;">{fmt(res["total_cost"])}</span>
+{(f'<span style="font-size:.82rem;color:#b08030;background:rgba(255,180,0,.15);border-radius:6px;padding:2px 8px;margin-left:4px;font-weight:700;">+수수료{fmt(res["net_fee"])}</span>' if res.get("net_fee",0)>0 else '')}
   </div>
 
   <hr style="border-color:rgba(0,0,0,.08);margin:8px 0 6px;">
@@ -4115,27 +4139,37 @@ with tab1:
   <div style="margin-top:12px;">{margin_alert(res['margin_rate'], tgt_margin)}</div>
 </div>"""
 
-    # 카드 렌더링 — 수출/수입 공통: 5사 3+2 레이아웃
-    if mode == "수출":
-        col_d, col_fi, col_fe = st.columns(3, gap="medium")
-        col_u1, col_u2, _spacer = st.columns([1, 1, 1], gap="medium")
-        with col_d:  st.markdown(render_card(res_dhl,     "DHL Express",    "dhl",   "badge-dhl",   "#D40511", disc_dhl,     tt_info="1~3 영업일", surcharge_5pct=_dhl_5pct_surcharge), unsafe_allow_html=True)
-        with col_fi: st.markdown(render_card(res_fedex,   "FedEx IP",       "fedex", "badge-fedex", "#4D148C", disc_fedex,   tt_info="1~3 영업일"), unsafe_allow_html=True)
-        with col_fe: st.markdown(render_card(res_fedex_e, "FedEx Economy",  "fedex", "badge-fedex", "#6620b0", disc_fedex_e, tt_info="7~8 영업일"), unsafe_allow_html=True)
-        with col_u1: st.markdown(render_card(res_ups2f,   "UPS WW Express", "ups",   "badge-ups",   "#351C15", disc_ups,     tt_info="2~5 영업일", acct_info="계정: 2F94A8"), unsafe_allow_html=True)
-        with col_u2: st.markdown(render_card(res_upsb8,   "UPS WW Express", "ups",   "badge-ups",   "#351C15", disc_ups,     tt_info="2~5 영업일", acct_info="계정: B8733R"), unsafe_allow_html=True)
-        with _spacer: st.empty()
-    else:  # 수입: 5사 3+2 레이아웃 (수출과 동일)
-        col_d, col_fi, col_fe = st.columns(3, gap="medium")
-        col_u1, col_u2, _spacer = st.columns([1, 1, 1], gap="medium")
-        with col_d:  st.markdown(render_card(res_dhl,     "DHL Express",    "dhl",   "badge-dhl",   "#D40511", disc_dhl,     tt_info="1~3 영업일", is_import=True, surcharge_5pct=_dhl_5pct_surcharge), unsafe_allow_html=True)
-        with col_fi: st.markdown(render_card(res_fedex,   "FedEx IP",       "fedex", "badge-fedex", "#4D148C", disc_fedex,   tt_info="1~3 영업일", is_import=True), unsafe_allow_html=True)
-        with col_fe: st.markdown(render_card(res_fedex_e, "FedEx Economy",  "fedex", "badge-fedex", "#6620b0", disc_fedex_e, tt_info="7~8 영업일", is_import=True), unsafe_allow_html=True)
-        with col_u1: st.markdown(render_card(res_ups2f,   "UPS WW Express", "ups",   "badge-ups",   "#351C15", disc_ups,     tt_info="2~5 영업일", is_import=True, acct_info="계정: 2F94A8"), unsafe_allow_html=True)
-        with col_u2: st.markdown(render_card(res_upsb8,   "UPS WW Express", "ups",   "badge-ups",   "#351C15", disc_ups_b8,  tt_info="2~5 영업일", is_import=True, acct_info="계정: B8733R"), unsafe_allow_html=True)
-        with _spacer: st.empty()
+# 카드 렌더링 — 수출/수입 공통: 5사 3+2 레이아웃
+if mode == "수출":
+    col_d, col_fi, col_fe = st.columns(3, gap="medium")
+    col_u1, col_u2, _spacer = st.columns([1, 1, 1], gap="medium")
+    with col_d:  st.markdown(render_card(res_dhl,     "DHL Express",    "dhl",   "badge-dhl",   "#D40511", disc_dhl,     tt_info="1~3 영업일", surcharge_5pct=_dhl_5pct_surcharge), unsafe_allow_html=True)
+    with col_fi: st.markdown(render_card(res_fedex,   "FedEx IP",       "fedex", "badge-fedex", "#4D148C", disc_fedex,   tt_info="1~3 영업일"), unsafe_allow_html=True)
+    with col_fe: st.markdown(render_card(res_fedex_e, "FedEx Economy",  "fedex", "badge-fedex", "#6620b0", disc_fedex_e, tt_info="7~8 영업일"), unsafe_allow_html=True)
+    with col_u1: st.markdown(render_card(res_ups2f,   "UPS WW Express", "ups",   "badge-ups",   "#351C15", disc_ups,     tt_info="2~5 영업일", acct_info="계정: 2F94A8"), unsafe_allow_html=True)
+    with col_u2: st.markdown(render_card(res_upsb8,   "UPS WW Express", "ups",   "badge-ups",   "#351C15", disc_ups,     tt_info="2~5 영업일", acct_info="계정: B8733R"), unsafe_allow_html=True)
+    with _spacer: st.empty()
+else:  # 수입: 5사 3+2 레이아웃 (수출과 동일)
+    col_d, col_fi, col_fe = st.columns(3, gap="medium")
+    col_u1, col_u2, _spacer = st.columns([1, 1, 1], gap="medium")
+    with col_d:  st.markdown(render_card(res_dhl,     "DHL Express",    "dhl",   "badge-dhl",   "#D40511", disc_dhl,     tt_info="1~3 영업일", is_import=True, surcharge_5pct=_dhl_5pct_surcharge), unsafe_allow_html=True)
+    with col_fi: st.markdown(render_card(res_fedex,   "FedEx IP",       "fedex", "badge-fedex", "#4D148C", disc_fedex,   tt_info="1~3 영업일", is_import=True), unsafe_allow_html=True)
+    with col_fe: st.markdown(render_card(res_fedex_e, "FedEx Economy",  "fedex", "badge-fedex", "#6620b0", disc_fedex_e, tt_info="7~8 영업일", is_import=True), unsafe_allow_html=True)
+    with col_u1: st.markdown(render_card(res_ups2f,   "UPS WW Express", "ups",   "badge-ups",   "#351C15", disc_ups,     tt_info="2~5 영업일", is_import=True, acct_info="계정: 2F94A8"), unsafe_allow_html=True)
+    with col_u2: st.markdown(render_card(res_upsb8,   "UPS WW Express", "ups",   "badge-ups",   "#351C15", disc_ups_b8,  tt_info="2~5 영업일", is_import=True, acct_info="계정: B8733R"), unsafe_allow_html=True)
+    with _spacer: st.empty()
 
-    st.markdown("<br>", unsafe_allow_html=True)
+
+
+# ════════════════════════════════════════════════════════════
+# 보조 탭 — 상세 분석 · C/T 명세 · PDF · 이메일
+# ════════════════════════════════════════════════════════════
+tab1, tab2, tab3 = st.tabs(["📊 항목별 상세 비교", "📦 C/T 명세 · 중량", "📄 PDF · 이메일 발행"])
+
+# ─────────────────────────────────────────────
+# TAB 1: 항목별 상세 비교표 (이전 tab1 하단부)
+# ─────────────────────────────────────────────
+with tab1:
 
     # ── 항목별 상세 비교 테이블 (원가/청구 색상 구분) ──
     st.markdown("##### 📊 항목별 상세 비교 (5사)")
@@ -4211,8 +4245,8 @@ with tab1:
         return {"cost":"#eaf6fd","cost_rpk":"#ddf0fa","cost_sum":"#c5e3f5","quote":"#f0faf2","quote_rpk":"#e6f9ec","quote_sum":"#c5eece","margin":"#eaecff"}.get(stype,"#fff")
 
     cmp = f"""<table style="width:100%;border-collapse:collapse;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.07);font-size:.8rem;">
-<thead><tr style="background:{_tbl_hdr_bg};">
-  <th style="padding:10px 12px;text-align:left;color:{_tbl_hdr_sub};font-size:.7rem;width:18%;">구분</th>"""
+    <thead><tr style="background:{_tbl_hdr_bg};">
+      <th style="padding:10px 12px;text-align:left;color:{_tbl_hdr_sub};font-size:.7rem;width:18%;">구분</th>"""
     for cn, _, cc in carriers_5:
         cmp += f'<th style="padding:10px 8px;text-align:right;color:{cc};font-size:.7rem;">{cn}</th>'
     cmp += "</tr></thead><tbody>"
@@ -4272,623 +4306,627 @@ with tab1:
 
     # 범례
     cmp += f"""</tbody></table>
-<div style="margin-top:8px;font-size:.68rem;color:#64748b;display:flex;gap:16px;">
-  <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;background:#c5e3f5;border-radius:2px;display:inline-block;"></span>원가 영역</span>
-  <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;background:#c5eece;border-radius:2px;display:inline-block;"></span>청구 영역</span>
-  <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;background:#dde2ff;border-radius:2px;display:inline-block;"></span>마진</span>
-</div>"""
+    <div style="margin-top:8px;font-size:.68rem;color:#64748b;display:flex;gap:16px;">
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;background:#c5e3f5;border-radius:2px;display:inline-block;"></span>원가 영역</span>
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;background:#c5eece;border-radius:2px;display:inline-block;"></span>청구 영역</span>
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;background:#dde2ff;border-radius:2px;display:inline-block;"></span>마진</span>
+    </div>"""
     st.markdown(cmp, unsafe_allow_html=True)
 
+
 # ─────────────────────────────────────────────
-# TAB 2: 상세 명세
+# TAB 2: C/T 명세 · 중량
 # ─────────────────────────────────────────────
 with tab2:
-    if len(ct_data) > 1:
-        st.markdown(f"##### 📦 C/T별 상세 명세 (총 {len(ct_data)} C/T)")
-        for i, r in enumerate(ct_results):
-            winfo = r["winfo"]
-            with st.expander(f"C/T {i+1} — {winfo['rounded']}kg 청구 ({winfo['basis']})", expanded=True):
-                ec1, ec2, ec3, ec4, ec5 = st.columns(5)
-                def ct_table(res_ct, carrier_name, color):
-                    surs_str = ", ".join(res_ct["surs"].keys()) or "없음"
-                    return f"""
-<div style="background:white;border-radius:10px;padding:12px;border:1px solid #e0e4f0;">
-<div style="font-weight:700;color:{color};margin-bottom:6px;font-size:.8rem;">{carrier_name}</div>
-<div style="font-size:.75rem;color:#334155;">원가: <b>{fmt(res_ct['net'])}</b></div>
-<div style="font-size:.75rem;color:#334155;">Pub: <b>{fmt(res_ct['pub'])}</b></div>
-<div style="font-size:.7rem;color:#64748b;margin-top:4px;">할증: {surs_str}</div>
-</div>"""
-                with ec1: st.markdown(ct_table(r["dhl"],    "DHL Express",      "#D40511"), unsafe_allow_html=True)
-                with ec2: st.markdown(ct_table(r["fedex"],  "FedEx IP",          "#4D148C"), unsafe_allow_html=True)
-                with ec3: st.markdown(ct_table(r["fedexec"],"FedEx Economy",     "#6620b0"), unsafe_allow_html=True)
-                with ec4: st.markdown(ct_table(r["ups2f"],  "UPS WW (2F94A8)",   "#351C15"), unsafe_allow_html=True)
-                with ec5: st.markdown(ct_table(r["upsb8"],  "UPS WW (B8733R)",   "#5c3a1e"), unsafe_allow_html=True)
-    else:
-        st.info("C/T가 1개일 때는 '5사 비교 분석' 탭에서 상세 내역을 확인하세요.")
+        if len(ct_data) > 1:
+            st.markdown(f"##### 📦 C/T별 상세 명세 (총 {len(ct_data)} C/T)")
+            for i, r in enumerate(ct_results):
+                winfo = r["winfo"]
+                with st.expander(f"C/T {i+1} — {winfo['rounded']}kg 청구 ({winfo['basis']})", expanded=True):
+                    ec1, ec2, ec3, ec4, ec5 = st.columns(5)
+                    def ct_table(res_ct, carrier_name, color):
+                        surs_str = ", ".join(res_ct["surs"].keys()) or "없음"
+                        return f"""
+    <div style="background:white;border-radius:10px;padding:12px;border:1px solid #e0e4f0;">
+    <div style="font-weight:700;color:{color};margin-bottom:6px;font-size:.8rem;">{carrier_name}</div>
+    <div style="font-size:.75rem;color:#334155;">원가: <b>{fmt(res_ct['net'])}</b></div>
+    <div style="font-size:.75rem;color:#334155;">Pub: <b>{fmt(res_ct['pub'])}</b></div>
+    <div style="font-size:.7rem;color:#64748b;margin-top:4px;">할증: {surs_str}</div>
+    </div>"""
+                    with ec1: st.markdown(ct_table(r["dhl"],    "DHL Express",      "#D40511"), unsafe_allow_html=True)
+                    with ec2: st.markdown(ct_table(r["fedex"],  "FedEx IP",          "#4D148C"), unsafe_allow_html=True)
+                    with ec3: st.markdown(ct_table(r["fedexec"],"FedEx Economy",     "#6620b0"), unsafe_allow_html=True)
+                    with ec4: st.markdown(ct_table(r["ups2f"],  "UPS WW (2F94A8)",   "#351C15"), unsafe_allow_html=True)
+                    with ec5: st.markdown(ct_table(r["upsb8"],  "UPS WW (B8733R)",   "#5c3a1e"), unsafe_allow_html=True)
+        else:
+            st.info("C/T가 1개일 때는 '5사 비교 분석' 탭에서 상세 내역을 확인하세요.")
 
-    st.markdown("---")
-    st.markdown("**⚖️ 중량 상세**")
-    wt_df = pd.DataFrame([
-        {"항목": f"C/T {i+1}", "실중량(kg)": ct["wt"],
-         "부피중량(kg)": calc_weight(ct["wt"], ct["L"], ct["W"], ct["H"])["volume"],
-         "청구중량(kg)": calc_weight(ct["wt"], ct["L"], ct["W"], ct["H"])["rounded"],
-         "기준": calc_weight(ct["wt"], ct["L"], ct["W"], ct["H"])["basis"]}
-        for i, ct in enumerate(ct_data)
-    ] + [{"항목": "합계", "실중량(kg)": total_actual_wt,
-           "부피중량(kg)": round(total_vol_wt, 2), "청구중량(kg)": total_chargeable, "기준": "─"}])
-    st.dataframe(wt_df, use_container_width=True, hide_index=True)
+        st.markdown("---")
+        st.markdown("**⚖️ 중량 상세**")
+        wt_df = pd.DataFrame([
+            {"항목": f"C/T {i+1}", "실중량(kg)": ct["wt"],
+             "부피중량(kg)": calc_weight(ct["wt"], ct["L"], ct["W"], ct["H"])["volume"],
+             "청구중량(kg)": calc_weight(ct["wt"], ct["L"], ct["W"], ct["H"])["rounded"],
+             "기준": calc_weight(ct["wt"], ct["L"], ct["W"], ct["H"])["basis"]}
+            for i, ct in enumerate(ct_data)
+        ] + [{"항목": "합계", "실중량(kg)": total_actual_wt,
+               "부피중량(kg)": round(total_vol_wt, 2), "청구중량(kg)": total_chargeable, "기준": "─"}])
+        st.dataframe(wt_df, use_container_width=True, hide_index=True)
+
+
 
 # ─────────────────────────────────────────────
-# TAB 3: PDF 견적서
+# TAB 3: PDF 견적서 · 이메일
 # ─────────────────────────────────────────────
 with tab3:
-    st.markdown("##### 📄 PDF 견적서 발행")
-    st.markdown("포함할 운송사를 선택하세요. 선택한 운송사만 견적서에 인쇄됩니다.")
+        st.markdown("##### 📄 PDF 견적서 발행")
+        st.markdown("포함할 운송사를 선택하세요. 선택한 운송사만 견적서에 인쇄됩니다.")
 
-    pc1, pc2, pc3, pc4, pc5 = st.columns(5)
-    with pc1: sel_dhl    = st.checkbox("🔴 DHL Express",    value=True,  key="sel_dhl")
-    with pc2: sel_fedex  = st.checkbox("🟣 FedEx IP",       value=True,  key="sel_fedex")
-    with pc3: sel_fedexe = st.checkbox("🟦 FedEx Economy",  value=False, key="sel_fedexe")
-    if mode == "수출":
-        with pc4: sel_ups2f = st.checkbox("🟤 UPS 2F94A8",    value=False, key="sel_ups2f")
-        with pc5: sel_upsb8 = st.checkbox("🟫 UPS B8733R",    value=False, key="sel_upsb8")
-        selected_map = {
-            "DHL Express":   sel_dhl,
-            "FedEx IP":      sel_fedex,
-            "FedEx Economy": sel_fedexe,
-            "UPS 2F94A8":    sel_ups2f,
-            "UPS B8733R":    sel_upsb8,
-        }
-        disc_map_pdf = {
-            "DHL Express":   disc_dhl,
-            "FedEx IP":      disc_fedex,
-            "FedEx Economy": disc_fedex_e,
-            "UPS 2F94A8":    disc_ups,
-            "UPS B8733R":    disc_ups,
-        }
-    else:  # 수입: UPS 2계정 각각 선택 가능
-        with pc4: sel_ups2f_i = st.checkbox("🟤 UPS 2F94A8",    value=False, key="sel_ups2f_imp")
-        with pc5: sel_upsb8_i = st.checkbox("🟫 UPS B8733R",    value=False, key="sel_upsb8_imp")
-        selected_map = {
-            "DHL Express":   sel_dhl,
-            "FedEx IP":      sel_fedex,
-            "FedEx Economy": sel_fedexe,
-            "UPS 2F94A8":    sel_ups2f_i,
-            "UPS B8733R":    sel_upsb8_i,
-        }
-        disc_map_pdf = {
-            "DHL Express":   disc_dhl,
-            "FedEx IP":      disc_fedex,
-            "FedEx Economy": disc_fedex_e,
-            "UPS 2F94A8":    disc_ups,
-            "UPS B8733R":    disc_ups_b8,
-        }
+        pc1, pc2, pc3, pc4, pc5 = st.columns(5)
+        with pc1: sel_dhl    = st.checkbox("🔴 DHL Express",    value=True,  key="sel_dhl")
+        with pc2: sel_fedex  = st.checkbox("🟣 FedEx IP",       value=True,  key="sel_fedex")
+        with pc3: sel_fedexe = st.checkbox("🟦 FedEx Economy",  value=False, key="sel_fedexe")
+        if mode == "수출":
+            with pc4: sel_ups2f = st.checkbox("🟤 UPS 2F94A8",    value=False, key="sel_ups2f")
+            with pc5: sel_upsb8 = st.checkbox("🟫 UPS B8733R",    value=False, key="sel_upsb8")
+            selected_map = {
+                "DHL Express":   sel_dhl,
+                "FedEx IP":      sel_fedex,
+                "FedEx Economy": sel_fedexe,
+                "UPS 2F94A8":    sel_ups2f,
+                "UPS B8733R":    sel_upsb8,
+            }
+            disc_map_pdf = {
+                "DHL Express":   disc_dhl,
+                "FedEx IP":      disc_fedex,
+                "FedEx Economy": disc_fedex_e,
+                "UPS 2F94A8":    disc_ups,
+                "UPS B8733R":    disc_ups,
+            }
+        else:  # 수입: UPS 2계정 각각 선택 가능
+            with pc4: sel_ups2f_i = st.checkbox("🟤 UPS 2F94A8",    value=False, key="sel_ups2f_imp")
+            with pc5: sel_upsb8_i = st.checkbox("🟫 UPS B8733R",    value=False, key="sel_upsb8_imp")
+            selected_map = {
+                "DHL Express":   sel_dhl,
+                "FedEx IP":      sel_fedex,
+                "FedEx Economy": sel_fedexe,
+                "UPS 2F94A8":    sel_ups2f_i,
+                "UPS B8733R":    sel_upsb8_i,
+            }
+            disc_map_pdf = {
+                "DHL Express":   disc_dhl,
+                "FedEx IP":      disc_fedex,
+                "FedEx Economy": disc_fedex_e,
+                "UPS 2F94A8":    disc_ups,
+                "UPS B8733R":    disc_ups_b8,
+            }
 
-    st.markdown("---")
-    # ── PDF 레이아웃 선택 ──
-    layout_choice = st.radio(
-        "📐 PDF 견적서 레이아웃",
-        ["📋 표형 (여러 운송사 비교)", "🃏 카드형 (운송사별 개별 박스)"],
-        horizontal=True,
-        key="pdf_layout"
-    )
-    pdf_layout = "table" if layout_choice.startswith("📋") else "card"
+        st.markdown("---")
+        # ── PDF 레이아웃 선택 ──
+        layout_choice = st.radio(
+            "📐 PDF 견적서 레이아웃",
+            ["📋 표형 (여러 운송사 비교)", "🃏 카드형 (운송사별 개별 박스)"],
+            horizontal=True,
+            key="pdf_layout"
+        )
+        pdf_layout = "table" if layout_choice.startswith("📋") else "card"
 
-    st.markdown('<div style="font-size:.75rem;color:#64748b;margin-top:-8px;margin-bottom:8px;">'
-                '표형: 운송사를 나란히 비교 | 카드형: 각 운송사를 박스로 개별 표시 (고객 전달용 추천)</div>',
-                unsafe_allow_html=True)
-
-    n_selected = sum(selected_map.values())
-
-    if n_selected > 0:
-        st.markdown(f"<div style='background:white;border-radius:10px;padding:14px 18px;border:1px solid #dde2ee;margin:10px 0;'>"
-                    f"<b>선택된 운송사:</b> {', '.join(k for k,v in selected_map.items() if v)}<br>"
-                    f"<b>고객사:</b> {customer or '-'}"
-                    f"{(' / ' + st.session_state.get('customer_contact','')) if st.session_state.get('customer_contact') else ''}"
-                    f" &nbsp;|&nbsp; "
-                    f"<b>목적지:</b> {dest_country} &nbsp;|&nbsp; "
-                    f"<b>청구중량:</b> {total_chargeable:.1f}kg &nbsp;|&nbsp; "
-                    f"<b>C/T:</b> {len(ct_data)}개</div>",
+        st.markdown('<div style="font-size:.75rem;color:#64748b;margin-top:-8px;margin-bottom:8px;">'
+                    '표형: 운송사를 나란히 비교 | 카드형: 각 운송사를 박스로 개별 표시 (고객 전달용 추천)</div>',
                     unsafe_allow_html=True)
-    else:
-        st.warning("⚠️ 최소 1개 이상의 운송사를 선택해주세요.")
 
-    st.markdown('<div class="pdf-btn">', unsafe_allow_html=True)
-    if st.button("📄 PDF 견적서 생성", disabled=(n_selected == 0)):
-        with st.spinner("PDF 생성 중..."):
-            pdf_bytes = generate_pdf(
-                quote_num=quote_num,
-                customer=customer or "(주)에어브리지",
-                dest_country=dest_country,
-                zone_label=f"DHL Z{dhl_zone} / FedEx Z{fx_zone} / UPS Z{ups_zone_num}",
-                ct_count=len(ct_data),
-                total_chargeable=total_chargeable,
-                fuel_dhl=fuel_dhl,
-                fuel_fedex=fuel_fedex,
-                fuel_ups=fuel_ups,
-                selected=selected_map,
-                results=all_results,
-                disc_map=disc_map_pdf,
-                notes=notes_input,
-                layout=pdf_layout,
-                our_company=st.session_state.get("our_company",""),
-                our_contact=st.session_state.get("our_contact",""),
-                our_phone=st.session_state.get("our_phone",""),
-                our_email=st.session_state.get("our_email",""),
-                ct_data=ct_data,
-                total_actual_wt=total_actual_wt,
-                is_doc=is_doc,
-                mode=mode,
+        n_selected = sum(selected_map.values())
+
+        if n_selected > 0:
+            st.markdown(f"<div style='background:white;border-radius:10px;padding:14px 18px;border:1px solid #dde2ee;margin:10px 0;'>"
+                        f"<b>선택된 운송사:</b> {', '.join(k for k,v in selected_map.items() if v)}<br>"
+                        f"<b>고객사:</b> {customer or '-'}"
+                        f"{(' / ' + st.session_state.get('customer_contact','')) if st.session_state.get('customer_contact') else ''}"
+                        f" &nbsp;|&nbsp; "
+                        f"<b>목적지:</b> {dest_country} &nbsp;|&nbsp; "
+                        f"<b>청구중량:</b> {total_chargeable:.1f}kg &nbsp;|&nbsp; "
+                        f"<b>C/T:</b> {len(ct_data)}개</div>",
+                        unsafe_allow_html=True)
+        else:
+            st.warning("⚠️ 최소 1개 이상의 운송사를 선택해주세요.")
+
+        st.markdown('<div class="pdf-btn">', unsafe_allow_html=True)
+        if st.button("📄 PDF 견적서 생성", disabled=(n_selected == 0)):
+            with st.spinner("PDF 생성 중..."):
+                pdf_bytes = generate_pdf(
+                    quote_num=quote_num,
+                    customer=customer or "(주)에어브리지",
+                    dest_country=dest_country,
+                    zone_label=f"DHL Z{dhl_zone} / FedEx Z{fx_zone} / UPS Z{ups_zone_num}",
+                    ct_count=len(ct_data),
+                    total_chargeable=total_chargeable,
+                    fuel_dhl=fuel_dhl,
+                    fuel_fedex=fuel_fedex,
+                    fuel_ups=fuel_ups,
+                    selected=selected_map,
+                    results=all_results,
+                    disc_map=disc_map_pdf,
+                    notes=notes_input,
+                    layout=pdf_layout,
+                    our_company=st.session_state.get("our_company",""),
+                    our_contact=st.session_state.get("our_contact",""),
+                    our_phone=st.session_state.get("our_phone",""),
+                    our_email=st.session_state.get("our_email",""),
+                    ct_data=ct_data,
+                    total_actual_wt=total_actual_wt,
+                    is_doc=is_doc,
+                    mode=mode,
+                )
+            st.success("✅ PDF 견적서 생성 완료!")
+            fn = f"견적서_{customer or '에어브리지'}_{dest_country[:8]}_{datetime.now().strftime('%Y%m%d')}.pdf"
+            st.download_button(
+                label="⬇️ 견적서 다운로드",
+                data=pdf_bytes,
+                file_name=fn,
+                mime="application/pdf",
+                use_container_width=True,
             )
-        st.success("✅ PDF 견적서 생성 완료!")
-        fn = f"견적서_{customer or '에어브리지'}_{dest_country[:8]}_{datetime.now().strftime('%Y%m%d')}.pdf"
-        st.download_button(
-            label="⬇️ 견적서 다운로드",
-            data=pdf_bytes,
-            file_name=fn,
-            mime="application/pdf",
-            use_container_width=True,
-        )
-        st.markdown("**💡 메일 발송 팁:** PDF를 첨부하거나, 아래 복사용 텍스트를 이메일 본문에 붙여넣기 하세요.")
-    st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown("**💡 메일 발송 팁:** PDF를 첨부하거나, 아래 복사용 텍스트를 이메일 본문에 붙여넣기 하세요.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("---")
+        st.markdown("---")
 
-    # ══════════════════════════════════════════════════════════════════
-    # 📧 이메일 견적 복사용
-    # 설계 원칙 (DHL·FedEx·UPS 영업팀 / 고객사 해외영업팀·수출입관리팀·회계팀 합의):
-    #   - 운임 항목을 항목별로 명확히 나열 (항공운임 / 부가서비스 / 유류할증료 / 합계)
-    #   - 회계팀: 항목별 금액 분리 → 비용처리·증빙 용이
-    #   - 수출입관리팀: C/T 수량·중량·화물구분 명시
-    #   - 해외영업팀: T/T·목적지·최저가 추천 상단 배치
-    #   - DHL/FedEx/UPS 영업팀: 유류할증료율·Zone 명시로 검증 가능
-    #   - = / - 구분선만 사용 (모든 이메일 클라이언트 완전 호환)
-    # ══════════════════════════════════════════════════════════════════
+        # ══════════════════════════════════════════════════════════════════
+        # 📧 이메일 견적 복사용
+        # 설계 원칙 (DHL·FedEx·UPS 영업팀 / 고객사 해외영업팀·수출입관리팀·회계팀 합의):
+        #   - 운임 항목을 항목별로 명확히 나열 (항공운임 / 부가서비스 / 유류할증료 / 합계)
+        #   - 회계팀: 항목별 금액 분리 → 비용처리·증빙 용이
+        #   - 수출입관리팀: C/T 수량·중량·화물구분 명시
+        #   - 해외영업팀: T/T·목적지·최저가 추천 상단 배치
+        #   - DHL/FedEx/UPS 영업팀: 유류할증료율·Zone 명시로 검증 가능
+        #   - = / - 구분선만 사용 (모든 이메일 클라이언트 완전 호환)
+        # ══════════════════════════════════════════════════════════════════
 
-    st.markdown(f"""
-<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
-  <div style="width:5px;height:32px;background:linear-gradient(180deg,{_main_accent_dark},{_main_accent});
-              border-radius:3px;flex-shrink:0;"></div>
-  <div>
-    <div style="font-size:1.05rem;font-weight:800;color:{_main_accent_dark};
-                letter-spacing:.03em;">📧 이메일 견적 복사용</div>
-    <div style="font-size:.71rem;color:#64748b;margin-top:2px;">
-      항목별 상세 나열 양식 — 회계·수출입관리·해외영업팀 공용 / Gmail·Outlook·네이버메일 호환
-    </div>
-  </div>
-</div>""", unsafe_allow_html=True)
+        st.markdown(f"""
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+      <div style="width:5px;height:32px;background:linear-gradient(180deg,{_main_accent_dark},{_main_accent});
+                  border-radius:3px;flex-shrink:0;"></div>
+      <div>
+        <div style="font-size:1.05rem;font-weight:800;color:{_main_accent_dark};
+                    letter-spacing:.03em;">📧 이메일 견적 복사용</div>
+        <div style="font-size:.71rem;color:#64748b;margin-top:2px;">
+          항목별 상세 나열 양식 — 회계·수출입관리·해외영업팀 공용 / Gmail·Outlook·네이버메일 호환
+        </div>
+      </div>
+    </div>""", unsafe_allow_html=True)
 
-    _cust_nm    = customer or "(주)에어브리지"
-    _date_str   = datetime.now().strftime("%Y년 %m월 %d일")
-    _kr_country = COUNTRY_KR.get(dest_country, dest_country)
-    _cargo_type = "서류 (Document)" if is_doc else "물품 (Non-Document)"
-    _mode_str   = "수입 (Import)" if mode == "수입" else "수출 (Export)"
+        _cust_nm    = customer or "(주)에어브리지"
+        _date_str   = datetime.now().strftime("%Y년 %m월 %d일")
+        _kr_country = COUNTRY_KR.get(dest_country, dest_country)
+        _cargo_type = "서류 (Document)" if is_doc else "물품 (Non-Document)"
+        _mode_str   = "수입 (Import)" if mode == "수입" else "수출 (Export)"
 
-    _DIV_MAJOR = "=" * 60
-    _DIV_MID   = "-" * 60
-    _DIV_MINOR = "·" * 60
+        _DIV_MAJOR = "=" * 60
+        _DIV_MID   = "-" * 60
+        _DIV_MINOR = "·" * 60
 
-    _TT = {
-        "DHL Express":   "1~3 영업일",
-        "FedEx IP":      "1~3 영업일",
-        "FedEx Economy": "5~7 영업일",
-        "UPS 2F94A8":    "2~5 영업일",
-        "UPS B8733R":    "2~5 영업일",
-    }
+        _TT = {
+            "DHL Express":   "1~3 영업일",
+            "FedEx IP":      "1~3 영업일",
+            "FedEx Economy": "5~7 영업일",
+            "UPS 2F94A8":    "2~5 영업일",
+            "UPS B8733R":    "2~5 영업일",
+        }
 
-    def _carrier_disp(name):
-        if "UPS" in name: return "UPS Worldwide Express"
-        return name
+        def _carrier_disp(name):
+            if "UPS" in name: return "UPS Worldwide Express"
+            return name
 
-    def _fw(n):
-        return f"₩{int(n):,}"
+        def _fw(n):
+            return f"₩{int(n):,}"
 
-    def _fwp(n, pct_val):
-        return f"₩{int(n):,}  ({pct_val:.2f}%)"
+        def _fwp(n, pct_val):
+            return f"₩{int(n):,}  ({pct_val:.2f}%)"
 
-    _active = {n: r for n, r in all_results.items() if selected_map.get(n)}
-    _best   = min(_active, key=lambda n: _active[n]["total_quote"]) if _active else None
+        _active = {n: r for n, r in all_results.items() if selected_map.get(n)}
+        _best   = min(_active, key=lambda n: _active[n]["total_quote"]) if _active else None
 
-    _co = st.session_state.get("our_company", "") or "(주)에어브리지"
-    _ct = st.session_state.get("our_contact", "")
-    _ph = st.session_state.get("our_phone", "")
-    _em = st.session_state.get("our_email", "")
+        _co = st.session_state.get("our_company", "") or "(주)에어브리지"
+        _ct = st.session_state.get("our_contact", "")
+        _ph = st.session_state.get("our_phone", "")
+        _em = st.session_state.get("our_email", "")
 
 
 
-    from math import ceil as _ceil2
+        from math import ceil as _ceil2
 
-    _kr_c    = COUNTRY_KR.get(dest_country, dest_country)
-    _mode_s  = '수입 (Import)' if mode == '수입' else '수출 (Export)'
-    _carg_s  = '서류 (Document)' if is_doc else '물품 (Non-Document)'
-    _co      = st.session_state.get('our_company', '') or '(주)에어브리지'
-    _ct_nm   = st.session_state.get('our_contact', '')
-    _ph      = st.session_state.get('our_phone', '')
-    _em_addr = st.session_state.get('our_email', '')
-    _TT2 = {
-        'DHL Express':'1~3 영업일', 'FedEx IP':'1~3 영업일',
-        'FedEx Economy':'5~7 영업일', 'UPS 2F94A8':'2~5 영업일', 'UPS B8733R':'2~5 영업일',
-    }
-    _active = {n: r for n, r in all_results.items() if selected_map.get(n)}
-    _best   = min(_active, key=lambda n: _active[n]['total_quote']) if _active else None
-    _notices = [
-        ('유효기간',   '발행일로부터 7일 (이후 운임 변동 가능)'),
-        ('추가비용',   '관세·부가세·통관비·현지비용은 실비 별도 청구'),
-        ('유류할증료', '발송일 기준 적용 / DHL 매월, FedEx·UPS 매주 변동'),
-        ('외곽지역',   '도서·산간 지역 배송 시 RAS/ODA 추가요금 가능'),
-        ('반송비용',   '현지 통관 거부·반송 시 수입운임 및 현지비용 발송자 부담'),
-        ('중량기준',   'C/T당 실중량 25kg 초과 시 비규격 추가비용 가능'),
-        ('배송지연',   'T/T는 예상치이며 항공·통관 지연으로 보장되지 않습니다'),
-    ]
-    if notes_input.strip():
-        _notices.append(('특이사항', notes_input.strip()))
+        _kr_c    = COUNTRY_KR.get(dest_country, dest_country)
+        _mode_s  = '수입 (Import)' if mode == '수입' else '수출 (Export)'
+        _carg_s  = '서류 (Document)' if is_doc else '물품 (Non-Document)'
+        _co      = st.session_state.get('our_company', '') or '(주)에어브리지'
+        _ct_nm   = st.session_state.get('our_contact', '')
+        _ph      = st.session_state.get('our_phone', '')
+        _em_addr = st.session_state.get('our_email', '')
+        _TT2 = {
+            'DHL Express':'1~3 영업일', 'FedEx IP':'1~3 영업일',
+            'FedEx Economy':'5~7 영업일', 'UPS 2F94A8':'2~5 영업일', 'UPS B8733R':'2~5 영업일',
+        }
+        _active = {n: r for n, r in all_results.items() if selected_map.get(n)}
+        _best   = min(_active, key=lambda n: _active[n]['total_quote']) if _active else None
+        _notices = [
+            ('유효기간',   '발행일로부터 7일 (이후 운임 변동 가능)'),
+            ('추가비용',   '관세·부가세·통관비·현지비용은 실비 별도 청구'),
+            ('유류할증료', '발송일 기준 적용 / DHL 매월, FedEx·UPS 매주 변동'),
+            ('외곽지역',   '도서·산간 지역 배송 시 RAS/ODA 추가요금 가능'),
+            ('반송비용',   '현지 통관 거부·반송 시 수입운임 및 현지비용 발송자 부담'),
+            ('중량기준',   'C/T당 실중량 25kg 초과 시 비규격 추가비용 가능'),
+            ('배송지연',   'T/T는 예상치이며 항공·통관 지연으로 보장되지 않습니다'),
+        ]
+        if notes_input.strip():
+            _notices.append(('특이사항', notes_input.strip()))
 
-    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    # HTML 이메일 빌더 (Outlook / Gmail 표 붙여넣기)
-    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    def _H(t):
-        return str(t).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # HTML 이메일 빌더 (Outlook / Gmail 표 붙여넣기)
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        def _H(t):
+            return str(t).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
 
-    TS  = 'font-family:Arial,sans-serif;'   # table base
-    TD0 = 'padding:7px 14px;font-size:12px;'
+        TS  = 'font-family:Arial,sans-serif;'   # table base
+        TD0 = 'padding:7px 14px;font-size:12px;'
 
-    def _tbl(rows_html, mb=16):
-        return (
-            '<table style="width:100%;max-width:620px;border-collapse:collapse;'
-            'border:1px solid #cbd5e1;margin-bottom:' + str(mb) + 'px;' + TS + '">'
-            + rows_html + '</table>'
-        )
+        def _tbl(rows_html, mb=16):
+            return (
+                '<table style="width:100%;max-width:620px;border-collapse:collapse;'
+                'border:1px solid #cbd5e1;margin-bottom:' + str(mb) + 'px;' + TS + '">'
+                + rows_html + '</table>'
+            )
 
-    def _hdr(title, bg='#1e3a8a', fg='#ffffff', colspan=2):
-        return (
-            '<tr><td colspan="' + str(colspan) + '" style="background:' + bg + ';color:' + fg + ';'
-            'font-size:13px;font-weight:700;padding:9px 14px;' + TS + '">'
-            + _H(title) + '</td></tr>'
-        )
+        def _hdr(title, bg='#1e3a8a', fg='#ffffff', colspan=2):
+            return (
+                '<tr><td colspan="' + str(colspan) + '" style="background:' + bg + ';color:' + fg + ';'
+                'font-size:13px;font-weight:700;padding:9px 14px;' + TS + '">'
+                + _H(title) + '</td></tr>'
+            )
 
-    def _row2(lbl, val, shade=False):
-        bg = '#f4f6ff' if shade else '#ffffff'
-        return (
-            '<tr style="background:' + bg + ';">'
-            '<td style="' + TD0 + 'color:#64748b;width:160px;white-space:nowrap;">' + _H(lbl) + '</td>'
-            '<td style="' + TD0 + 'color:#1e293b;font-weight:600;">' + _H(val) + '</td>'
-            '</tr>'
-        )
-
-    def _div_row(colspan=2):
-        return '<tr><td colspan="' + str(colspan) + '" style="height:1px;background:#e2e8f0;padding:0;"></td></tr>'
-
-    def _amt_s(n):      return '\u20a9' + format(int(n), ',')
-    def _amtp_s(n, p):  return '\u20a9' + format(int(n), ',') + '  (' + '{:.2f}'.format(p) + '%)'
-
-    h = []
-    h.append('<div style="' + TS + 'font-size:13px;color:#1e293b;line-height:1.7;max-width:640px;">')
-
-    # 인사말
-    h.append(
-        '<p style="margin:0 0 18px;">'
-        '안녕하세요, <b>' + _H(_cust_nm) + '</b> 담당자님.<br><br>'
-        '국제특송 운임 견적을 아래와 같이 안내드립니다.<br>'
-        '검토 후 추가 문의 사항은 언제든 연락 주시기 바랍니다.'
-        '</p>'
-    )
-
-    # ── 견적 기본 정보 ──
-    rows = _hdr('견적 기본 정보')
-    for idx, (lbl, val) in enumerate([
-        ('견적번호',    quote_num),
-        ('견적일자',    _date_str),
-        ('유효기간',    '발행일로부터 7일'),
-        ('수신',        _cust_nm),
-        ('운송구분',    _mode_s),
-        ('목적지',      _kr_c + '  (' + dest_country + ')'),
-        ('화물구분',    _carg_s),
-        ('총 박스수',   str(len(ct_data)) + ' BOX'),
-        ('실중량 합계', '{:.1f} kg'.format(total_actual_wt)),
-        ('청구중량 합계', '{:.1f} kg'.format(total_chargeable)),
-    ]):
-        rows += _row2(lbl, val, shade=(idx % 2 == 0))
-    h.append(_tbl(rows))
-
-    # ── 화물 명세 ──
-    if ct_data:
-        TH = 'padding:7px 10px;font-size:11px;font-weight:700;color:#475569;background:#e8edf8;text-align:'
-        rows = _hdr('화물 명세')
-        rows += (
-            '<tr>'
-            '<th style="' + TH + 'center;width:48px;">BOX</th>'
-            '<th style="' + TH + 'right;">실중량</th>'
-            '<th style="' + TH + 'center;">크기 (cm)</th>'
-            '<th style="' + TH + 'right;">부피중량</th>'
-            '<th style="' + TH + 'right;">청구중량</th>'
-            '<th style="' + TH + 'center;">기준</th>'
-            '</tr>'
-        )
-        for idx2, ct in enumerate(ct_data):
-            vw  = round(ct['L'] * ct['W'] * ct['H'] / 5000, 2)
-            cw2 = round(_ceil2(max(ct['wt'], vw) * 2) / 2, 1)
-            bas = '부피중량' if vw > ct['wt'] else '실중량'
-            bg  = '#f8faff' if idx2 % 2 == 0 else '#ffffff'
-            TD  = 'padding:6px 10px;font-size:12px;'
-            rows += (
+        def _row2(lbl, val, shade=False):
+            bg = '#f4f6ff' if shade else '#ffffff'
+            return (
                 '<tr style="background:' + bg + ';">'
-                '<td style="' + TD + 'text-align:center;color:#94a3b8;">{:02d}</td>'.format(idx2+1) +
-                '<td style="' + TD + 'text-align:right;">{:.1f} kg</td>'.format(ct['wt']) +
-                '<td style="' + TD + 'text-align:center;">{:.0f} × {:.0f} × {:.0f}</td>'.format(ct['L'], ct['W'], ct['H']) +
-                '<td style="' + TD + 'text-align:right;color:#94a3b8;">{:.2f} kg</td>'.format(vw) +
-                '<td style="' + TD + 'text-align:right;font-weight:600;">{:.1f} kg</td>'.format(cw2) +
-                '<td style="' + TD + 'text-align:center;color:#0369a1;">' + bas + '</td>'
+                '<td style="' + TD0 + 'color:#64748b;width:160px;white-space:nowrap;">' + _H(lbl) + '</td>'
+                '<td style="' + TD0 + 'color:#1e293b;font-weight:600;">' + _H(val) + '</td>'
                 '</tr>'
             )
-        TD2 = 'padding:7px 10px;font-size:12px;font-weight:700;background:#dde4f5;'
-        rows += (
-            '<tr>'
-            '<td style="' + TD2 + 'text-align:center;">합계</td>'
-            '<td style="' + TD2 + 'text-align:right;">{:.1f} kg</td>'.format(total_actual_wt) +
-            '<td colspan="2" style="' + TD2 + '"></td>'
-            '<td style="' + TD2 + 'text-align:right;">{:.1f} kg</td>'.format(total_chargeable) +
-            '<td style="' + TD2 + '"></td>'
-            '</tr>'
+
+        def _div_row(colspan=2):
+            return '<tr><td colspan="' + str(colspan) + '" style="height:1px;background:#e2e8f0;padding:0;"></td></tr>'
+
+        def _amt_s(n):      return '\u20a9' + format(int(n), ',')
+        def _amtp_s(n, p):  return '\u20a9' + format(int(n), ',') + '  (' + '{:.2f}'.format(p) + '%)'
+
+        h = []
+        h.append('<div style="' + TS + 'font-size:13px;color:#1e293b;line-height:1.7;max-width:640px;">')
+
+        # 인사말
+        h.append(
+            '<p style="margin:0 0 18px;">'
+            '안녕하세요, <b>' + _H(_cust_nm) + '</b> 담당자님.<br><br>'
+            '국제특송 운임 견적을 아래와 같이 안내드립니다.<br>'
+            '검토 후 추가 문의 사항은 언제든 연락 주시기 바랍니다.'
+            '</p>'
         )
+
+        # ── 견적 기본 정보 ──
+        rows = _hdr('견적 기본 정보')
+        for idx, (lbl, val) in enumerate([
+            ('견적번호',    quote_num),
+            ('견적일자',    _date_str),
+            ('유효기간',    '발행일로부터 7일'),
+            ('수신',        _cust_nm),
+            ('운송구분',    _mode_s),
+            ('목적지',      _kr_c + '  (' + dest_country + ')'),
+            ('화물구분',    _carg_s),
+            ('총 박스수',   str(len(ct_data)) + ' BOX'),
+            ('실중량 합계', '{:.1f} kg'.format(total_actual_wt)),
+            ('청구중량 합계', '{:.1f} kg'.format(total_chargeable)),
+        ]):
+            rows += _row2(lbl, val, shade=(idx % 2 == 0))
         h.append(_tbl(rows))
 
-    # ── 운임 견적 상세 ──
-    h.append('<p style="font-size:11px;color:#94a3b8;margin:0 0 8px;">※ 관세·부가세·통관비·현지비용은 실비 별도 청구</p>')
-
-    for _nm, _res in _active.items():
-        _fpct    = fuel_dhl if 'DHL' in _nm else (fuel_ups if 'UPS' in _nm else fuel_fedex)
-        _tt      = _TT2.get(_nm, '')
-        _is_best = (_nm == _best)
-        _fuel_a  = _res.get('pub_fuel', 0) + _res.get('sur_fuel_pub', 0)
-        _surs    = _res.get('surs_detail', {})
-        _sur_tot = _res.get('sur_total', 0)
-        _air_amt = _res.get('pub_disc', 0)
-        _total_q = _res.get('total_quote', 0)
-        _ri      = _res.get('rate_info', {})
-        _drpk    = _ri.get('disc_rpk') or _ri.get('rate_per_kg')
-        _dname   = 'UPS Worldwide Express' if 'UPS' in _nm else _nm
-        _zinfo   = ('DHL Zone ' + str(dhl_zone) if 'DHL' in _nm
-                    else 'FedEx Zone ' + str(fx_zone) if 'FedEx' in _nm
-                    else 'UPS Zone ' + str(ups_zone_num))
-        _hdr_bg  = ('#C00010' if 'DHL' in _nm
-                    else '#4D148C' if 'FedEx IP' == _nm
-                    else '#5510a0' if 'Economy' in _nm
-                    else '#6b3320')
-        _star = (
-            '&nbsp;&nbsp;<span style="background:#fef9c3;color:#92400e;'
-            'font-size:11px;padding:2px 8px;border-radius:3px;">★ 최저가 추천</span>'
-            if _is_best else ''
-        )
-
-        rows = (
-            '<tr><td colspan="2" style="background:' + _hdr_bg + ';color:#fff;'
-            'font-size:13px;font-weight:700;padding:9px 14px;">'
-            + _H(_dname) + _star + '</td></tr>'
-        )
-        rows += (
-            '<tr><td colspan="2" style="background:#f8f9fa;padding:5px 14px;'
-            'font-size:11px;color:#64748b;">'
-            '배송소요일: ' + _H(_tt) + '&nbsp;&nbsp;|&nbsp;&nbsp;' + _H(_zinfo) +
-            '</td></tr>'
-        )
-
-        # 항공운임
-        _air_lbl = '항공운임' + ('  (' + format(int(_drpk), ',') + '원/kg)' if _drpk else '')
-        rows += (
-            '<tr style="background:#f0f4ff;">'
-            '<td style="' + TD0 + 'color:#334155;">' + _H(_air_lbl) + '</td>'
-            '<td style="' + TD0 + 'text-align:right;font-weight:600;">' + _H(_amt_s(_air_amt)) + '</td>'
-            '</tr>'
-        )
-
-        # 부가서비스 항목
-        for _sn, _sv in _surs.items():
+        # ── 화물 명세 ──
+        if ct_data:
+            TH = 'padding:7px 10px;font-size:11px;font-weight:700;color:#475569;background:#e8edf8;text-align:'
+            rows = _hdr('화물 명세')
             rows += (
-                '<tr style="background:#fafbff;">'
-                '<td style="' + TD0 + 'color:#64748b;padding-left:26px;">└ ' + _H(_sn) + '</td>'
-                '<td style="' + TD0 + 'text-align:right;color:#64748b;">' + _H(_amt_s(_sv)) + '</td>'
+                '<tr>'
+                '<th style="' + TH + 'center;width:48px;">BOX</th>'
+                '<th style="' + TH + 'right;">실중량</th>'
+                '<th style="' + TH + 'center;">크기 (cm)</th>'
+                '<th style="' + TH + 'right;">부피중량</th>'
+                '<th style="' + TH + 'right;">청구중량</th>'
+                '<th style="' + TH + 'center;">기준</th>'
                 '</tr>'
             )
-        if len(_surs) >= 2:
+            for idx2, ct in enumerate(ct_data):
+                vw  = round(ct['L'] * ct['W'] * ct['H'] / 5000, 2)
+                cw2 = round(_ceil2(max(ct['wt'], vw) * 2) / 2, 1)
+                bas = '부피중량' if vw > ct['wt'] else '실중량'
+                bg  = '#f8faff' if idx2 % 2 == 0 else '#ffffff'
+                TD  = 'padding:6px 10px;font-size:12px;'
+                rows += (
+                    '<tr style="background:' + bg + ';">'
+                    '<td style="' + TD + 'text-align:center;color:#94a3b8;">{:02d}</td>'.format(idx2+1) +
+                    '<td style="' + TD + 'text-align:right;">{:.1f} kg</td>'.format(ct['wt']) +
+                    '<td style="' + TD + 'text-align:center;">{:.0f} × {:.0f} × {:.0f}</td>'.format(ct['L'], ct['W'], ct['H']) +
+                    '<td style="' + TD + 'text-align:right;color:#94a3b8;">{:.2f} kg</td>'.format(vw) +
+                    '<td style="' + TD + 'text-align:right;font-weight:600;">{:.1f} kg</td>'.format(cw2) +
+                    '<td style="' + TD + 'text-align:center;color:#0369a1;">' + bas + '</td>'
+                    '</tr>'
+                )
+            TD2 = 'padding:7px 10px;font-size:12px;font-weight:700;background:#dde4f5;'
+            rows += (
+                '<tr>'
+                '<td style="' + TD2 + 'text-align:center;">합계</td>'
+                '<td style="' + TD2 + 'text-align:right;">{:.1f} kg</td>'.format(total_actual_wt) +
+                '<td colspan="2" style="' + TD2 + '"></td>'
+                '<td style="' + TD2 + 'text-align:right;">{:.1f} kg</td>'.format(total_chargeable) +
+                '<td style="' + TD2 + '"></td>'
+                '</tr>'
+            )
+            h.append(_tbl(rows))
+
+        # ── 운임 견적 상세 ──
+        h.append('<p style="font-size:11px;color:#94a3b8;margin:0 0 8px;">※ 관세·부가세·통관비·현지비용은 실비 별도 청구</p>')
+
+        for _nm, _res in _active.items():
+            _fpct    = fuel_dhl if 'DHL' in _nm else (fuel_ups if 'UPS' in _nm else fuel_fedex)
+            _tt      = _TT2.get(_nm, '')
+            _is_best = (_nm == _best)
+            _fuel_a  = _res.get('pub_fuel', 0) + _res.get('sur_fuel_pub', 0)
+            _surs    = _res.get('surs_detail', {})
+            _sur_tot = _res.get('sur_total', 0)
+            _air_amt = _res.get('pub_disc', 0)
+            _total_q = _res.get('total_quote', 0)
+            _ri      = _res.get('rate_info', {})
+            _drpk    = _ri.get('disc_rpk') or _ri.get('rate_per_kg')
+            _dname   = 'UPS Worldwide Express' if 'UPS' in _nm else _nm
+            _zinfo   = ('DHL Zone ' + str(dhl_zone) if 'DHL' in _nm
+                        else 'FedEx Zone ' + str(fx_zone) if 'FedEx' in _nm
+                        else 'UPS Zone ' + str(ups_zone_num))
+            _hdr_bg  = ('#C00010' if 'DHL' in _nm
+                        else '#4D148C' if 'FedEx IP' == _nm
+                        else '#5510a0' if 'Economy' in _nm
+                        else '#6b3320')
+            _star = (
+                '&nbsp;&nbsp;<span style="background:#fef9c3;color:#92400e;'
+                'font-size:11px;padding:2px 8px;border-radius:3px;">★ 최저가 추천</span>'
+                if _is_best else ''
+            )
+
+            rows = (
+                '<tr><td colspan="2" style="background:' + _hdr_bg + ';color:#fff;'
+                'font-size:13px;font-weight:700;padding:9px 14px;">'
+                + _H(_dname) + _star + '</td></tr>'
+            )
+            rows += (
+                '<tr><td colspan="2" style="background:#f8f9fa;padding:5px 14px;'
+                'font-size:11px;color:#64748b;">'
+                '배송소요일: ' + _H(_tt) + '&nbsp;&nbsp;|&nbsp;&nbsp;' + _H(_zinfo) +
+                '</td></tr>'
+            )
+
+            # 항공운임
+            _air_lbl = '항공운임' + ('  (' + format(int(_drpk), ',') + '원/kg)' if _drpk else '')
             rows += (
                 '<tr style="background:#f0f4ff;">'
-                '<td style="' + TD0 + 'color:#334155;">부가서비스 소계</td>'
-                '<td style="' + TD0 + 'text-align:right;font-weight:600;">' + _H(_amt_s(_sur_tot)) + '</td>'
+                '<td style="' + TD0 + 'color:#334155;">' + _H(_air_lbl) + '</td>'
+                '<td style="' + TD0 + 'text-align:right;font-weight:600;">' + _H(_amt_s(_air_amt)) + '</td>'
                 '</tr>'
             )
 
-        # 유류할증료
-        rows += (
-            '<tr style="background:#fafbff;">'
-            '<td style="' + TD0 + 'color:#64748b;">유류할증료</td>'
-            '<td style="' + TD0 + 'text-align:right;color:#64748b;">' + _H(_amtp_s(_fuel_a, _fpct)) + '</td>'
-            '</tr>'
+            # 부가서비스 항목
+            for _sn, _sv in _surs.items():
+                rows += (
+                    '<tr style="background:#fafbff;">'
+                    '<td style="' + TD0 + 'color:#64748b;padding-left:26px;">└ ' + _H(_sn) + '</td>'
+                    '<td style="' + TD0 + 'text-align:right;color:#64748b;">' + _H(_amt_s(_sv)) + '</td>'
+                    '</tr>'
+                )
+            if len(_surs) >= 2:
+                rows += (
+                    '<tr style="background:#f0f4ff;">'
+                    '<td style="' + TD0 + 'color:#334155;">부가서비스 소계</td>'
+                    '<td style="' + TD0 + 'text-align:right;font-weight:600;">' + _H(_amt_s(_sur_tot)) + '</td>'
+                    '</tr>'
+                )
+
+            # 유류할증료
+            rows += (
+                '<tr style="background:#fafbff;">'
+                '<td style="' + TD0 + 'color:#64748b;">유류할증료</td>'
+                '<td style="' + TD0 + 'text-align:right;color:#64748b;">' + _H(_amtp_s(_fuel_a, _fpct)) + '</td>'
+                '</tr>'
+            )
+
+            # 청구금액 합계
+            rows += (
+                '<tr style="background:#1e3a8a;">'
+                '<td style="' + TD0 + 'color:#fff;font-weight:700;">청구금액 합계</td>'
+                '<td style="' + TD0 + 'text-align:right;font-size:14px;font-weight:800;color:#fbbf24;">'
+                + _H(_amt_s(_total_q)) + '</td>'
+                '</tr>'
+            )
+            h.append(_tbl(rows, mb=12))
+
+        # ── 안내사항 ──
+        rows = _hdr('안내 사항', bg='#334155')
+        for idx3, (lbl, txt) in enumerate(_notices):
+            rows += _row2(lbl, txt, shade=(idx3 % 2 == 0))
+        h.append(_tbl(rows))
+
+        # ── 서명 ──
+        sig = '<b>' + _H(_co) + '</b>'
+        if _ct_nm:   sig += '<br>담당자: ' + _H(_ct_nm)
+        if _ph:      sig += '<br>연락처: ' + _H(_ph)
+        if _em_addr: sig += '<br>이메일: ' + _H(_em_addr)
+        h.append(
+            '<p style="margin:0;font-size:13px;">'
+            '추가 문의 및 발송 의뢰는 언제든지 연락 주시기 바랍니다.<br>'
+            '감사합니다.<br><br>' + sig + '</p>'
+        )
+        h.append('</div>')
+        _html_email = ''.join(h)
+
+        # ── 플레인텍스트 (미리보기 전용) ──
+        ml = []
+        W2 = 54
+        def _pr(lbl, val, w=20):
+            return '  ' + lbl + ' ' + '.' * max(2, w - len(lbl)) + ' ' + val
+        def _pa(lbl, n, w=20):
+            return _pr(lbl, '\u20a9' + format(int(n), ','), w)
+        def _pap(lbl, n, p, w=20):
+            return _pr(lbl, '\u20a9' + format(int(n), ',') + '  ({:.2f}%)'.format(p), w)
+        ml += ['안녕하세요, ' + _cust_nm + ' 담당자님.', '',
+               '국제특송 운임 견적을 아래와 같이 안내드립니다.', '']
+        ml += ['='*W2, '  견적 기본 정보', '='*W2]
+        ml += [_pr('견적번호', quote_num), _pr('견적일자', _date_str),
+               _pr('유효기간', '발행일로부터 7일'), '-'*W2,
+               _pr('수신', _cust_nm), _pr('운송구분', _mode_s),
+               _pr('목적지', _kr_c + ' (' + dest_country + ')'), '-'*W2,
+               _pr('화물구분', _carg_s),
+               _pr('총 박스수', str(len(ct_data)) + ' BOX'),
+               _pr('실중량 합계', '{:.1f} kg'.format(total_actual_wt)),
+               _pr('청구중량 합계', '{:.1f} kg'.format(total_chargeable)), '']
+        if ct_data:
+            ml += ['='*W2, '  화물 명세', '='*W2]
+            for ii, ct in enumerate(ct_data):
+                vw  = round(ct['L']*ct['W']*ct['H']/5000, 2)
+                cw2 = round(_ceil2(max(ct['wt'],vw)*2)/2, 1)
+                bas = '부피중량' if vw > ct['wt'] else '실중량'
+                ml.append('  BOX {:02d}  {:.1f}kg  {:.0f}x{:.0f}x{:.0f}cm  청구 {:.1f}kg ({})'.format(
+                    ii+1, ct['wt'], ct['L'], ct['W'], ct['H'], cw2, bas))
+            ml += ['-'*W2, '  합계  실중량 {:.1f}kg  /  청구중량 {:.1f}kg'.format(
+                total_actual_wt, total_chargeable), '']
+        ml += ['='*W2, '  운임 견적 상세', '='*W2]
+        for _nm2, _res2 in _active.items():
+            _fpct2   = fuel_dhl if 'DHL' in _nm2 else (fuel_ups if 'UPS' in _nm2 else fuel_fedex)
+            _tt2     = _TT2.get(_nm2, '')
+            _ib2     = (_nm2 == _best)
+            _fa2     = _res2.get('pub_fuel',0) + _res2.get('sur_fuel_pub',0)
+            _su2     = _res2.get('surs_detail',{})
+            _st2     = _res2.get('sur_total',0)
+            _aa2     = _res2.get('pub_disc',0)
+            _tq2     = _res2.get('total_quote',0)
+            _ri2     = _res2.get('rate_info',{})
+            _dp2     = _ri2.get('disc_rpk') or _ri2.get('rate_per_kg')
+            _dn2     = 'UPS Worldwide Express' if 'UPS' in _nm2 else _nm2
+            _zi2     = ('DHL Zone ' + str(dhl_zone) if 'DHL' in _nm2
+                        else 'FedEx Zone ' + str(fx_zone) if 'FedEx' in _nm2
+                        else 'UPS Zone ' + str(ups_zone_num))
+            ml += ['-'*W2, '  ▶ ' + _dn2 + ('  ★ 최저가 추천' if _ib2 else ''),
+                   '     ' + _tt2 + '  (' + _zi2 + ')', '-'*W2]
+            if _dp2:
+                ml.append(_pr('항공운임', '\u20a9' + format(int(_aa2), ',') + '  (' + format(int(_dp2), ',') + '원/kg)'))
+            else:
+                ml.append(_pa('항공운임', _aa2))
+            for _sn2, _sv2 in _su2.items():
+                ml.append(_pa('  + ' + _sn2, _sv2))
+            if len(_su2) >= 2:
+                ml.append(_pa('부가서비스 소계', _st2))
+            ml.append(_pap('유류할증료', _fa2, _fpct2))
+            ml += ['  ' + '─'*(W2-2), _pa('청구금액 합계', _tq2), '']
+        ml += ['='*W2, '  안내 사항', '='*W2]
+        for lbl2, txt2 in _notices:
+            ml.append('  * ' + lbl2 + ': ' + txt2)
+        ml += ['='*W2, '', '추가 문의 및 발송 의뢰는 언제든지 연락 주시기 바랍니다.',
+               '감사합니다.', '', '-'*W2, '  ' + _co]
+        if _ct_nm:   ml.append('  담당자  ' + _ct_nm)
+        if _ph:      ml.append('  연락처  ' + _ph)
+        if _em_addr: ml.append('  이메일  ' + _em_addr)
+        ml.append('-'*W2)
+        _copytext = "\n".join(ml)
+
+        # ── UI: 미리보기 박스 ──
+        st.markdown("""
+    <div style="background:#f8faff;border:1px solid #dbeafe;border-radius:10px;
+                padding:12px 16px;margin-bottom:10px;font-size:.72rem;color:#475569;
+                display:flex;gap:18px;flex-wrap:wrap;">
+      <span>✅ <b>Gmail</b> 호환</span>
+      <span>✅ <b>Outlook</b> 호환</span>
+      <span>✅ <b>네이버메일</b> 호환</span>
+      <span>✅ <b>iPhone Mail</b> 호환</span>
+      <span>✅ <b>모바일 Android</b> 호환</span>
+    </div>""", unsafe_allow_html=True)
+
+        st.text_area(
+            "이메일 본문",
+            _copytext,
+            height=500,
+            help="텍스트 영역 클릭 → Ctrl+A(전체선택) → Ctrl+C(복사) 후 이메일 본문에 붙여넣기",
+            label_visibility="collapsed",
         )
 
-        # 청구금액 합계
-        rows += (
-            '<tr style="background:#1e3a8a;">'
-            '<td style="' + TD0 + 'color:#fff;font-weight:700;">청구금액 합계</td>'
-            '<td style="' + TD0 + 'text-align:right;font-size:14px;font-weight:800;color:#fbbf24;">'
-            + _H(_amt_s(_total_q)) + '</td>'
-            '</tr>'
-        )
-        h.append(_tbl(rows, mb=12))
 
-    # ── 안내사항 ──
-    rows = _hdr('안내 사항', bg='#334155')
-    for idx3, (lbl, txt) in enumerate(_notices):
-        rows += _row2(lbl, txt, shade=(idx3 % 2 == 0))
-    h.append(_tbl(rows))
+        # ── 복사 버튼 — HTML + 플레인텍스트 동시 클립보드 (Outlook/Gmail 표 붙여넣기) ──
+        import base64 as _b64m
+        _b64_html  = _b64m.b64encode(_html_email.encode('utf-8')).decode('ascii')
+        _b64_plain = _b64m.b64encode(_copytext.encode('utf-8')).decode('ascii')
 
-    # ── 서명 ──
-    sig = '<b>' + _H(_co) + '</b>'
-    if _ct_nm:   sig += '<br>담당자: ' + _H(_ct_nm)
-    if _ph:      sig += '<br>연락처: ' + _H(_ph)
-    if _em_addr: sig += '<br>이메일: ' + _H(_em_addr)
-    h.append(
-        '<p style="margin:0;font-size:13px;">'
-        '추가 문의 및 발송 의뢰는 언제든지 연락 주시기 바랍니다.<br>'
-        '감사합니다.<br><br>' + sig + '</p>'
-    )
-    h.append('</div>')
-    _html_email = ''.join(h)
+        _copy_html = """<!DOCTYPE html>
+    <html><body style="margin:0;padding:0;font-family:Arial,sans-serif;">
+    <button id="copybtn" onclick="doCopy()" style="
+      display:block;width:100%;padding:12px 0;
+      background:linear-gradient(135deg,#1e3a8a,#2563eb);
+      color:#fff;border:none;border-radius:9px;
+      font-size:14px;font-weight:800;cursor:pointer;
+      box-shadow:0 3px 14px rgba(37,99,235,.3);
+      letter-spacing:.04em;">&#128203; 이메일 본문 복사 (표 포함)</button>
+    <div id="msg" style="margin-top:8px;font-size:12px;text-align:center;min-height:18px;color:#059669;"></div>
+    <script>
+    var B64H  = '""" + _b64_html + """';
+    var B64P  = '""" + _b64_plain + """';
+    function decode(b64) {
+      var bin=atob(b64), bytes=new Uint8Array(bin.length);
+      for(var i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+      return new TextDecoder('utf-8').decode(bytes);
+    }
+    function showOK() {
+      var btn=document.getElementById('copybtn');
+      var msg=document.getElementById('msg');
+      btn.innerHTML='&#10003; 복사 완료!';
+      btn.style.background='linear-gradient(135deg,#059669,#047857)';
+      msg.innerHTML='&#10003; 클립보드에 복사되었습니다. 아웃룩/Gmail에 붙여넣기 하세요.';
+      setTimeout(function(){
+        btn.innerHTML='&#128203; 이메일 본문 복사 (표 포함)';
+        btn.style.background='linear-gradient(135deg,#1e3a8a,#2563eb)';
+        msg.innerHTML='';
+      }, 3000);
+    }
+    function showFail() {
+      document.getElementById('msg').style.color='#dc2626';
+      document.getElementById('msg').innerHTML='&#10005; 복사 실패 — 아래 텍스트를 직접 복사하세요.';
+    }
+    function doCopy() {
+      var htmlText  = decode(B64H);
+      var plainText = decode(B64P);
+      if(window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+        var item = new ClipboardItem({
+          'text/html':  new Blob([htmlText],  {type:'text/html'}),
+          'text/plain': new Blob([plainText], {type:'text/plain'})
+        });
+        navigator.clipboard.write([item]).then(showOK).catch(function(){ fallback(plainText); });
+      } else if(navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(plainText).then(showOK).catch(function(){ fallback(plainText); });
+      } else {
+        fallback(plainText);
+      }
+    }
+    function fallback(txt) {
+      var ta=document.createElement('textarea');
+      ta.value=txt; ta.style.cssText='position:fixed;top:0;left:0;opacity:0.01;';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      try{ document.execCommand('copy'); showOK(); } catch(e){ showFail(); }
+      document.body.removeChild(ta);
+    }
+    </script>
+    </body></html>"""
 
-    # ── 플레인텍스트 (미리보기 전용) ──
-    ml = []
-    W2 = 54
-    def _pr(lbl, val, w=20):
-        return '  ' + lbl + ' ' + '.' * max(2, w - len(lbl)) + ' ' + val
-    def _pa(lbl, n, w=20):
-        return _pr(lbl, '\u20a9' + format(int(n), ','), w)
-    def _pap(lbl, n, p, w=20):
-        return _pr(lbl, '\u20a9' + format(int(n), ',') + '  ({:.2f}%)'.format(p), w)
-    ml += ['안녕하세요, ' + _cust_nm + ' 담당자님.', '',
-           '국제특송 운임 견적을 아래와 같이 안내드립니다.', '']
-    ml += ['='*W2, '  견적 기본 정보', '='*W2]
-    ml += [_pr('견적번호', quote_num), _pr('견적일자', _date_str),
-           _pr('유효기간', '발행일로부터 7일'), '-'*W2,
-           _pr('수신', _cust_nm), _pr('운송구분', _mode_s),
-           _pr('목적지', _kr_c + ' (' + dest_country + ')'), '-'*W2,
-           _pr('화물구분', _carg_s),
-           _pr('총 박스수', str(len(ct_data)) + ' BOX'),
-           _pr('실중량 합계', '{:.1f} kg'.format(total_actual_wt)),
-           _pr('청구중량 합계', '{:.1f} kg'.format(total_chargeable)), '']
-    if ct_data:
-        ml += ['='*W2, '  화물 명세', '='*W2]
-        for ii, ct in enumerate(ct_data):
-            vw  = round(ct['L']*ct['W']*ct['H']/5000, 2)
-            cw2 = round(_ceil2(max(ct['wt'],vw)*2)/2, 1)
-            bas = '부피중량' if vw > ct['wt'] else '실중량'
-            ml.append('  BOX {:02d}  {:.1f}kg  {:.0f}x{:.0f}x{:.0f}cm  청구 {:.1f}kg ({})'.format(
-                ii+1, ct['wt'], ct['L'], ct['W'], ct['H'], cw2, bas))
-        ml += ['-'*W2, '  합계  실중량 {:.1f}kg  /  청구중량 {:.1f}kg'.format(
-            total_actual_wt, total_chargeable), '']
-    ml += ['='*W2, '  운임 견적 상세', '='*W2]
-    for _nm2, _res2 in _active.items():
-        _fpct2   = fuel_dhl if 'DHL' in _nm2 else (fuel_ups if 'UPS' in _nm2 else fuel_fedex)
-        _tt2     = _TT2.get(_nm2, '')
-        _ib2     = (_nm2 == _best)
-        _fa2     = _res2.get('pub_fuel',0) + _res2.get('sur_fuel_pub',0)
-        _su2     = _res2.get('surs_detail',{})
-        _st2     = _res2.get('sur_total',0)
-        _aa2     = _res2.get('pub_disc',0)
-        _tq2     = _res2.get('total_quote',0)
-        _ri2     = _res2.get('rate_info',{})
-        _dp2     = _ri2.get('disc_rpk') or _ri2.get('rate_per_kg')
-        _dn2     = 'UPS Worldwide Express' if 'UPS' in _nm2 else _nm2
-        _zi2     = ('DHL Zone ' + str(dhl_zone) if 'DHL' in _nm2
-                    else 'FedEx Zone ' + str(fx_zone) if 'FedEx' in _nm2
-                    else 'UPS Zone ' + str(ups_zone_num))
-        ml += ['-'*W2, '  ▶ ' + _dn2 + ('  ★ 최저가 추천' if _ib2 else ''),
-               '     ' + _tt2 + '  (' + _zi2 + ')', '-'*W2]
-        if _dp2:
-            ml.append(_pr('항공운임', '\u20a9' + format(int(_aa2), ',') + '  (' + format(int(_dp2), ',') + '원/kg)'))
-        else:
-            ml.append(_pa('항공운임', _aa2))
-        for _sn2, _sv2 in _su2.items():
-            ml.append(_pa('  + ' + _sn2, _sv2))
-        if len(_su2) >= 2:
-            ml.append(_pa('부가서비스 소계', _st2))
-        ml.append(_pap('유류할증료', _fa2, _fpct2))
-        ml += ['  ' + '─'*(W2-2), _pa('청구금액 합계', _tq2), '']
-    ml += ['='*W2, '  안내 사항', '='*W2]
-    for lbl2, txt2 in _notices:
-        ml.append('  * ' + lbl2 + ': ' + txt2)
-    ml += ['='*W2, '', '추가 문의 및 발송 의뢰는 언제든지 연락 주시기 바랍니다.',
-           '감사합니다.', '', '-'*W2, '  ' + _co]
-    if _ct_nm:   ml.append('  담당자  ' + _ct_nm)
-    if _ph:      ml.append('  연락처  ' + _ph)
-    if _em_addr: ml.append('  이메일  ' + _em_addr)
-    ml.append('-'*W2)
-    _copytext = "\n".join(ml)
+        st.components.v1.html(_copy_html, height=80)
 
-    # ── UI: 미리보기 박스 ──
-    st.markdown("""
-<div style="background:#f8faff;border:1px solid #dbeafe;border-radius:10px;
-            padding:12px 16px;margin-bottom:10px;font-size:.72rem;color:#475569;
-            display:flex;gap:18px;flex-wrap:wrap;">
-  <span>✅ <b>Gmail</b> 호환</span>
-  <span>✅ <b>Outlook</b> 호환</span>
-  <span>✅ <b>네이버메일</b> 호환</span>
-  <span>✅ <b>iPhone Mail</b> 호환</span>
-  <span>✅ <b>모바일 Android</b> 호환</span>
-</div>""", unsafe_allow_html=True)
-
-    st.text_area(
-        "이메일 본문",
-        _copytext,
-        height=500,
-        help="텍스트 영역 클릭 → Ctrl+A(전체선택) → Ctrl+C(복사) 후 이메일 본문에 붙여넣기",
-        label_visibility="collapsed",
-    )
-
-
-    # ── 복사 버튼 — HTML + 플레인텍스트 동시 클립보드 (Outlook/Gmail 표 붙여넣기) ──
-    import base64 as _b64m
-    _b64_html  = _b64m.b64encode(_html_email.encode('utf-8')).decode('ascii')
-    _b64_plain = _b64m.b64encode(_copytext.encode('utf-8')).decode('ascii')
-
-    _copy_html = """<!DOCTYPE html>
-<html><body style="margin:0;padding:0;font-family:Arial,sans-serif;">
-<button id="copybtn" onclick="doCopy()" style="
-  display:block;width:100%;padding:12px 0;
-  background:linear-gradient(135deg,#1e3a8a,#2563eb);
-  color:#fff;border:none;border-radius:9px;
-  font-size:14px;font-weight:800;cursor:pointer;
-  box-shadow:0 3px 14px rgba(37,99,235,.3);
-  letter-spacing:.04em;">&#128203; 이메일 본문 복사 (표 포함)</button>
-<div id="msg" style="margin-top:8px;font-size:12px;text-align:center;min-height:18px;color:#059669;"></div>
-<script>
-var B64H  = '""" + _b64_html + """';
-var B64P  = '""" + _b64_plain + """';
-function decode(b64) {
-  var bin=atob(b64), bytes=new Uint8Array(bin.length);
-  for(var i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
-  return new TextDecoder('utf-8').decode(bytes);
-}
-function showOK() {
-  var btn=document.getElementById('copybtn');
-  var msg=document.getElementById('msg');
-  btn.innerHTML='&#10003; 복사 완료!';
-  btn.style.background='linear-gradient(135deg,#059669,#047857)';
-  msg.innerHTML='&#10003; 클립보드에 복사되었습니다. 아웃룩/Gmail에 붙여넣기 하세요.';
-  setTimeout(function(){
-    btn.innerHTML='&#128203; 이메일 본문 복사 (표 포함)';
-    btn.style.background='linear-gradient(135deg,#1e3a8a,#2563eb)';
-    msg.innerHTML='';
-  }, 3000);
-}
-function showFail() {
-  document.getElementById('msg').style.color='#dc2626';
-  document.getElementById('msg').innerHTML='&#10005; 복사 실패 — 아래 텍스트를 직접 복사하세요.';
-}
-function doCopy() {
-  var htmlText  = decode(B64H);
-  var plainText = decode(B64P);
-  if(window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
-    var item = new ClipboardItem({
-      'text/html':  new Blob([htmlText],  {type:'text/html'}),
-      'text/plain': new Blob([plainText], {type:'text/plain'})
-    });
-    navigator.clipboard.write([item]).then(showOK).catch(function(){ fallback(plainText); });
-  } else if(navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(plainText).then(showOK).catch(function(){ fallback(plainText); });
-  } else {
-    fallback(plainText);
-  }
-}
-function fallback(txt) {
-  var ta=document.createElement('textarea');
-  ta.value=txt; ta.style.cssText='position:fixed;top:0;left:0;opacity:0.01;';
-  document.body.appendChild(ta); ta.focus(); ta.select();
-  try{ document.execCommand('copy'); showOK(); } catch(e){ showFail(); }
-  document.body.removeChild(ta);
-}
-</script>
-</body></html>"""
-
-    st.components.v1.html(_copy_html, height=80)
 
 
 st.markdown(f'<div style="text-align:center;padding:12px 0;color:#94a3b8;font-size:.7rem;">에어브리지 운임계산기 v4.2 · DHL + FedEx IP/Economy + UPS(2F94A8/B8733R) · 관세·세금·통관비 별도</div>', unsafe_allow_html=True)
