@@ -288,6 +288,141 @@ _COUNTRY_ISO = {
 import json as _json, os as _os, re as _re
 
 
+# ── FedEx ODA/OPA 요금표 ──────────────────────────────────────────
+# OPA (픽업), ODA (배송) 각각 동일 구조
+# Tier A: OPA=없음, ODA=4,200원
+# Tier B: max(30,000원, 580원×kg)
+# Tier C: max(39,000원, 750원×kg)
+
+_FEDEX_ODA_FIX   = {"A": 4200,  "B": 30000, "C": 39000}
+_FEDEX_ODA_KG    = {"A": 0,     "B": 580,   "C": 750}
+_FEDEX_OPA_FIX   = {"A": 0,     "B": 30000, "C": 39000}  # A=없음
+_FEDEX_OPA_KG    = {"A": 0,     "B": 580,   "C": 750}
+
+_fedex_oda_opa_data = None
+
+def _load_fedex_oda_opa():
+    global _fedex_oda_opa_data
+    if _fedex_oda_opa_data is not None:
+        return _fedex_oda_opa_data
+    path = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "fedex_oda_opa.json")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            _fedex_oda_opa_data = _json.load(f)
+    except Exception:
+        _fedex_oda_opa_data = {"p": {}, "c": {}}
+    return _fedex_oda_opa_data
+
+def get_fedex_oda_opa_tier(country_name: str, postal_code: str = "", city_name: str = "") -> dict:
+    """FedEx ODA/OPA 티어 반환 → {"opa": "A"/"B"/"C", "oda": "A"/"B"/"C"}"""
+    cc = _COUNTRY_ISO.get(country_name, "")
+    if not cc:
+        return {"opa": "A", "oda": "A"}
+    db = _load_fedex_oda_opa()
+    postal_data = db.get("p", {}).get(cc, [])
+    city_data   = db.get("c", {}).get(cc, {})
+
+    # 우편번호로 조회
+    if postal_code:
+        pn = _re.sub(r"[\s\-]", "", str(postal_code)).strip()
+        # 숫자 우편번호
+        pn_num = None
+        try: pn_num = int(pn)
+        except: pass
+        for row in postal_data:
+            b, e, opa, oda = row
+            # 숫자 비교 가능하면 숫자로
+            try:
+                if pn_num is not None and int(b) <= pn_num <= int(e):
+                    return {"opa": opa, "oda": oda}
+            except:
+                if b <= pn <= e:
+                    return {"opa": opa, "oda": oda}
+
+    # 도시명으로 조회
+    if city_name:
+        cn = city_name.strip().lower()
+        if cn in city_data:
+            r = city_data[cn]
+            return {"opa": r[0], "oda": r[1]}
+
+    return {"opa": "A", "oda": "A"}
+
+def calc_fedex_oda_opa_sur(tier_info: dict, chargeable_wt: float) -> dict:
+    """ODA/OPA 각 추가요금 계산 → {"opa": int, "oda": int}"""
+    def _calc(fix_map, kg_map, tier, wt):
+        fix = fix_map.get(tier, 0)
+        kg  = kg_map.get(tier, 0)
+        if fix == 0 and kg == 0: return 0
+        return max(fix, ceil10(kg * wt))
+    return {
+        "opa": _calc(_FEDEX_OPA_FIX, _FEDEX_OPA_KG, tier_info["opa"], chargeable_wt),
+        "oda": _calc(_FEDEX_ODA_FIX, _FEDEX_ODA_KG, tier_info["oda"], chargeable_wt),
+    }
+
+
+# ── UPS 외곽지역 서비스(EAS) ─────────────────────────────────────
+# 픽업/배송 각각: max(31,400원, 570원×kg)
+UPS_EAS_FIX = 31400
+UPS_EAS_KG  = 570
+
+_ups_eas_data = None
+
+def _load_ups_eas():
+    global _ups_eas_data
+    if _ups_eas_data is not None:
+        return _ups_eas_data
+    path = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "ups_eas.json")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            _ups_eas_data = _json.load(f)
+    except Exception:
+        _ups_eas_data = {"p": {}, "c": {}}
+    return _ups_eas_data
+
+def get_ups_eas(country_name: str, postal_code: str = "", city_name: str = "") -> dict:
+    """UPS 외곽지역 여부 → {"pickup": bool, "delivery": bool}"""
+    cc = _COUNTRY_ISO.get(country_name, "")
+    if not cc:
+        return {"pickup": False, "delivery": False}
+    db = _load_ups_eas()
+    postal_data = db.get("p", {}).get(cc, [])
+    city_data   = db.get("c", {}).get(cc, {})
+
+    if postal_code:
+        pn = _re.sub(r"[\s\-]", "", str(postal_code)).strip()
+        pn_num = None
+        try: pn_num = int(pn)
+        except: pass
+        for row in postal_data:
+            b, e, pu, de = row
+            try:
+                if pn_num is not None and int(b) <= pn_num <= int(e):
+                    return {"pickup": bool(pu), "delivery": bool(de)}
+            except:
+                if b <= pn <= e:
+                    return {"pickup": bool(pu), "delivery": bool(de)}
+
+    if city_name:
+        cn = city_name.strip().lower()
+        if cn in city_data:
+            r = city_data[cn]
+            return {"pickup": bool(r[0]), "delivery": bool(r[1])}
+
+    return {"pickup": False, "delivery": False}
+
+def calc_ups_eas_sur(eas_info: dict, chargeable_wt: float) -> dict:
+    """UPS EAS 추가요금 계산 → {"pickup": int, "delivery": int}"""
+    def _calc(flag):
+        if not flag: return 0
+        return max(UPS_EAS_FIX, ceil10(UPS_EAS_KG * chargeable_wt))
+    return {
+        "pickup":   _calc(eas_info["pickup"]),
+        "delivery": _calc(eas_info["delivery"]),
+    }
+
+
+
 def _load_dhl_remote() -> dict:
     """dhl_remote.json 로드 (앱 실행 시 1회, 메모리 캐시)"""
     _path = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "dhl_remote.json")
@@ -1810,8 +1945,28 @@ def run_calculation(
     if _eds > 0:
         sur_fedex_ct["초과수요(EDS)"] = _eds
         total_sur_fedex += _eds
+
+    # FedEx ODA/OPA 추가요금
+    _fx_tier = get_fedex_oda_opa_tier(dest_country, remote_postal, remote_city)
+    _fx_oda_opa = calc_fedex_oda_opa_sur(_fx_tier, _total_w)
+    if _fx_oda_opa["opa"] > 0:
+        sur_fedex_ct["서비스외지역 픽업(OPA)"] = _fx_oda_opa["opa"]
+        total_sur_fedex += _fx_oda_opa["opa"]
+    if _fx_oda_opa["oda"] > 0:
+        sur_fedex_ct["서비스외지역 배송(ODA)"] = _fx_oda_opa["oda"]
+        total_sur_fedex += _fx_oda_opa["oda"]
     total_sur_ups   = sum(v for k, v in sur_ups_ct.items() if k != "__freight__")
     ups_freight_flag = sur_ups_ct.get("__freight__", 0) > 0
+
+    # UPS 외곽지역 서비스(EAS)
+    _ups_eas = get_ups_eas(dest_country, remote_postal, remote_city)
+    _ups_eas_sur = calc_ups_eas_sur(_ups_eas, _total_w)
+    if _ups_eas_sur["pickup"] > 0:
+        sur_ups_ct["외곽지역 픽업(EAS)"] = _ups_eas_sur["pickup"]
+        total_sur_ups += _ups_eas_sur["pickup"]
+    if _ups_eas_sur["delivery"] > 0:
+        sur_ups_ct["외곽지역 배송(EAS)"] = _ups_eas_sur["delivery"]
+        total_sur_ups += _ups_eas_sur["delivery"]
 
     # ── DHL ──
     if mode == "수출":
