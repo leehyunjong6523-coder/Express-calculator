@@ -2,7 +2,10 @@
 유류할증료 자동 조회 모듈 (2026)
 DHL(월별), FedEx/UPS(주별) — JS SPA 대응, 다단계 fallback
 """
-import re, json, time, datetime, urllib.request, urllib.error, ssl
+import re, json, time, datetime, urllib.request, urllib.error, ssl, logging
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 _ssl_ctx = ssl.create_default_context()
 _ssl_ctx.check_hostname = False
@@ -141,6 +144,7 @@ def get_fuel(carrier: str) -> dict:
         _cache[carrier] = {"value": val, "ts": now, "updated": ts}
         return {"value": val, "source": "live", "updated": ts, "error": None}
     except Exception as e:
+        logger.error(f"[fuel_scraper] {carrier} 조회 실패: {e}")
         if c:
             return {"value": c["value"], "source": "stale", "updated": c["updated"], "error": str(e)}
         return {"value": _DEFAULTS[carrier], "source": "default", "updated": "—", "error": str(e)}
