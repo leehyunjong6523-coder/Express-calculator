@@ -1,0 +1,105 @@
+"""Claude Haiku AI OCR — 화물 정보 추출"""
+import os
+import json
+import base64
+import re
+import requests
+
+CLAUDE_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+
+def _get_api_key():
+    """키를 호출 시점에 읽음 — dotenv 로드 후에도 정상 동작"""
+    return os.environ.get("ANTHROPIC_API_KEY", "") or CLAUDE_API_KEY
+
+_EXTRACT_SCHEMA = """
+다음 JSON 형식으로만 응답:
+{
+  "country": "국가명(반드시 영문으로, 아래 규칙 엄수: England/Britain/UK→United Kingdom, USA/US/America→United States of America, Turkey/Türkiye→Turkiye, China/PRC→China (People's Republic), HongKong/HK→Hong Kong SAR China, Taiwan/ROC→Taiwan China, Vietnam/Viet Nam→Vietnam, Korea/South Korea→South Korea, UAE/Dubai→United Arab Emirates, Laos→Lao P.D.R., Iran→Iran Islamic Rep. of, Russia→Russia, Czech/Czechia→Czech Republic)",
+  "postal_code": "우편번호(없으면 빈 문자열)",
+  "city": "도시명(없으면 빈 문자열)",
+  "ct_count": 박스/C.T 수(정수),
+  "weight_kg": 총중량(kg, 소수점 1자리),
+  "length_cm": 가로(cm, 정수),
+  "width_cm": 세로(cm, 정수),
+  "height_cm": 높이(cm, 정수),
+  "is_document": true/false
+}
+모든 값이 없으면 null. 반드시 JSON만 출력.
+"""
+
+
+def _validate(r: dict) -> dict:
+    defaults = {
+        "country": "", "postal_code": "", "city": "",
+        "ct_count": 1, "weight_kg": 1.0,
+        "length_cm": 10, "width_cm": 10, "height_cm": 10,
+        "is_document": False
+    }
+    for k, v in defaults.items():
+        if k not in r or r[k] is None:
+            r[k] = v
+    r["ct_count"]   = max(1, int(r["ct_count"] or 1))
+    r["weight_kg"]  = max(0.1, float(r["weight_kg"] or 0.5))
+    r["length_cm"]  = max(1, int(r["length_cm"] or 10))
+    r["width_cm"]   = max(1, int(r["width_cm"] or 10))
+    r["height_cm"]  = max(1, int(r["height_cm"] or 10))
+    return r
+
+
+def _parse_json(text: str) -> dict:
+    text = re.sub(r"```json|```", "", text).strip()
+    return json.loads(text)
+
+
+def call_claude_image(image_bytes: bytes, mime_type: str) -> dict:
+    key = _get_api_key()
+    if not key:
+        return {"error": "ANTHROPIC_API_KEY 환경변수 미설정"}
+    b64 = base64.standard_b64encode(image_bytes).decode("utf-8")
+    payload = {
+        "model": "claude-haiku-4-5-20251001",
+        "max_tokens": 512,
+        "messages": [{
+            "role": "user",
+            "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": mime_type, "data": b64}},
+                {"type": "text", "text": f"이 운송장/패킹리스트에서 화물 정보를 추출하세요.\n{_EXTRACT_SCHEMA}"}
+            ]
+        }]
+    }
+    try:
+        resp = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json=payload, timeout=30
+        )
+        resp.raise_for_status()
+        text = resp.json()["content"][0]["text"]
+        return _validate(_parse_json(text))
+    except Exception as e:
+        return {"error": str(e)[:200]}
+
+
+def call_claude_text(text: str) -> dict:
+    key = _get_api_key()
+    if not key:
+        return {"error": "ANTHROPIC_API_KEY 환경변수 미설정"}
+    payload = {
+        "model": "claude-haiku-4-5-20251001",
+        "max_tokens": 512,
+        "messages": [{
+            "role": "user",
+            "content": f"다음 텍스트에서 화물 정보를 추출하세요.\n{_EXTRACT_SCHEMA}\n\n텍스트:\n{text}"
+        }]
+    }
+    try:
+        resp = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json=payload, timeout=30
+        )
+        resp.raise_for_status()
+        text_out = resp.json()["content"][0]["text"]
+        return _validate(_parse_json(text_out))
+    except Exception as e:
+        return {"error": str(e)[:200]}

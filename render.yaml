@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: airbridge-calculator
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app_flask:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false          # Render 대시보드에서 직접 설정
+      - key: SECRET_KEY
+        generateValue: true  # 자동 생성
+    healthCheckPath: /
