@@ -80,22 +80,26 @@ def _get_fedex():
             if html.strip().startswith(("{","[")):
                 v = _extract_pct(json.dumps(json.loads(html)))
                 if v: return v
-        except Exception: pass
+        except Exception as e:
+            logger.error(f"[fedex] URL {url} 실패: {e}")
 
     # 2) HTML 파싱
-    html = _fetch("https://www.fedex.com/ko-kr/shipping/surcharges.html")
-    for pat in [
-        r'국제\s*특송[^%\d]{0,100}(\d{2}\.\d{2})',
-        r'International\s*Express[^%\d]{0,100}(\d{2}\.\d{2})',
-        r'fuel[^%\d]{0,60}(\d{2}\.\d{2})',
-    ]:
-        m = re.search(pat, html, re.IGNORECASE | re.DOTALL)
-        if m:
-            v = float(m.group(1))
-            if 10 <= v <= 60: return round(v, 2)
+    try:
+        html = _fetch("https://www.fedex.com/ko-kr/shipping/surcharges.html")
+        for pat in [
+            r'국제\s*특송[^%\d]{0,100}(\d{2}\.\d{2})',
+            r'International\s*Express[^%\d]{0,100}(\d{2}\.\d{2})',
+            r'fuel[^%\d]{0,60}(\d{2}\.\d{2})',
+        ]:
+            m = re.search(pat, html, re.IGNORECASE | re.DOTALL)
+            if m:
+                v = float(m.group(1))
+                if 10 <= v <= 60: return round(v, 2)
+        v = _extract_pct(html)
+        if v: return v
+    except Exception as e:
+        logger.error(f"[fedex] HTML 파싱 실패: {e}")
 
-    v = _extract_pct(html)
-    if v: return v
     raise ValueError("FedEx 조회 실패 — 수동 입력 필요")
 
 
