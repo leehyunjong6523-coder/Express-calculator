@@ -188,6 +188,32 @@ def api_fuel():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/update-fuel", methods=["POST"])
+def api_update_fuel():
+    """GitHub Actions에서 유류할증료 푸시 — SECRET_KEY 인증"""
+    import os
+    secret = request.headers.get("X-Secret-Key", "")
+    if secret != os.environ.get("SECRET_KEY", ""):
+        return jsonify({"error": "unauthorized"}), 401
+    data = request.get_json(force=True)
+    updated = []
+    for carrier in ("dhl", "fedex", "ups"):
+        val = data.get(carrier)
+        if val is not None:
+            try:
+                from fuel_scraper import _cache
+                import datetime, time
+                _cache[carrier] = {
+                    "value": float(val),
+                    "ts": time.time(),
+                    "updated": datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+                }
+                updated.append(f"{carrier}={val}")
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+    return jsonify({"ok": True, "updated": updated})
+
+
 @app.route("/api/reload-customers", methods=["POST"])
 def api_reload_customers():
     """구글시트 캐시 강제 초기화 — 새 고객 추가 후 사용"""
