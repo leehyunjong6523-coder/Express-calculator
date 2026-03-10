@@ -932,15 +932,15 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">
         <div>
           <div style="font-size:11px;color:var(--text-sec);margin-bottom:3px;">DHL<br><span style="color:var(--text-dim);font-size:10px;">월별</span></div>
-          <input class="sb-number" type="number" id="fuelDhl" step="0.01" value="{{ settings.fuel_dhl }}" min="0" max="60">
+          <input class="sb-number" type="number" id="fuelDhl" step="0.01" value="{{ settings.fuel_dhl }}" min="0" max="60" onchange="saveFuel()">
         </div>
         <div>
           <div style="font-size:11px;color:var(--text-sec);margin-bottom:3px;">FedEx<br><span style="color:var(--text-dim);font-size:10px;">주별</span></div>
-          <input class="sb-number" type="number" id="fuelFedex" step="0.01" value="{{ settings.fuel_fedex }}" min="0" max="60">
+          <input class="sb-number" type="number" id="fuelFedex" step="0.01" value="{{ settings.fuel_fedex }}" min="0" max="60" onchange="saveFuel()">
         </div>
         <div>
           <div style="font-size:11px;color:var(--text-sec);margin-bottom:3px;">UPS<br><span style="color:var(--text-dim);font-size:10px;">주별</span></div>
-          <input class="sb-number" type="number" id="fuelUps" step="0.01" value="{{ settings.fuel_ups }}" min="0" max="60">
+          <input class="sb-number" type="number" id="fuelUps" step="0.01" value="{{ settings.fuel_ups }}" min="0" max="60" onchange="saveFuel()">
         </div>
       </div>
       <div style="font-size:10px;color:var(--text-dim);margin-top:3px;">※ 직접 수정 가능 (다음달 등)</div>
@@ -1281,6 +1281,20 @@ async function reloadCustomers() {
   } catch(e) {
     showToast('❌ 새로고침 실패: ' + e.message);
   }
+}
+
+async function saveFuel() {
+  const dhl   = parseFloat(document.getElementById('fuelDhl').value);
+  const fedex = parseFloat(document.getElementById('fuelFedex').value);
+  const ups   = parseFloat(document.getElementById('fuelUps').value);
+  if (isNaN(dhl) || isNaN(fedex) || isNaN(ups)) return;
+  try {
+    await fetch('/api/save-fuel', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({dhl, fedex, ups})
+    });
+  } catch(e) { /* 저장 실패 무시 */ }
 }
 
 async function autoFetchFuel() {
