@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>에어브리지 국제특송 운임계산기</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
@@ -18,6 +18,7 @@
   --imp-glow:    rgba(236,72,153,.18);
   --sidebar-w:   320px;
   --topbar-h:    72px;
+  --bottom-bar-h: 64px;
   --bg-dark:     #0a0f1e;
   --bg-card:     #111827;
   --bg-panel:    #1f2937;
@@ -103,53 +104,57 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
   transition: background .3s;
 }
 
-.logo-text {
-  line-height: 1.2;
-}
+.logo-text { line-height: 1.2; }
 .logo-name {
   font-family: 'Space Grotesk', sans-serif;
-  font-weight: 700;
-  font-size: .95rem;
-  color: var(--text-pri);
-  letter-spacing: .04em;
+  font-weight: 700; font-size: .95rem;
+  color: var(--text-pri); letter-spacing: .04em;
 }
 .logo-sub {
-  font-size: .6rem;
-  color: var(--text-dim);
-  letter-spacing: .06em;
-  text-transform: uppercase;
+  font-size: .6rem; color: var(--text-dim);
+  letter-spacing: .06em; text-transform: uppercase;
 }
 
 .topbar-content {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 0 20px;
+  flex: 1; display: flex; align-items: center;
+  gap: 16px; padding: 0 20px;
 }
+
+/* Hamburger button — desktop hidden */
+.hamburger-btn {
+  display: none;
+  flex-shrink: 0;
+  width: 40px; height: 40px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: all .2s;
+}
+.hamburger-btn:hover { border-color: var(--acc); }
+.hamburger-btn span {
+  display: block; width: 20px; height: 2px;
+  background: var(--text-pri); border-radius: 2px;
+  transition: all .3s;
+}
+.hamburger-btn.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.hamburger-btn.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+.hamburger-btn.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
 /* Mode toggle */
 .mode-toggle {
-  display: flex;
-  background: var(--bg-dark);
-  border-radius: 8px;
-  padding: 3px;
-  gap: 2px;
-  border: 1px solid var(--border);
-  flex-shrink: 0;
+  display: flex; background: var(--bg-dark);
+  border-radius: 8px; padding: 3px; gap: 2px;
+  border: 1px solid var(--border); flex-shrink: 0;
 }
 .mode-btn {
-  padding: 6px 16px;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  font-family: 'Noto Sans KR', sans-serif;
-  font-size: .8rem;
-  font-weight: 700;
-  color: var(--text-sec);
-  background: transparent;
-  transition: all .2s;
-  white-space: nowrap;
+  padding: 6px 16px; border-radius: 6px; border: none; cursor: pointer;
+  font-family: 'Noto Sans KR', sans-serif; font-size: .8rem; font-weight: 700;
+  color: var(--text-sec); background: transparent; transition: all .2s; white-space: nowrap;
 }
 .mode-btn.active-exp { background: var(--exp-primary); color: #fff; }
 .mode-btn.active-imp { background: var(--imp-primary); color: #fff; }
@@ -158,35 +163,26 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
 .tb-field { display: flex; flex-direction: column; gap: 2px; }
 .tb-label { font-size: .62rem; color: var(--text-dim); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
 .tb-select, .tb-input {
-  background: var(--bg-dark);
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  color: var(--text-pri);
-  font-family: 'Noto Sans KR', sans-serif;
-  font-size: .82rem;
-  padding: 5px 10px;
-  outline: none;
-  transition: border .2s;
+  background: var(--bg-dark); border: 1px solid var(--border); border-radius: 7px;
+  color: var(--text-pri); font-family: 'Noto Sans KR', sans-serif; font-size: .82rem;
+  padding: 5px 10px; outline: none; transition: border .2s;
 }
 .tb-select:focus, .tb-input:focus { border-color: var(--acc); }
 .tb-select { min-width: 200px; cursor: pointer; }
-.tb-input { min-width: 140px; }
+.tb-input  { min-width: 140px; }
 
 /* Ctx strip */
 .ctx-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0;
-  background: var(--bg-panel);
-  border-bottom: 1px solid var(--border);
-  padding: 0 20px;
+  display: flex; flex-wrap: nowrap; gap: 0;
+  background: var(--bg-panel); border-bottom: 1px solid var(--border);
+  padding: 0 20px; overflow-x: auto;
+  scrollbar-width: none;
 }
+.ctx-bar::-webkit-scrollbar { display: none; }
 .ctx-item {
-  display: flex;
-  flex-direction: column;
-  padding: 6px 16px 6px 0;
-  margin-right: 16px;
-  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding: 6px 16px 6px 0; margin-right: 16px;
+  border-right: 1px solid var(--border); flex-shrink: 0;
 }
 .ctx-item:last-child { border-right: none; margin-right: 0; margin-left: auto; }
 .ctx-lbl { font-size: .58rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
@@ -195,55 +191,63 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
 .ctx-remote { background: rgba(251,191,36,.15); border: 1px solid rgba(251,191,36,.4); border-radius: 6px; padding: 2px 8px; font-size: .72rem; font-weight: 800; color: #fbbf24; align-self: center; margin-left: 12px; }
 .ctx-conflict { background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.4); border-radius: 6px; padding: 2px 8px; font-size: .72rem; font-weight: 800; color: #ef4444; align-self: center; margin-left: 8px; }
 
+/* ═══ SIDEBAR OVERLAY ═══ */
+.sidebar-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.6);
+  z-index: 199;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity .3s;
+}
+.sidebar-overlay.open { display: block; opacity: 1; }
+
 /* ═══ SIDEBAR ═══ */
 .sidebar {
   background: var(--bg-card);
   border-right: 1px solid var(--border);
   overflow-y: auto;
   padding: 16px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: flex; flex-direction: column; gap: 10px;
 }
 
+/* Mobile drawer close button */
+.drawer-close-btn {
+  display: none;
+  width: 100%;
+  padding: 10px;
+  background: rgba(239,68,68,.1);
+  border: 1px solid rgba(239,68,68,.2);
+  border-radius: 8px;
+  color: #f87171;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: .85rem; font-weight: 700;
+  cursor: pointer; transition: all .2s;
+  margin-bottom: 4px;
+}
+.drawer-close-btn:hover { background: rgba(239,68,68,.2); }
+
 .sb-section {
-  background: var(--bg-dark);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px;
+  background: var(--bg-dark); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px;
 }
 .sb-title {
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--acc-bright);
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  margin-bottom: 10px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
+  font-size: 13px; font-weight: 800; color: var(--acc-bright);
+  text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 5px;
 }
 .sb-label {
-  font-size: 12px;
-  color: var(--text-sec);
-  font-weight: 600;
-  margin-bottom: 4px;
-  margin-top: 8px;
+  font-size: 12px; color: var(--text-sec); font-weight: 600;
+  margin-bottom: 4px; margin-top: 8px;
 }
 .sb-label:first-child { margin-top: 0; }
 
 .sb-input, .sb-select, .sb-number {
-  width: 100%;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  color: var(--text-pri);
-  font-family: 'Noto Sans KR', sans-serif;
-  font-size: 13px;
-  padding: 5px 8px;
-  outline: none;
-  transition: border .2s;
-  box-sizing: border-box;
+  width: 100%; background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: 7px; color: var(--text-pri); font-family: 'Noto Sans KR', sans-serif;
+  font-size: 13px; padding: 5px 8px; outline: none; transition: border .2s; box-sizing: border-box;
 }
 .sb-input:focus, .sb-select:focus, .sb-number:focus { border-color: var(--acc); }
 .sb-number { font-family: var(--mono); }
@@ -253,61 +257,30 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
 
 /* CT rows */
 .ct-block {
-  background: rgba(255,255,255,.03);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 10px;
-  margin-bottom: 6px;
-  position: relative;
+  background: rgba(255,255,255,.03); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; position: relative;
 }
-.ct-block-title {
-  font-size: .66rem;
-  font-weight: 800;
-  color: var(--acc);
-  margin-bottom: 6px;
-  text-transform: uppercase;
-  letter-spacing: .04em;
-}
+.ct-block-title { font-size: .66rem; font-weight: 800; color: var(--acc); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .04em; }
 .ct-remove {
-  position: absolute;
-  top: 6px; right: 8px;
-  background: none; border: none;
-  color: var(--text-dim);
-  cursor: pointer;
-  font-size: .8rem;
-  padding: 2px 4px;
-  border-radius: 4px;
-  transition: color .2s;
+  position: absolute; top: 6px; right: 8px;
+  background: none; border: none; color: var(--text-dim);
+  cursor: pointer; font-size: .8rem; padding: 2px 4px; border-radius: 4px; transition: color .2s;
 }
 .ct-remove:hover { color: #ef4444; }
 
 .add-ct-btn {
-  width: 100%;
-  background: transparent;
-  border: 1px dashed var(--border);
-  border-radius: 7px;
-  color: var(--text-sec);
-  font-size: .75rem;
-  font-family: 'Noto Sans KR', sans-serif;
-  padding: 7px;
-  cursor: pointer;
-  transition: all .2s;
+  width: 100%; background: transparent; border: 1px dashed var(--border);
+  border-radius: 7px; color: var(--text-sec); font-size: .75rem;
+  font-family: 'Noto Sans KR', sans-serif; padding: 7px; cursor: pointer; transition: all .2s;
 }
 .add-ct-btn:hover { border-color: var(--acc); color: var(--acc); }
 
 .calc-btn {
-  width: 100%;
-  padding: 12px;
+  width: 100%; padding: 12px;
   background: linear-gradient(135deg, var(--acc-primary), var(--acc));
-  border: none;
-  border-radius: var(--radius);
-  color: #fff;
-  font-family: 'Noto Sans KR', sans-serif;
-  font-size: .9rem;
-  font-weight: 900;
-  cursor: pointer;
-  letter-spacing: .04em;
-  transition: all .2s;
+  border: none; border-radius: var(--radius); color: #fff;
+  font-family: 'Noto Sans KR', sans-serif; font-size: .9rem; font-weight: 900;
+  cursor: pointer; letter-spacing: .04em; transition: all .2s;
   box-shadow: 0 4px 20px var(--acc-glow);
 }
 .calc-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 24px var(--acc-glow); }
@@ -316,182 +289,92 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
 
 /* Remote badge */
 .remote-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(251,191,36,.1);
-  border: 1px solid rgba(251,191,36,.3);
-  border-radius: 6px;
-  padding: 5px 8px;
-  font-size: .7rem;
-  color: #fbbf24;
-  font-weight: 700;
-  margin-top: 4px;
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(251,191,36,.1); border: 1px solid rgba(251,191,36,.3);
+  border-radius: 6px; padding: 5px 8px; font-size: .7rem; color: #fbbf24; font-weight: 700; margin-top: 4px;
 }
 
 /* ═══ MAIN CONTENT ═══ */
 .main {
-  overflow-y: auto;
-  padding: 16px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  overflow-y: auto; padding: 16px 20px;
+  display: flex; flex-direction: column; gap: 14px;
 }
 
 /* ── Result Cards ── */
 .results-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
 }
 .results-grid-bottom {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 14px;
-  max-width: 66.7%;
-  margin-top: 14px;
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px;
+  max-width: 66.7%; margin-top: 14px;
 }
 
 .carrier-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-top: 3px solid var(--border);
-  border-radius: var(--radius);
-  padding: 10px 12px;
-  position: relative;
-  transition: transform .2s, box-shadow .2s;
-  cursor: pointer;
-  overflow: hidden;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-top: 3px solid var(--border); border-radius: var(--radius);
+  padding: 10px 12px; position: relative;
+  transition: transform .2s, box-shadow .2s; cursor: pointer; overflow: hidden;
 }
-.carrier-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(0,0,0,.4);
-}
+.carrier-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,.4); }
 .carrier-card.selected {
-  border-color: var(--acc);
-  border-top-color: var(--acc-bright);
+  border-color: var(--acc); border-top-color: var(--acc-bright);
   box-shadow: 0 0 0 1px var(--acc), 0 8px 24px var(--acc-glow);
 }
 .carrier-card.no-service { opacity: .45; cursor: default; }
 .carrier-card.no-service:hover { transform: none; }
 
-/* 운송사별 상단 컬러 바 */
 .carrier-card.c-dhl   { border-top-color: #D40511; }
 .carrier-card.c-fedex { border-top-color: #4D148C; }
 .carrier-card.c-fedex-e { border-top-color: #6620b0; }
 .carrier-card.c-ups   { border-top-color: #92400e; }
 
 .card-check {
-  position: absolute;
-  top: 10px; right: 10px;
-  width: 20px; height: 20px;
-  border: 2px solid var(--border);
-  border-radius: 5px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: .7rem;
-  transition: all .2s;
-  background: transparent;
-  color: transparent;
+  position: absolute; top: 10px; right: 10px;
+  width: 20px; height: 20px; border: 2px solid var(--border);
+  border-radius: 5px; display: flex; align-items: center; justify-content: center;
+  font-size: .7rem; transition: all .2s; background: transparent; color: transparent;
 }
-.carrier-card.selected .card-check {
-  background: var(--acc);
-  border-color: var(--acc);
-  color: #fff;
-}
+.carrier-card.selected .card-check { background: var(--acc); border-color: var(--acc); color: #fff; }
 
-/* 운송사 뱃지 */
 .card-badge {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 6px;
-  font-size: .75rem;
-  font-weight: 800;
-  letter-spacing: .04em;
-  margin-bottom: 6px;
-  width: 100%;
-  text-align: center;
+  display: inline-block; padding: 3px 10px; border-radius: 6px;
+  font-size: .75rem; font-weight: 800; letter-spacing: .04em;
+  margin-bottom: 6px; width: 100%; text-align: center;
 }
 .badge-dhl   { background: #D40511; color: #fff; }
 .badge-fedex { background: #4D148C; color: #fff; }
 .badge-fedex-e { background: #6620b0; color: #fff; }
 .badge-ups   { background: #351C15; color: #fff; border: 1px solid #92400e; }
 
-/* T/T + 계정 태그 */
-.card-meta {
-  display: flex; flex-wrap: wrap; gap: 4px;
-  margin-bottom: 4px;
-}
-.meta-tag {
-  padding: 2px 8px;
-  border-radius: 5px;
-  font-size: .68rem;
-  font-weight: 700;
-}
+.card-meta { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+.meta-tag { padding: 2px 8px; border-radius: 5px; font-size: .68rem; font-weight: 700; }
 .meta-tt   { background: #e0f2fe; color: #0369a1; }
 .meta-acct { background: #fef3c7; color: #b45309; }
 .meta-disc { background: rgba(148,163,184,.1); color: var(--text-sec); font-size: .72rem; }
 
-/* ── 카드 상단 2컬럼 레이아웃 (견적금액 좌 / 할인율+마진 우) ── */
-.card-top-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin: 2px 0 6px;
-}
+.card-top-row { display: flex; align-items: flex-start; gap: 8px; margin: 2px 0 6px; }
 .card-top-left { flex: 1; min-width: 0; }
 .card-top-right {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-width: 160px;
-  flex-shrink: 0;
+  display: flex; flex-direction: row; align-items: center;
+  justify-content: center; gap: 6px; min-width: 160px; flex-shrink: 0;
 }
 
-/* 할인율 원형 배지 */
 .disc-circle {
-  width: 72px; height: 72px;
-  border-radius: 50%;
-  background: rgba(37,99,235,.15);
-  border: 2px solid rgba(96,165,250,.35);
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  text-align: center;
-  flex-shrink: 0;
+  width: 72px; height: 72px; border-radius: 50%;
+  background: rgba(37,99,235,.15); border: 2px solid rgba(96,165,250,.35);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; flex-shrink: 0;
 }
-.disc-circle .dc-num {
-  font-family: var(--mono);
-  font-size: .95rem;
-  font-weight: 900;
-  color: var(--acc-bright);
-  line-height: 1;
-}
-.disc-circle .dc-lbl {
-  font-size: .55rem;
-  color: var(--text-dim);
-  margin-top: 2px;
-}
+.disc-circle .dc-num { font-family: var(--mono); font-size: .95rem; font-weight: 900; color: var(--acc-bright); line-height: 1; }
+.disc-circle .dc-lbl { font-size: .55rem; color: var(--text-dim); margin-top: 2px; }
 
-/* 마진 원형 배지 */
 .margin-circle {
-  width: 72px; height: 72px;
-  border-radius: 50%;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  text-align: center;
-  flex-shrink: 0;
+  width: 72px; height: 72px; border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; flex-shrink: 0;
 }
-.margin-circle .mc-num {
-  font-family: var(--mono);
-  font-size: .95rem;
-  font-weight: 900;
-  line-height: 1;
-}
-.margin-circle .mc-lbl {
-  font-size: .55rem;
-  margin-top: 2px;
-}
+.margin-circle .mc-num { font-family: var(--mono); font-size: .95rem; font-weight: 900; line-height: 1; }
+.margin-circle .mc-lbl { font-size: .55rem; margin-top: 2px; }
 .mc-ok   { background: rgba(34,197,94,.12);  border: 2px solid rgba(34,197,94,.3);  }
 .mc-ok   .mc-num { color: #4ade80; }
 .mc-ok   .mc-lbl { color: rgba(74,222,128,.6); }
@@ -502,137 +385,76 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
 .mc-bad  .mc-num { color: #f87171; }
 .mc-bad  .mc-lbl { color: rgba(248,113,113,.6); }
 
-/* 견적가 (큰 숫자) */
-.card-quote {
-  font-family: var(--mono);
-  font-size: 1.45rem;
-  font-weight: 700;
-  line-height: 1;
-  margin: 3px 0 1px;
-}
+.card-quote { font-family: var(--mono); font-size: 1.45rem; font-weight: 700; line-height: 1; margin: 3px 0 1px; }
 .card-best-badge {
-  display: inline-block;
-  background: #fbbf24; color: #1a1a00;
-  font-size: .65rem; font-weight: 900;
-  padding: 1px 6px; border-radius: 4px;
-  margin-left: 6px;
-  vertical-align: middle;
+  display: inline-block; background: #fbbf24; color: #1a1a00;
+  font-size: .65rem; font-weight: 900; padding: 1px 6px; border-radius: 4px;
+  margin-left: 6px; vertical-align: middle;
 }
 
-/* 원가 바 */
 .card-cost-bar {
   display: flex; align-items: center; gap: 6px;
-  background: rgba(0,0,0,.2);
-  border-radius: 6px;
-  padding: 5px 10px;
-  margin-bottom: 6px;
+  background: rgba(0,0,0,.2); border-radius: 6px; padding: 5px 10px; margin-bottom: 6px;
 }
 .cost-bar-label { font-size: .72rem; color: #889aaa; font-weight: 700; }
 .cost-bar-val   { font-family: var(--mono); font-size: .95rem; font-weight: 800; color: #94a3b8; }
-.cost-bar-fee   {
-  font-size: .68rem; color: #b08030;
-  background: rgba(255,180,0,.15); border-radius: 4px;
-  padding: 1px 5px; font-weight: 700;
-}
+.cost-bar-fee   { font-size: .68rem; color: #b08030; background: rgba(255,180,0,.15); border-radius: 4px; padding: 1px 5px; font-weight: 700; }
 
-/* 상세 구분선 */
 .card-divider { border: none; border-top: 1px solid var(--border); margin: 5px 0; }
 
-/* ── 원가상세 섹션 (어두운 적색빛 배경) ── */
 .section-cost {
-  background: rgba(15, 10, 30, 0.6);
-  border: 1px solid rgba(148,103,84,.25);
-  border-radius: 8px;
-  padding: 6px 8px;
-  margin-bottom: 5px;
+  background: rgba(15,10,30,.6); border: 1px solid rgba(148,103,84,.25);
+  border-radius: 8px; padding: 6px 8px; margin-bottom: 5px;
 }
-
-/* ── 청구가상세 섹션 (어두운 청색빛 배경) ── */
 .section-quote {
-  background: rgba(10, 20, 50, 0.7);
-  border: 1px solid rgba(37,99,235,.25);
-  border-radius: 8px;
-  padding: 6px 8px;
-  margin-bottom: 5px;
+  background: rgba(10,20,50,.7); border: 1px solid rgba(37,99,235,.25);
+  border-radius: 8px; padding: 6px 8px; margin-bottom: 5px;
 }
-
-/* 상세 섹션 헤더 */
 .detail-header-cost {
-  font-size: .68rem; font-weight: 900;
-  color: #cd9070;
-  text-transform: uppercase;
-  letter-spacing: .07em; margin-bottom: 4px;
-  padding-bottom: 3px;
-  border-bottom: 1px solid rgba(148,103,84,.3);
+  font-size: .68rem; font-weight: 900; color: #cd9070; text-transform: uppercase;
+  letter-spacing: .07em; margin-bottom: 4px; padding-bottom: 3px; border-bottom: 1px solid rgba(148,103,84,.3);
 }
 .detail-header-quote {
-  font-size: .68rem; font-weight: 900;
-  color: #60a5fa;
-  text-transform: uppercase;
-  letter-spacing: .07em; margin-bottom: 4px;
-  padding-bottom: 3px;
-  border-bottom: 1px solid rgba(37,99,235,.3);
+  font-size: .68rem; font-weight: 900; color: #60a5fa; text-transform: uppercase;
+  letter-spacing: .07em; margin-bottom: 4px; padding-bottom: 3px; border-bottom: 1px solid rgba(37,99,235,.3);
 }
 
-/* 상세 행 */
 .bd-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: .72rem;
-  padding: 2px 0;
-  color: var(--text-sec);
+  display: flex; justify-content: space-between;
+  font-size: .72rem; padding: 2px 0; color: var(--text-sec);
 }
 .bd-row.total-row {
-  border-top: 1px solid var(--border);
-  margin-top: 3px; padding-top: 4px;
-  font-weight: 800;
-  font-size: .78rem;
-  color: var(--text-pri);
+  border-top: 1px solid var(--border); margin-top: 3px; padding-top: 4px;
+  font-weight: 800; font-size: .78rem; color: var(--text-pri);
 }
-.bd-row .bd-val {
-  font-family: var(--mono);
-  color: var(--text-pri);
-}
+.bd-row .bd-val { font-family: var(--mono); color: var(--text-pri); }
 .bd-row.sub-item { color: var(--text-dim); padding-left: 8px; font-size: .68rem; }
 
-/* 마진 경고 박스 — 카드 하단에서 제거 (원형 배지로 이동) */
 .margin-alert { display: none; }
-
 .tag-ns { background: rgba(239,68,68,.15); color: #f87171; border: 1px solid rgba(239,68,68,.3); border-radius:4px; padding: 2px 8px; font-size:.72rem; font-weight:700; }
 
 /* ── Weight Info ── */
 .wt-panel {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 14px 18px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 18px;
 }
 .wt-title { font-size: .7rem; font-weight: 800; color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
-.wt-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.wt-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
 .wt-item { text-align: center; }
 .wt-num { font-family: var(--mono); font-size: 1.1rem; font-weight: 700; color: var(--acc-bright); }
 .wt-lbl { font-size: .62rem; color: var(--text-dim); margin-top: 1px; }
 
-/* ── Email Quote Panel ── */
+/* ── Quote Panel ── */
 .quote-panel {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 14px 18px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 18px;
 }
 .quote-title { font-size: .7rem; font-weight: 800; color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
 .quote-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .action-btn {
-  padding: 8px 16px;
-  border-radius: 7px;
-  border: 1px solid var(--border);
-  background: var(--bg-panel);
-  color: var(--text-pri);
-  font-family: 'Noto Sans KR', sans-serif;
-  font-size: .78rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all .2s;
+  padding: 8px 16px; border-radius: 7px; border: 1px solid var(--border);
+  background: var(--bg-panel); color: var(--text-pri); font-family: 'Noto Sans KR', sans-serif;
+  font-size: .78rem; font-weight: 700; cursor: pointer; transition: all .2s;
 }
 .action-btn:hover { border-color: var(--acc); color: var(--acc); }
 .action-btn.primary { background: var(--acc); border-color: var(--acc); color: #fff; }
@@ -641,12 +463,9 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
 
 /* ── AI Panel ── */
 .ai-panel {
-  background: var(--bg-card);
-  border: 1px solid rgba(139,92,246,.3);
-  border-left: 3px solid #8b5cf6;
-  border-radius: var(--radius);
-  padding: 14px 16px;
-  display: none;
+  background: var(--bg-card); border: 1px solid rgba(139,92,246,.3);
+  border-left: 3px solid #8b5cf6; border-radius: var(--radius);
+  padding: 14px 16px; display: none;
 }
 .ai-panel.open { display: block; }
 .ai-title { font-size: .75rem; font-weight: 800; color: #a78bfa; margin-bottom: 10px; }
@@ -657,114 +476,258 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
 .ai-tab-content.active { display: block; }
 
 .ai-upload-area {
-  border: 2px dashed rgba(139,92,246,.3);
-  border-radius: 8px;
-  padding: 20px;
-  text-align: center;
-  cursor: pointer;
-  transition: all .2s;
-  background: rgba(139,92,246,.05);
+  border: 2px dashed rgba(139,92,246,.3); border-radius: 8px; padding: 20px;
+  text-align: center; cursor: pointer; transition: all .2s; background: rgba(139,92,246,.05);
 }
 .ai-upload-area:hover { border-color: #8b5cf6; background: rgba(139,92,246,.1); }
 .ai-upload-area input { display: none; }
 .ai-upload-text { font-size: .75rem; color: var(--text-sec); }
-.ai-textarea { 
+.ai-textarea {
   width: 100%; background: var(--bg-dark); border: 1px solid var(--border);
   border-radius: 7px; color: var(--text-pri); font-family: 'Noto Sans KR', sans-serif;
   font-size: .78rem; padding: 8px; outline: none; resize: vertical; min-height: 80px;
 }
 .ai-scan-btn {
-  width: 100%; margin-top: 8px;
-  padding: 8px;
+  width: 100%; margin-top: 8px; padding: 8px;
   background: linear-gradient(135deg, #4c1d95, #7c3aed);
   border: none; border-radius: 7px; color: #fff;
-  font-family: 'Noto Sans KR', sans-serif;
-  font-size: .8rem; font-weight: 800; cursor: pointer;
-  transition: opacity .2s;
+  font-family: 'Noto Sans KR', sans-serif; font-size: .8rem; font-weight: 800; cursor: pointer; transition: opacity .2s;
 }
 .ai-scan-btn:hover { opacity: .85; }
 .ai-result-preview {
-  background: rgba(139,92,246,.1);
-  border: 1px solid rgba(139,92,246,.25);
-  border-radius: 8px;
-  padding: 10px 12px;
-  margin-top: 10px;
-  display: none;
+  background: rgba(139,92,246,.1); border: 1px solid rgba(139,92,246,.25);
+  border-radius: 8px; padding: 10px 12px; margin-top: 10px; display: none;
 }
 .ai-result-preview.show { display: block; }
 .ai-result-title { font-size: .68rem; font-weight: 800; color: #a78bfa; margin-bottom: 6px; }
 .ai-result-row { font-size: .72rem; color: var(--text-sec); display: flex; justify-content: space-between; padding: 2px 0; }
 .ai-result-row span { color: var(--text-pri); font-family: var(--mono); }
 .ai-apply-btn {
-  width: 100%; margin-top: 8px;
-  padding: 7px;
-  background: rgba(34,197,94,.15);
-  border: 1px solid rgba(34,197,94,.3);
+  width: 100%; margin-top: 8px; padding: 7px;
+  background: rgba(34,197,94,.15); border: 1px solid rgba(34,197,94,.3);
   border-radius: 6px; color: #4ade80;
-  font-family: 'Noto Sans KR', sans-serif; font-size: .78rem; font-weight: 800;
-  cursor: pointer; transition: all .2s;
+  font-family: 'Noto Sans KR', sans-serif; font-size: .78rem; font-weight: 800; cursor: pointer; transition: all .2s;
 }
 .ai-apply-btn:hover { background: rgba(34,197,94,.25); }
 
 /* ── Empty/loading states ── */
-.result-empty {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--text-dim);
-}
+.result-empty { text-align: center; padding: 60px 20px; color: var(--text-dim); }
 .result-empty-icon { font-size: 2.5rem; margin-bottom: 12px; }
 .result-empty-text { font-size: .85rem; }
 
 .spinner {
-  display: inline-block;
-  width: 16px; height: 16px;
-  border: 2px solid var(--border);
-  border-top-color: var(--acc);
-  border-radius: 50%;
-  animation: spin .7s linear infinite;
-  vertical-align: middle;
-  margin-right: 6px;
+  display: inline-block; width: 16px; height: 16px;
+  border: 2px solid var(--border); border-top-color: var(--acc);
+  border-radius: 50%; animation: spin .7s linear infinite;
+  vertical-align: middle; margin-right: 6px;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Notifications ── */
+/* ── Toast ── */
 .toast {
-  position: fixed;
-  bottom: 20px; right: 20px;
-  background: var(--bg-card);
-  border: 1px solid var(--acc);
-  border-radius: 10px;
-  padding: 10px 16px;
-  font-size: .8rem;
-  font-weight: 700;
-  color: var(--acc-bright);
-  box-shadow: 0 8px 24px rgba(0,0,0,.4);
-  z-index: 9999;
-  transform: translateY(60px);
-  opacity: 0;
-  transition: all .3s;
+  position: fixed; bottom: 20px; right: 20px;
+  background: var(--bg-card); border: 1px solid var(--acc); border-radius: 10px;
+  padding: 10px 16px; font-size: .8rem; font-weight: 700; color: var(--acc-bright);
+  box-shadow: 0 8px 24px rgba(0,0,0,.4); z-index: 9999;
+  transform: translateY(60px); opacity: 0; transition: all .3s;
 }
 .toast.show { transform: translateY(0); opacity: 1; }
+
+/* ── Mobile Bottom Action Bar ── */
+.mobile-bottom-bar {
+  display: none;
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: var(--bottom-bar-h);
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  padding: 8px 12px;
+  gap: 8px;
+  z-index: 150;
+  box-shadow: 0 -4px 20px rgba(0,0,0,.3);
+}
+.mobile-bottom-bar .mb-btn {
+  flex: 1; padding: 10px 4px;
+  border: none; border-radius: 10px;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: .8rem; font-weight: 800;
+  cursor: pointer; transition: all .2s;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  line-height: 1.2;
+}
+.mobile-bottom-bar .mb-btn .mb-icon { font-size: 1.1rem; }
+.mobile-bottom-bar .mb-btn .mb-label { font-size: .65rem; }
+.mb-calc {
+  background: linear-gradient(135deg, var(--acc-primary), var(--acc));
+  color: #fff;
+  box-shadow: 0 2px 12px var(--acc-glow);
+}
+.mb-email {
+  background: rgba(37,99,235,.15);
+  border: 1px solid rgba(37,99,235,.3) !important;
+  color: var(--acc-bright);
+}
+.mb-pdf {
+  background: rgba(148,163,184,.1);
+  border: 1px solid var(--border) !important;
+  color: var(--text-sec);
+}
+.mb-btn:disabled { opacity: .4; cursor: not-allowed; }
 
 /* ── Email HTML output (hidden) ── */
 .email-html-hidden { display: none; }
 
-/* ── Mobile responsive ── */
+/* ════════════════════════════════════════════════
+   MOBILE RESPONSIVE  (≤ 768px)
+   ════════════════════════════════════════════════ */
 @media (max-width: 768px) {
-  :root { --sidebar-w: 0px; --topbar-h: 120px; }
-  .layout { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; }
-  .topbar { flex-direction: column; height: auto; align-items: flex-start; gap: 8px; padding: 10px; }
-  .topbar-logo { width: 100%; border-right: none; padding-right: 0; }
-  .topbar-content { padding: 0; flex-wrap: wrap; }
-  .tb-select { min-width: unset; width: 100%; }
-  .sidebar { display: none; }
-  .sidebar.mobile-open { display: flex; position: fixed; top: 0; left: 0; width: 85vw; height: 100vh; z-index: 200; }
-  .results-grid { grid-template-columns: 1fr; }
-  .wt-grid { grid-template-columns: repeat(3,1fr); }
+  :root {
+    --topbar-h: 60px;
+    font-size: 15px;
+  }
+
+  /* Layout: single column */
+  .layout {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  /* ── Topbar: compact single row ── */
+  .topbar {
+    height: var(--topbar-h);
+    padding: 0 12px;
+    gap: 10px;
+    flex-direction: row;
+    align-items: center;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .topbar-logo {
+    width: auto; border-right: none; padding-right: 0; flex-shrink: 0;
+    gap: 8px;
+  }
+  .logo-mark { width: 32px; height: 32px; font-size: 16px; }
+  .logo-name { font-size: .85rem; }
+  .logo-sub  { display: none; }
+  .topbar-content {
+    flex: 1; padding: 0; gap: 8px;
+    overflow-x: auto; scrollbar-width: none;
+    display: flex; align-items: center;
+  }
+  .topbar-content::-webkit-scrollbar { display: none; }
+
+  /* Hide desktop fields on mobile — show only mode toggle */
+  .topbar-content .tb-field { display: none !important; }
+  .topbar-content > div[style*="margin-left:auto"] { display: none !important; }
+
+  /* Hamburger: show on mobile */
+  .hamburger-btn { display: flex; margin-left: auto; }
+
+  /* ── Sidebar: slide-in drawer ── */
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    width: 85vw; max-width: 340px;
+    height: 100dvh;
+    z-index: 200;
+    padding: 12px 12px 80px;
+    transform: translateX(-100%);
+    transition: transform .3s cubic-bezier(.4,0,.2,1);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .sidebar.mobile-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 32px rgba(0,0,0,.5);
+  }
+  .drawer-close-btn { display: block; }
+
+  /* ── Context bar: horizontal scroll, compact ── */
+  .ctx-bar {
+    padding: 0 12px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .ctx-item {
+    padding: 5px 12px 5px 0;
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+  .ctx-lbl { font-size: .55rem; }
+  .ctx-val { font-size: .8rem; }
+  .ctx-val-small { font-size: .75rem; }
+  .ctx-item:last-child { display: none; } /* hide 견적번호 on mobile */
+
+  /* ── Main: adjust padding for bottom bar ── */
+  .main {
+    padding: 12px;
+    padding-bottom: calc(var(--bottom-bar-h) + 16px);
+  }
+
+  /* ── Cards: single column ── */
+  .results-grid,
+  .results-grid-bottom {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+    margin-top: 0;
+  }
+
+  /* ── Card: adjust badge circles for mobile ── */
+  .card-top-right {
+    min-width: 130px;
+    gap: 4px;
+  }
+  .disc-circle, .margin-circle {
+    width: 58px; height: 58px;
+  }
+  .disc-circle .dc-num, .margin-circle .mc-num { font-size: .82rem; }
+
+  .card-quote { font-size: 1.2rem; }
+
+  /* ── Weight panel: stack on mobile ── */
+  .wt-panel {
+    padding: 12px;
+  }
+  #wtPanel > div {
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+  #wtPanel > div > div:last-child {
+    min-width: unset !important;
+    border-left: none !important;
+    padding-left: 0 !important;
+    border-top: 1px solid var(--border);
+    padding-top: 12px !important;
+  }
+
+  /* ── Hide desktop quote panel (actions in bottom bar) ── */
+  .quote-panel { display: none !important; }
+
+  /* ── Show mobile bottom bar ── */
+  .mobile-bottom-bar { display: flex; }
+
+  /* ── Toast: above bottom bar ── */
+  .toast { bottom: calc(var(--bottom-bar-h) + 8px); right: 12px; }
+
+  /* ── Email popup: full width ── */
+  #emailPopupOverlay > div {
+    width: 96vw !important;
+    max-height: 85vh !important;
+  }
+}
+
+/* Small phones */
+@media (max-width: 390px) {
+  .card-top-right { min-width: 110px; }
+  .disc-circle, .margin-circle { width: 50px; height: 50px; }
+  .disc-circle .dc-num, .margin-circle .mc-num { font-size: .75rem; }
+  .card-quote { font-size: 1.05rem; }
 }
 </style>
 </head>
 <body class="mode-exp" id="body">
+
+<!-- Sidebar Overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
 <div class="layout">
   <!-- ═══ TOPBAR ═══ -->
@@ -782,7 +745,7 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
         <button class="mode-btn active-exp" id="btnExp" onclick="setMode('수출')">✈ 수출</button>
         <button class="mode-btn" id="btnImp" onclick="setMode('수입')">📦 수입</button>
       </div>
-      <!-- Dest country - searchable -->
+      <!-- Dest country -->
       <div class="tb-field">
         <div class="tb-label">🌏 목적지 국가</div>
         <div style="position:relative;">
@@ -798,7 +761,7 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
           <input type="hidden" id="destSelect" value="Germany">
         </div>
       </div>
-      <!-- Customer + 고객사 담당자 나란히 -->
+      <!-- Customer -->
       <div class="tb-field">
         <div class="tb-label">🏢 고객사</div>
         <div style="display:flex;gap:4px;align-items:center;">
@@ -806,18 +769,18 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
           <datalist id="customerList">
             {% for c in customer_list %}
             <option value="{{ c }}">
-          {% endfor %}
-        </datalist>
+            {% endfor %}
+          </datalist>
           <button onclick="reloadCustomers()" title="구글시트 새로고침"
             style="background:rgba(255,255,255,.08);border:1px solid var(--border);border-radius:6px;color:var(--text-sec);cursor:pointer;padding:4px 8px;font-size:.9rem;">🔄</button>
         </div>
       </div>
-      <!-- 고객사 담당자 (고객사 바로 오른쪽) -->
+      <!-- 고객사 담당자 -->
       <div class="tb-field">
         <div class="tb-label">🙍 고객사 담당자</div>
         <input class="tb-input" id="custContactInput" placeholder="담당자명" style="width:100px;">
       </div>
-      <!-- 오른쪽 끝: 담당자(내부) → 견적번호 순 -->
+      <!-- 오른쪽 끝 -->
       <div style="display:flex;gap:12px;align-items:flex-end;margin-left:auto;">
         <div class="tb-field">
           <div class="tb-label">👤 담당자 (내부)</div>
@@ -834,6 +797,10 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
         </div>
       </div>
     </div>
+    <!-- Hamburger button -->
+    <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="메뉴 열기">
+      <span></span><span></span><span></span>
+    </button>
   </header>
 
   <!-- ═══ CONTEXT BAR ═══ -->
@@ -867,6 +834,47 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
   <!-- ═══ SIDEBAR ═══ -->
   <aside class="sidebar" id="sidebar">
 
+    <!-- Mobile: drawer close button -->
+    <button class="drawer-close-btn" onclick="closeSidebar()">✕ 메뉴 닫기</button>
+
+    <!-- Mobile: 목적지/고객사 입력 (사이드바에 반복) -->
+    <div class="sb-section" id="mobileFields" style="display:none;">
+      <div class="sb-title" style="margin-bottom:8px;">🌏 기본 설정</div>
+      <div class="sb-label">목적지 국가</div>
+      <input class="sb-input" id="destInputMobile" list="countryDatalistMobile"
+        placeholder="국가명 검색..." autocomplete="off"
+        oninput="onDestInput(this.value)" onchange="onDestSelectMobile(this.value)">
+      <datalist id="countryDatalistMobile">
+        {% for c in countries %}
+        <option value="{{ c.kr }} ({{ c.en }})">
+        {% endfor %}
+      </datalist>
+      <div class="sb-label" style="margin-top:8px;">고객사</div>
+      <input class="sb-input" id="customerInputMobile" list="customerListMobile" placeholder="고객사 입력" oninput="onCustomerChangeMobile()">
+      <datalist id="customerListMobile">
+        {% for c in customer_list %}
+        <option value="{{ c }}">
+        {% endfor %}
+      </datalist>
+      <div class="sb-row2" style="margin-top:8px;">
+        <div>
+          <div class="sb-label" style="margin-top:0;">고객사 담당자</div>
+          <input class="sb-input" id="custContactMobile" placeholder="담당자명">
+        </div>
+        <div>
+          <div class="sb-label" style="margin-top:0;">담당자(내부)</div>
+          <select class="sb-select" id="staffSelectMobile" onchange="onStaffChangeMobile()">
+            <option value="">선택</option>
+            {% for name, info in staff.items() %}
+            <option value="{{ name }}">{{ name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="sb-label" style="margin-top:8px;">견적번호</div>
+      <input class="sb-input" id="quoteNumMobile" value="{{ quote_num }}" style="font-family:var(--mono);font-size:.78rem;">
+    </div>
+
     <!-- AI Panel (in sidebar) -->
     <div class="ai-panel" id="aiPanel">
       <div class="ai-title">🤖 AI 자동 추출 — 국가·C/T·중량·사이즈 자동 입력</div>
@@ -886,7 +894,7 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
       <div class="ai-tab-content" id="aiTabPaste">
         <div style="font-size:.72rem;color:var(--text-sec);margin-bottom:6px;">스크린샷을 클립보드에 복사 후 아래 버튼 클릭</div>
         <button class="ai-scan-btn" onclick="pasteFromClipboard()" style="background:linear-gradient(135deg,#312e81,#4f46e5);">
-          📋 클립보드에서 이미지 붙여넣기 (Ctrl+C 후)
+          📋 클립보드에서 이미지 붙여넣기
         </button>
         <div id="pastePreview" style="display:none;margin-top:8px;"></div>
         <button class="ai-scan-btn" onclick="runAiPaste()" id="aiPasteBtn" style="display:none;margin-top:6px;">🔍 AI 분석</button>
@@ -937,7 +945,7 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
           <input class="sb-number" type="number" id="fuelUps" step="0.01" value="{{ settings.fuel_ups }}" min="0" max="60" onchange="saveFuel()">
         </div>
       </div>
-      <div style="font-size:10px;color:var(--text-dim);margin-top:3px;">※ 직접 수정 가능 (다음달 등)</div>
+      <div style="font-size:10px;color:var(--text-dim);margin-top:3px;">※ 직접 수정 가능</div>
     </div>
 
     <!-- Discount section -->
@@ -961,7 +969,6 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
           <input class="sb-number" type="number" id="discUps" step="0.01" value="{{ settings.disc_ups }}" min="0" max="99.99">
         </div>
       </div>
-      <!-- B8 hidden: 수출/수입 동일 UPS 할인율 사용 -->
       <input type="hidden" id="discUpsB8" value="{{ settings.disc_ups_b8 }}">
     </div>
 
@@ -997,7 +1004,7 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
       </div>
     </div>
 
-    <!-- Calc button -->
+    <!-- Calc button (desktop sidebar) -->
     <button class="calc-btn" onclick="calculate()" id="calcBtn">⚡ 운임 계산</button>
 
   </aside>
@@ -1005,18 +1012,18 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
   <!-- ═══ MAIN CONTENT ═══ -->
   <main class="main" id="mainContent">
 
-    <!-- Result empty state -->
     <div class="result-empty" id="resultEmpty">
       <div class="result-empty-icon">✈</div>
-      <div class="result-empty-text">파라미터를 설정하고 <strong>운임 계산</strong>을 클릭하세요</div>
+      <div class="result-empty-text">
+        파라미터를 설정하고 <strong>운임 계산</strong>을 클릭하세요<br>
+        <span id="mobileHint" style="display:none;font-size:.75rem;color:var(--text-dim);margin-top:8px;display:block;">📱 좌측 메뉴(☰)를 열어 설정하세요</span>
+      </div>
     </div>
 
     <!-- Weight info panel -->
     <div class="wt-panel" id="wtPanel" style="display:none;">
       <div style="display:flex;align-items:stretch;gap:16px;">
-        <!-- 왼쪽: C/T 상세 -->
         <div id="wtCtDetail" style="flex:1;min-width:0;"></div>
-        <!-- 오른쪽: 중량 3칸 -->
         <div style="display:flex;flex-direction:column;justify-content:center;gap:6px;min-width:240px;border-left:1px solid var(--border);padding-left:16px;">
           <div style="font-size:11px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">📏 중량 요약</div>
           <div style="display:flex;gap:12px;">
@@ -1041,7 +1048,7 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
     <div class="results-grid" id="resultsGrid" style="display:none;"></div>
     <div class="results-grid-bottom" id="resultsGridBottom" style="display:none;"></div>
 
-    <!-- Quote output panel -->
+    <!-- Quote output panel (desktop only) -->
     <div class="quote-panel" id="quotePanel" style="display:none;">
       <div class="quote-title">📨 견적서 출력</div>
       <div class="quote-actions">
@@ -1053,16 +1060,31 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
   </main>
 </div>
 
+<!-- ═══ MOBILE BOTTOM ACTION BAR ═══ -->
+<div class="mobile-bottom-bar" id="mobileBottomBar">
+  <button class="mb-btn mb-calc" onclick="mobileCalculate()" id="mbCalcBtn">
+    <span class="mb-icon">⚡</span>
+    <span class="mb-label">운임 계산</span>
+  </button>
+  <button class="mb-btn mb-email" onclick="copyEmailHtml()" id="mbEmailBtn" disabled>
+    <span class="mb-icon">📧</span>
+    <span class="mb-label">이메일</span>
+  </button>
+  <button class="mb-btn mb-pdf" onclick="generatePdf()" id="mbPdfBtn" disabled>
+    <span class="mb-icon">📄</span>
+    <span class="mb-label">PDF</span>
+  </button>
+</div>
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
 <!-- Hidden email HTML -->
 <textarea id="emailHtmlStore" style="position:absolute;left:-9999px;top:-9999px;opacity:0;" readonly></textarea>
 
-<!-- 이메일 복사 팝업 -->
+<!-- Email popup -->
 <div id="emailPopupOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;align-items:center;justify-content:center;">
   <div style="background:#1e2433;border:1px solid #334155;border-radius:10px;width:min(900px,96vw);max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5);">
-    <!-- 팝업 헤더 -->
     <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #334155;">
       <span style="font-weight:700;font-size:.95rem;color:#e2e8f0;">📧 이메일 운임 내용</span>
       <div style="display:flex;gap:8px;">
@@ -1070,7 +1092,6 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
         <button onclick="closeEmailPopup()" style="background:#475569;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:.82rem;cursor:pointer;">✕ 닫기</button>
       </div>
     </div>
-    <!-- 팝업 본문 -->
     <textarea id="emailPopupText" readonly
       style="flex:1;background:#0f172a;color:#e2e8f0;border:none;padding:16px 18px;font-family:'Malgun Gothic','Noto Sans KR',monospace;font-size:.92rem;line-height:2.0;resize:none;outline:none;overflow-y:auto;min-height:480px;white-space:pre;"></textarea>
     <div style="padding:8px 18px;font-size:.75rem;color:#64748b;border-top:1px solid #334155;">
@@ -1081,7 +1102,7 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
 
 <script>
 // ─────────────────────────────────────────────
-// Country map (en → kr display)
+// Country map
 // ─────────────────────────────────────────────
 const COUNTRY_MAP = {};
 {% for c in countries %}
@@ -1089,84 +1110,41 @@ COUNTRY_MAP["{{ c.en }}"] = "{{ c.kr }}";
 {% endfor %}
 const COUNTRY_LIST = Object.keys(COUNTRY_MAP);
 
-// 국가명 별칭 매핑 (AI/자연어 → 시스템 정식명)
 const COUNTRY_ALIAS = {
-  // 영국
   "England":"United Kingdom","Britain":"United Kingdom","Great Britain":"United Kingdom",
   "UK":"United Kingdom","U.K.":"United Kingdom","GB":"United Kingdom",
   "Northern Ireland":"United Kingdom","Scotland":"United Kingdom","Wales":"United Kingdom",
   "영국":"United Kingdom","잉글랜드":"United Kingdom",
-
-  // 미국
   "US":"United States of America","USA":"United States of America",
   "United States":"United States of America","America":"United States of America",
-  "U.S.A.":"United States of America","U.S.":"United States of America",
-  "미국":"United States of America",
-
-  // 중국
+  "U.S.A.":"United States of America","U.S.":"United States of America","미국":"United States of America",
   "China":"China (People's Republic)","PRC":"China (People's Republic)",
   "Mainland China":"China (People's Republic)","중국":"China (People's Republic)",
-
-  // 터키
   "Turkey":"Turkiye","Türkiye":"Turkiye","터키":"Turkiye","튀르키예":"Turkiye",
-
-  // 한국
   "Korea":"South Korea","Republic of Korea":"South Korea","ROK":"South Korea",
   "South Korea":"South Korea","한국":"South Korea","대한민국":"South Korea",
-
-  // 홍콩
   "Hong Kong":"Hong Kong SAR China","HK":"Hong Kong SAR China","홍콩":"Hong Kong SAR China",
-
-  // 마카오
   "Macau":"Macau SAR China","Macao":"Macau SAR China","마카오":"Macau SAR China",
-
-  // 대만
   "Taiwan":"Taiwan, China","ROC":"Taiwan, China","대만":"Taiwan, China",
-
-  // 베트남
   "Viet Nam":"Vietnam","베트남":"Vietnam","비에트남":"Vietnam",
-
-  // 이란
   "Iran":"Iran, Islamic Rep. of","이란":"Iran, Islamic Rep. of",
-
-  // 러시아
   "Russian Federation":"Russia","러시아":"Russia","USSR":"Russia",
-
-  // UAE
   "UAE":"United Arab Emirates","U.A.E.":"United Arab Emirates",
   "Emirates":"United Arab Emirates","두바이":"United Arab Emirates",
   "아랍에미리트":"United Arab Emirates","Dubai":"United Arab Emirates","Abu Dhabi":"United Arab Emirates",
-
-  // 라오스
   "Laos":"Lao P.D.R.","라오스":"Lao P.D.R.",
-
-  // 체코
   "Czech Republic":"Czech Republic","Czechia":"Czech Republic","체코":"Czech Republic",
-
-  // 시리아
-  "Syria":"Syria","시리아":"Syria",
-
-  // 볼리비아
-  "Bolivia":"Bolivia","볼리비아":"Bolivia",
-
-  // 베네수엘라
-  "Venezuela":"Venezuela","베네수엘라":"Venezuela",
-
-  // 탄자니아
-  "Tanzania":"Tanzania","탄자니아":"Tanzania",
-
-  // 몰도바
+  "Syria":"Syria","시리아":"Syria","Bolivia":"Bolivia","볼리비아":"Bolivia",
+  "Venezuela":"Venezuela","베네수엘라":"Venezuela","Tanzania":"Tanzania","탄자니아":"Tanzania",
   "Moldova":"Moldova","몰도바":"Moldova",
-
-  // 기타 한국어 국가명
   "독일":"Germany","프랑스":"France","일본":"Japan","캐나다":"Canada",
-  "호주":"Australia","호주주":"Australia","스페인":"Spain","이탈리아":"Italy",
-  "네덜란드":"Netherlands","벨기에":"Belgium","스웨덴":"Sweden","노르웨이":"Norway",
-  "덴마크":"Denmark","핀란드":"Finland","폴란드":"Poland","포르투갈":"Portugal",
-  "스위스":"Switzerland","오스트리아":"Austria","그리스":"Greece","헝가리":"Hungary",
-  "루마니아":"Romania","불가리아":"Bulgaria","크로아티아":"Croatia","세르비아":"Serbia",
-  "슬로바키아":"Slovakia","슬로베니아":"Slovenia","에스토니아":"Estonia","라트비아":"Latvia",
-  "리투아니아":"Lithuania","우크라이나":"Ukraine","벨라루스":"Belarus","카자흐스탄":"Kazakhstan",
+  "호주":"Australia","스페인":"Spain","이탈리아":"Italy","네덜란드":"Netherlands",
+  "벨기에":"Belgium","스웨덴":"Sweden","노르웨이":"Norway","덴마크":"Denmark",
+  "핀란드":"Finland","폴란드":"Poland","포르투갈":"Portugal","스위스":"Switzerland",
+  "오스트리아":"Austria","그리스":"Greece","헝가리":"Hungary","루마니아":"Romania",
+  "불가리아":"Bulgaria","크로아티아":"Croatia","세르비아":"Serbia","슬로바키아":"Slovakia",
+  "슬로베니아":"Slovenia","에스토니아":"Estonia","라트비아":"Latvia","리투아니아":"Lithuania",
+  "우크라이나":"Ukraine","벨라루스":"Belarus","카자흐스탄":"Kazakhstan",
   "인도":"India","파키스탄":"Pakistan","방글라데시":"Bangladesh","스리랑카":"Sri Lanka",
   "네팔":"Nepal","미얀마":"Myanmar","태국":"Thailand","말레이시아":"Malaysia",
   "싱가포르":"Singapore","인도네시아":"Indonesia","필리핀":"Philippines","캄보디아":"Cambodia",
@@ -1174,34 +1152,24 @@ const COUNTRY_ALIAS = {
   "사우디아라비아":"Saudi Arabia","쿠웨이트":"Kuwait","카타르":"Qatar","바레인":"Bahrain",
   "오만":"Oman","요르단":"Jordan","이라크":"Iraq","레바논":"Lebanon",
   "남아프리카공화국":"South Africa","남아공":"South Africa","케냐":"Kenya","나이지리아":"Nigeria",
-  "에티오피아":"Ethiopia","탄자니아":"Tanzania","가나":"Ghana","카메룬":"Cameroon",
-  "모로코":"Morocco","튀니지":"Tunisia","알제리":"Algeria","수단":"Sudan",
+  "에티오피아":"Ethiopia","가나":"Ghana","카메룬":"Cameroon","모로코":"Morocco",
+  "튀니지":"Tunisia","알제리":"Algeria","수단":"Sudan",
   "멕시코":"Mexico","브라질":"Brazil","아르헨티나":"Argentina","칠레":"Chile",
-  "콜롬비아":"Colombia","페루":"Peru","에콰도르":"Ecuador","베네수엘라":"Venezuela",
-  "파나마":"Panama","코스타리카":"Costa Rica","과테말라":"Guatemala","쿠바":"Cuba",
+  "콜롬비아":"Colombia","페루":"Peru","에콰도르":"Ecuador","파나마":"Panama",
+  "코스타리카":"Costa Rica","과테말라":"Guatemala","쿠바":"Cuba",
   "뉴질랜드":"New Zealand","피지":"Fiji","파푸아뉴기니":"Papua New Guinea",
 };
 
 function resolveCountry(name) {
   if (!name) return '';
   const trimmed = name.trim();
-  // 1) 정확히 일치
   if (COUNTRY_MAP[trimmed]) return trimmed;
-  // 2) alias 매핑
-  if (COUNTRY_ALIAS[trimmed]) {
-    const mapped = COUNTRY_ALIAS[trimmed];
-    if (COUNTRY_MAP[mapped]) return mapped;
-  }
-  // 3) 대소문자 무시
+  if (COUNTRY_ALIAS[trimmed]) { const mapped = COUNTRY_ALIAS[trimmed]; if (COUNTRY_MAP[mapped]) return mapped; }
   const lower = trimmed.toLowerCase();
-  for (const en of COUNTRY_LIST) {
-    if (en.toLowerCase() === lower) return en;
-  }
-  // 4) alias 대소문자 무시
+  for (const en of COUNTRY_LIST) { if (en.toLowerCase() === lower) return en; }
   for (const [alias, target] of Object.entries(COUNTRY_ALIAS)) {
     if (alias.toLowerCase() === lower && COUNTRY_MAP[target]) return target;
   }
-  // 5) 부분 포함 (예: "England, UK" → United Kingdom)
   for (const [alias, target] of Object.entries(COUNTRY_ALIAS)) {
     if (lower.includes(alias.toLowerCase()) && COUNTRY_MAP[target]) return target;
   }
@@ -1210,24 +1178,122 @@ function resolveCountry(name) {
   }
   return trimmed;
 }
+
 let state = {
-  mode: '수출',
-  isDoc: false,
-  ctData: [{wt: 1.0, L: 30, W: 20, H: 20, qty: 1}],
-  lastResult: null,
-  selectedCards: new Set(['dhl']),
-  aiResult: null,
-  pasteImageBlob: null,
-  staffName: '',
-  tgtMargin: 30,
+  mode: '수출', isDoc: false,
+  ctData: [{wt:1.0, L:30, W:20, H:20, qty:1}],
+  lastResult: null, selectedCards: new Set(['dhl']),
+  aiResult: null, pasteImageBlob: null, staffName: '', tgtMargin: 30,
 };
+
+// ─────────────────────────────────────────────
+// Mobile sidebar control
+// ─────────────────────────────────────────────
+function isMobile() { return window.innerWidth <= 768; }
+
+function toggleSidebar() {
+  const sidebar  = document.getElementById('sidebar');
+  const overlay  = document.getElementById('sidebarOverlay');
+  const hamburger = document.getElementById('hamburgerBtn');
+  const isOpen   = sidebar.classList.contains('mobile-open');
+  if (isOpen) { closeSidebar(); }
+  else {
+    sidebar.classList.add('mobile-open');
+    overlay.classList.add('open');
+    hamburger.classList.add('open');
+    hamburger.setAttribute('aria-label', '메뉴 닫기');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeSidebar() {
+  const sidebar   = document.getElementById('sidebar');
+  const overlay   = document.getElementById('sidebarOverlay');
+  const hamburger = document.getElementById('hamburgerBtn');
+  sidebar.classList.remove('mobile-open');
+  overlay.classList.remove('open');
+  hamburger.classList.remove('open');
+  hamburger.setAttribute('aria-label', '메뉴 열기');
+  document.body.style.overflow = '';
+}
+
+// Mobile calculate: closes sidebar then calculates
+async function mobileCalculate() {
+  if (isMobile()) {
+    // sync mobile fields → desktop fields
+    syncMobileFields();
+    closeSidebar();
+  }
+  const btn = document.getElementById('mbCalcBtn');
+  if (btn) { btn.disabled = true; btn.querySelector('.mb-label').textContent = '계산 중...'; }
+  await calculate();
+  if (btn) { btn.disabled = false; btn.querySelector('.mb-label').textContent = '운임 계산'; }
+}
+
+// Sync mobile sidebar inputs → main inputs
+function syncMobileFields() {
+  const mDest = document.getElementById('destInputMobile');
+  const mCust = document.getElementById('customerInputMobile');
+  const mContact = document.getElementById('custContactMobile');
+  const mStaff = document.getElementById('staffSelectMobile');
+  const mQuote = document.getElementById('quoteNumMobile');
+  if (mDest && mDest.value) {
+    document.getElementById('destInput').value = mDest.value;
+    onDestSelect(mDest.value);
+  }
+  if (mCust && mCust.value) document.getElementById('customerInput').value = mCust.value;
+  if (mContact && mContact.value) document.getElementById('custContactInput').value = mContact.value;
+  if (mStaff && mStaff.value) {
+    document.getElementById('staffSelect').value = mStaff.value;
+    state.staffName = mStaff.value;
+  }
+  if (mQuote && mQuote.value) document.getElementById('quoteNum').value = mQuote.value;
+}
+
+function onDestSelectMobile(val) {
+  onDestSelect(val);
+  // also sync hidden input
+  const m = val.match(/\(([^)]+)\)\s*$/);
+  if (m) document.getElementById('destInput').value = val;
+}
+
+function onCustomerChangeMobile() {
+  const v = document.getElementById('customerInputMobile').value;
+  document.getElementById('customerInput').value = v;
+  onCustomerChange();
+}
+
+function onStaffChangeMobile() {
+  const v = document.getElementById('staffSelectMobile').value;
+  document.getElementById('staffSelect').value = v;
+  state.staffName = v;
+  onStaffChange();
+}
+
+// Show mobile fields when in mobile
+function checkMobileUI() {
+  const mobileFields = document.getElementById('mobileFields');
+  const mobileHint   = document.getElementById('mobileHint');
+  if (isMobile()) {
+    if (mobileFields) mobileFields.style.display = 'block';
+    if (mobileHint)   mobileHint.style.display = 'block';
+  } else {
+    if (mobileFields) mobileFields.style.display = 'none';
+    if (mobileHint)   mobileHint.style.display = 'none';
+  }
+}
 
 window.onload = () => {
   document.getElementById('destInput').value = '독일 (Germany)';
   renderCTs();
   updateCtxBar();
-  // 유류할증료 자동 조회 제거됨 (수동 입력 방식으로 변경)
+  checkMobileUI();
 };
+
+window.addEventListener('resize', () => {
+  checkMobileUI();
+  if (!isMobile()) closeSidebar();
+});
 
 // ─────────────────────────────────────────────
 // Country search
@@ -1238,20 +1304,12 @@ function onDestSelect(val) {
   const m = val.match(/\(([^)]+)\)\s*$/);
   if (m) {
     const en = m[1].trim();
-    if (COUNTRY_LIST.includes(en)) {
-      document.getElementById('destSelect').value = en;
-      updateCtxBar(); return;
-    }
+    if (COUNTRY_LIST.includes(en)) { document.getElementById('destSelect').value = en; updateCtxBar(); return; }
   }
-  if (COUNTRY_LIST.includes(val.trim())) {
-    document.getElementById('destSelect').value = val.trim();
-    updateCtxBar();
-  }
+  if (COUNTRY_LIST.includes(val.trim())) { document.getElementById('destSelect').value = val.trim(); updateCtxBar(); }
 }
 
-function getDestCountry() {
-  return document.getElementById('destSelect').value || 'Germany';
-}
+function getDestCountry() { return document.getElementById('destSelect').value || 'Germany'; }
 
 // ─────────────────────────────────────────────
 // Mode
@@ -1262,10 +1320,7 @@ function setMode(mode) {
   document.getElementById('btnExp').className = 'mode-btn' + (mode === '수출' ? ' active-exp' : '');
   document.getElementById('btnImp').className = 'mode-btn' + (mode === '수입' ? ' active-imp' : '');
   document.getElementById('logoMark').textContent = mode === '수출' ? '✈' : '📦';
-  // UPS 할인율은 수출/수입 모두 동일 칸 사용
-  if (mode === '수입') {
-    document.getElementById('discUpsB8').value = document.getElementById('discUps').value;
-  }
+  if (mode === '수입') document.getElementById('discUpsB8').value = document.getElementById('discUps').value;
   updateCtxBar();
 }
 
@@ -1284,16 +1339,11 @@ async function reloadCustomers() {
     const r = await fetch('/api/reload-customers', {method:'POST'});
     const d = await r.json();
     if (d.ok) {
-      // datalist 업데이트
       const dl = document.getElementById('customerList');
       dl.innerHTML = d.customers.map(c => `<option value="${c}">`).join('');
       showToast(`✅ ${d.count}개 고객사 로드 완료`);
-    } else {
-      showToast('❌ ' + d.error);
-    }
-  } catch(e) {
-    showToast('❌ 새로고침 실패: ' + e.message);
-  }
+    } else { showToast('❌ ' + d.error); }
+  } catch(e) { showToast('❌ 새로고침 실패: ' + e.message); }
 }
 
 async function saveFuel() {
@@ -1303,64 +1353,10 @@ async function saveFuel() {
   if (isNaN(dhl) || isNaN(fedex) || isNaN(ups)) return;
   try {
     await fetch('/api/save-fuel', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({dhl, fedex, ups})
     });
-  } catch(e) { /* 저장 실패 무시 */ }
-}
-
-async function autoFetchFuel() {
-  const btn    = document.getElementById('fuelAutoBtn');
-  const status = document.getElementById('fuelStatus');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ 조회중...'; }
-  if (status) { status.style.color = 'var(--text-dim)'; status.textContent = 'DHL · FedEx · UPS 조회 중...'; }
-
-  try {
-    const controller = new AbortController();
-    const tid = setTimeout(() => controller.abort(), 12000);
-    const r = await fetch('/api/fuel?carrier=all', {signal: controller.signal});
-    clearTimeout(tid);
-
-    if (!r.ok) throw new Error(`서버 오류 ${r.status}`);
-    const d = await r.json();
-
-    let anyLive = false;
-    const set = (id, obj) => {
-      if (obj && obj.value != null) {
-        document.getElementById(id).value = obj.value.toFixed(2);
-        if (obj.source === 'live') anyLive = true;
-      }
-    };
-    set('fuelDhl',   d.dhl);
-    set('fuelFedex', d.fedex);
-    set('fuelUps',   d.ups);
-
-    const lines = [];
-    const srcLabel = s => s==='live'?'🟢실시간':s==='cache'?'🟡캐시':s==='stale'?'🟠만료':s==='default'?'⚪기본값':'⚪';
-    for (const [k, v] of Object.entries(d)) {
-      if (!v) continue;
-      const label = {dhl:'DHL',fedex:'FedEx',ups:'UPS'}[k];
-      const val   = v.value != null ? v.value.toFixed(2)+'%' : '—';
-      const info  = v.updated && v.updated !== '—' ? ` (${v.updated})` : '';
-      lines.push(`${srcLabel(v.source)} ${label}: ${val}${info}`);
-    }
-
-    if (anyLive) {
-      status.style.color = '#4ade80';
-      status.innerHTML = lines.join(' &nbsp;|&nbsp; ');
-    } else {
-      status.style.color = '#fbbf24';
-      status.innerHTML = lines.join(' &nbsp;|&nbsp; ')
-        + '<br><span style="color:#fbbf24;font-size:.68rem;">⚠️ 로컬환경 네트워크 제한 — 아래 값 직접 수정하세요 (Render 배포시 자동조회 정상작동)</span>';
-    }
-  } catch(e) {
-    status.style.color = '#f87171';
-    const isTimeout = e.name === 'AbortError';
-    status.innerHTML = `❌ ${isTimeout ? '조회 시간 초과' : '조회 실패'} — 아래 입력란에서 직접 수정하세요`;
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '🔄 자동조회'; }
-  }
+  } catch(e) {}
 }
 
 function onCustomerChange() {
@@ -1368,21 +1364,19 @@ function onCustomerChange() {
   document.getElementById('ctxCustomer').textContent = v || '—';
   if (v.length > 1) {
     fetch('/api/customer-disc', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({company: v, mode: state.mode})
-    }).then(r => r.json()).then(data => {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({company:v, mode:state.mode})
+    }).then(r=>r.json()).then(data => {
       if (data.ok) {
         const d = data.disc;
         document.getElementById('discDhl').value    = d.dhl.toFixed(2);
         document.getElementById('discFedex').value  = d.fedex.toFixed(2);
         document.getElementById('discFedexE').value = d.fedex_e.toFixed(2);
         document.getElementById('discUps').value    = d.ups.toFixed(2);
-        if (data.debug) console.log('[할인율 진단]', data.debug);
         const anyDisc = d.dhl > 0 || d.fedex > 0 || d.ups > 0;
         showToast(anyDisc
           ? `✅ ${v} — DHL ${d.dhl.toFixed(0)}% / FX ${d.fedex.toFixed(0)}% / UPS ${d.ups.toFixed(0)}%`
-          : `⚠️ ${v} 할인율 없음 (F12→콘솔에서 [할인율 진단] 확인)`);
-        // 할인율 적용 후 자동 재계산
+          : `⚠️ ${v} 할인율 없음`);
         if (anyDisc && state.lastResult) { calculate(); }
       }
     }).catch(() => {});
@@ -1391,8 +1385,7 @@ function onCustomerChange() {
 
 function onStaffChange() {
   const sel = document.getElementById('staffSelect');
-  const opt = sel.options[sel.selectedIndex];
-  state.staffName  = opt.value;
+  state.staffName = sel.options[sel.selectedIndex].value;
 }
 
 function updateCtxBar() {
@@ -1412,13 +1405,10 @@ function addCT() {
   state.ctData.push({wt:1.0, L:30, W:20, H:20, qty:1});
   renderCTs();
 }
-
 function removeCT(i) {
   if (state.ctData.length <= 1) return;
-  state.ctData.splice(i, 1);
-  renderCTs();
+  state.ctData.splice(i, 1); renderCTs();
 }
-
 function renderCTs() {
   const container = document.getElementById('ctBlocks');
   container.innerHTML = '';
@@ -1446,7 +1436,6 @@ function renderCTs() {
   });
   document.getElementById('addCtBtn').style.display = state.ctData.length >= 5 ? 'none' : 'block';
 }
-
 function updateCT(i, field, val) {
   state.ctData[i][field] = field === 'wt' ? parseFloat(val)||1 : parseInt(val)||1;
 }
@@ -1456,51 +1445,49 @@ function updateCT(i, field, val) {
 // ─────────────────────────────────────────────
 async function calculate() {
   const btn = document.getElementById('calcBtn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>계산 중...';
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>계산 중...'; }
   const payload = {
     dest_country:  getDestCountry(),
     mode:          state.mode,
     is_doc:        state.isDoc,
     ct_data:       state.ctData,
-    fuel_dhl:      parseFloat(document.getElementById('fuelDhl').value)   || 28.75,
-    fuel_fedex:    parseFloat(document.getElementById('fuelFedex').value) || 29.75,
-    fuel_ups:      parseFloat(document.getElementById('fuelUps').value)   || 29.50,
-    disc_dhl:      parseFloat(document.getElementById('discDhl').value)   || 0,
-    disc_fedex:    parseFloat(document.getElementById('discFedex').value) || 0,
-    disc_fedex_e:  parseFloat(document.getElementById('discFedexE').value)|| 0,
-    disc_ups:      parseFloat(document.getElementById('discUps').value)   || 0,
-    disc_ups_b8:   parseFloat(document.getElementById('discUps').value)   || 0,  // 항상 UPS와 동일
+    fuel_dhl:      parseFloat(document.getElementById('fuelDhl').value)    || 28.75,
+    fuel_fedex:    parseFloat(document.getElementById('fuelFedex').value)  || 29.75,
+    fuel_ups:      parseFloat(document.getElementById('fuelUps').value)    || 29.50,
+    disc_dhl:      parseFloat(document.getElementById('discDhl').value)    || 0,
+    disc_fedex:    parseFloat(document.getElementById('discFedex').value)  || 0,
+    disc_fedex_e:  parseFloat(document.getElementById('discFedexE').value) || 0,
+    disc_ups:      parseFloat(document.getElementById('discUps').value)    || 0,
+    disc_ups_b8:   parseFloat(document.getElementById('discUps').value)    || 0,
     remote_postal: document.getElementById('remotePostal').value,
     remote_city:   document.getElementById('remoteCity').value,
     customer:      document.getElementById('customerInput').value,
   };
   try {
     const resp = await fetch('/api/calculate', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
+      method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify(payload)
     });
     const data = await resp.json();
     if (!data.ok) throw new Error(data.error);
     state.lastResult = data.data;
     renderResults(data.data);
+    // Enable mobile action buttons
+    const mbEmail = document.getElementById('mbEmailBtn');
+    const mbPdf   = document.getElementById('mbPdfBtn');
+    if (mbEmail) mbEmail.disabled = false;
+    if (mbPdf)   mbPdf.disabled   = false;
   } catch(e) {
-    showToast('❌ ' + e.message);
-    console.error(e);
+    showToast('❌ ' + e.message); console.error(e);
   } finally {
-    btn.disabled = false;
-    btn.innerHTML = '⚡ 운임 계산';
+    if (btn) { btn.disabled = false; btn.innerHTML = '⚡ 운임 계산'; }
   }
 }
 
 // ─────────────────────────────────────────────
-// Render Results  ← JS 키 이름 전면 수정
-// API 반환키: pub_base, pub_disc, pub_fuel, sur_fuel_pub, total_quote, total_cost, margin_rate
+// Render Results
 // ─────────────────────────────────────────────
-function fmtWon(n) {
-  if (n == null) return '—';
-  return '₩' + Math.round(n).toLocaleString('ko-KR');
-}
+function fmtWon(n) { if (n == null) return '—'; return '₩' + Math.round(n).toLocaleString('ko-KR'); }
 function fmtPct(n) { return (n||0).toFixed(1) + '%'; }
 
 function renderResults(res) {
@@ -1512,15 +1499,14 @@ function renderResults(res) {
   document.getElementById('ctxZones').textContent  = `Z${res.dhl_zone} · Z${res.fx_zone} · Z${res.ups_zone}`;
   document.getElementById('ctxWeight').textContent = `${res.total_chargeable.toFixed(1)} kg`;
 
-  // C/T 상세 테이블
   const ctDiv = document.getElementById('wtCtDetail');
   if (ctDiv && state.ctData && state.ctData.length > 0) {
     const hdr = `<div style="font-size:11px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">📦 화물 정보</div>`;
     const rows = state.ctData.map((ct, i) => {
-      const volWt = (ct.L * ct.W * ct.H / 5000 * ct.qty).toFixed(1);
-      const actWt = (ct.wt * ct.qty).toFixed(1);
-      const chgWt = Math.max(parseFloat(actWt), parseFloat(volWt)).toFixed(1);
-      return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px;">
+      const volWt  = (ct.L * ct.W * ct.H / 5000 * ct.qty).toFixed(1);
+      const actWt  = (ct.wt * ct.qty).toFixed(1);
+      const chgWt  = Math.max(parseFloat(actWt), parseFloat(volWt)).toFixed(1);
+      return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px;flex-wrap:wrap;">
         <span style="color:var(--text-dim);min-width:40px;">C/T ${i+1}</span>
         <span style="font-weight:700;color:var(--acc-bright);">${ct.qty}박스</span>
         <span style="color:var(--text-sec);">${ct.L}×${ct.W}×${ct.H}㎝</span>
@@ -1535,13 +1521,10 @@ function renderResults(res) {
 
   const remoteBadge = document.getElementById('remoteBadge');
   if (res.is_remote && res.remote_sur) {
-    remoteBadge.textContent  = `⚠️ DHL 외곽지역 +${Math.round(res.remote_sur).toLocaleString('ko-KR')}원`;
+    remoteBadge.textContent   = `⚠️ DHL 외곽지역 +${Math.round(res.remote_sur).toLocaleString('ko-KR')}원`;
     remoteBadge.style.display = 'flex';
-  } else {
-    remoteBadge.style.display = 'none';
-  }
+  } else { remoteBadge.style.display = 'none'; }
 
-  // 최저견적 계산 — 최저 청구금액 중 마진율 가장 높은 것에 배지
   const quotes = {};
   ['dhl','fedex','fedex_e','ups2f','upsb8'].forEach(k => {
     const c = res.carriers[k];
@@ -1549,10 +1532,9 @@ function renderResults(res) {
     if (c && !noSvc) quotes[k] = c.total_quote;
   });
   const minQuote = Math.min(...Object.values(quotes));
-  // 최저 금액 동률 중 마진율 가장 높은 키 1개만 선정
-  const bestKey = Object.entries(quotes)
-    .filter(([k, q]) => q === minQuote)
-    .sort((a, b) => (res.carriers[b[0]].margin_rate||0) - (res.carriers[a[0]].margin_rate||0))[0]?.[0];
+  const bestKey  = Object.entries(quotes)
+    .filter(([k,q]) => q === minQuote)
+    .sort((a,b) => (res.carriers[b[0]].margin_rate||0) - (res.carriers[a[0]].margin_rate||0))[0]?.[0];
 
   const carriers = [
     {key:'dhl',     label:'DHL Express',    badge:'badge-dhl',     cls:'c-dhl',     tt:'1~3 영업일', acct:''},
@@ -1562,7 +1544,6 @@ function renderResults(res) {
     {key:'upsb8',   label:'UPS SAVER <span style="background:#b45309;color:#fef3c7;font-size:.75rem;font-weight:800;padding:2px 8px;border-radius:4px;margin-left:6px;vertical-align:middle;">🔑 B8733R</span>', badge:'badge-ups', cls:'c-ups', tt:'2~5 영업일', acct:''},
   ];
 
-  // 상단 3개 / 하단 2개 그리드
   const gridTop = document.getElementById('resultsGrid');
   const gridBot = document.getElementById('resultsGridBottom');
   gridTop.style.display = 'grid';
@@ -1572,14 +1553,11 @@ function renderResults(res) {
   carriers.forEach(({key, label, badge, cls, tt, acct}, idx) => {
     const c = res.carriers[key];
     if (!c) return;
-    const noService = (key.startsWith('ups') && res.ups_no_service) ||
-                      (key.startsWith('fedex') && res.fedex_no_service);
+    const noService   = (key.startsWith('ups') && res.ups_no_service) || (key.startsWith('fedex') && res.fedex_no_service);
     const freightFlag = key.startsWith('ups') && res.ups_freight_flag;
-    const isBest = !noService && key === bestKey;
-    const marginRate = c.margin_rate || 0;
-    const tgt = state.tgtMargin || 30;
-    const marginClass = marginRate >= tgt ? 'margin-ok' : marginRate >= tgt*0.5 ? 'margin-warn' : 'margin-bad';
-    const marginIcon  = marginRate >= tgt ? '✅' : marginRate >= tgt*0.5 ? '⚠️' : '❌';
+    const isBest      = !noService && key === bestKey;
+    const marginRate  = c.margin_rate || 0;
+    const tgt         = state.tgtMargin || 30;
 
     const card = document.createElement('div');
     card.className = `carrier-card ${cls}` + (state.selectedCards.has(key) ? ' selected' : '') + (noService ? ' no-service' : '');
@@ -1590,11 +1568,8 @@ function renderResults(res) {
       card.innerHTML = `
         <div class="card-check">✓</div>
         <div class="card-badge ${badge}">${label}</div>
-        <div style="text-align:center;padding:20px 0;color:var(--text-dim);">
-          <span class="tag-ns">서비스 불가</span>
-        </div>`;
+        <div style="text-align:center;padding:20px 0;color:var(--text-dim);"><span class="tag-ns">서비스 불가</span></div>`;
     } else {
-      // 부가서비스 행 빌드
       const surRows = (c.surs||[])
         .filter(s => s.name !== '__freight__')
         .map(s => `<div class="bd-row sub-item"><span>  ${s.name}</span><span class="bd-val">${fmtWon(s.amount)}</span></div>`)
@@ -1604,15 +1579,11 @@ function renderResults(res) {
       card.innerHTML = `
         <div class="card-check">✓</div>
         <div class="card-badge ${badge}">${label}${isBest ? '<span class="card-best-badge">🏆 최저</span>' : ''}${(key==='dhl' && c.surcharge_5pct) ? '<span style="background:#f59e0b;color:#1a1a00;font-size:.6rem;font-weight:900;padding:1px 5px;border-radius:3px;margin-left:5px;">⚡+5%</span>' : ''}</div>
-
         <div class="card-meta">
           <span class="meta-tag meta-tt">⏱ ${tt}</span>
-          ${acct ? `<span class="meta-tag meta-acct">${acct}</span>` : ''}
           ${c.disc_rpk ? `<span class="meta-tag" style="background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3);">₩${Math.round(c.disc_rpk).toLocaleString()}/kg</span>` : ''}
           ${freightFlag ? '<span style="color:#f87171;font-size:.65rem;font-weight:700;">⚡Freight전환</span>' : ''}
         </div>
-
-        <!-- 상단 2컬럼: 좌=견적가+원가, 우=할인율+마진 원형 -->
         <div class="card-top-row">
           <div class="card-top-left">
             <div class="card-quote" style="color:var(--acc-bright);">${fmtWon(c.total_quote)}</div>
@@ -1638,14 +1609,10 @@ function renderResults(res) {
             </div>
           </div>
         </div>
-
-        <!-- 원가 상세 -->
         <div class="section-cost">
           <div class="detail-header-cost" style="display:flex;justify-content:space-between;align-items:center;">
             <span>💰 원가 상세</span>
-            <span style="font-size:.68rem;font-weight:800;color:${marginRate>=tgt?'#4ade80':marginRate>=tgt*0.5?'#fbbf24':'#f87171'};">
-              마진 ${fmtWon(c.total_quote - c.total_cost)}
-            </span>
+            <span style="font-size:.68rem;font-weight:800;color:${marginRate>=tgt?'#4ade80':marginRate>=tgt*0.5?'#fbbf24':'#f87171'};">마진 ${fmtWon(c.total_quote - c.total_cost)}</span>
           </div>
           <div class="bd-row"><span>항공운임 (원가)</span><span class="bd-val">${fmtWon(c.net_base)}</span></div>
           ${c.net_fee > 0 ? `<div class="bd-row sub-item"><span>계정수수료 3%</span><span class="bd-val">${fmtWon(c.net_fee)}</span></div>` : ''}
@@ -1653,19 +1620,15 @@ function renderResults(res) {
           <div class="bd-row sub-item"><span>유류할증료 (원가)</span><span class="bd-val">${fmtWon((c.net_fuel||0)+(c.sur_fuel||0))}</span></div>
           <div class="bd-row total-row"><span>▶ 원가 합계</span><span class="bd-val">${fmtWon(c.total_cost)}</span></div>
         </div>
-
-        <!-- 청구가 상세 -->
         <div class="section-quote">
           <div class="detail-header-quote">📋 청구가 상세</div>
           <div class="bd-row"><span>항공운임 (견적)${c.disc_rpk ? `<span style="font-size:.62rem;color:#60a5fa;margin-left:5px;">(₩${Math.round(c.disc_rpk).toLocaleString()}/kg)</span>` : ''}</span><span class="bd-val">${fmtWon(c.pub_disc)}</span></div>
           ${hasSur ? surRows : ''}
           <div class="bd-row sub-item"><span>유류할증료</span><span class="bd-val">${fmtWon((c.pub_fuel||0)+(c.sur_fuel_pub||0))}</span></div>
           <div class="bd-row total-row"><span>▶ 견적가 (고객)</span><span class="bd-val" style="color:var(--acc-bright);font-size:.88rem;">${fmtWon(c.total_quote)}</span></div>
-        </div>
-      `;
+        </div>`;
     }
 
-    // 상단 3개 / 하단 2개 분리
     if (idx < 3) gridTop.appendChild(card);
     else if (gridBot) gridBot.appendChild(card);
   });
@@ -1677,39 +1640,19 @@ function renderResults(res) {
 function toggleCard(key) {
   if (state.selectedCards.has(key)) {
     if (state.selectedCards.size > 1) state.selectedCards.delete(key);
-  } else {
-    state.selectedCards.add(key);
-  }
+  } else { state.selectedCards.add(key); }
   document.querySelectorAll('.carrier-card').forEach(card =>
     card.classList.toggle('selected', state.selectedCards.has(card.dataset.key)));
   if (state.lastResult) buildEmailHtml(state.lastResult);
 }
 
-function applyAiResult() {
-  const r = state.aiResult; if (!r) return;
-  const en = resolveCountry(r.country);
-  if (en && COUNTRY_MAP[en]) {
-    document.getElementById('destSelect').value = en;
-    document.getElementById('destInput').value  = `${COUNTRY_MAP[en]} (${en})`;
-    updateCtxBar();
-  } else if (r.country) {
-    showToast(`⚠️ 국가 "${r.country}" 를 목록에서 찾지 못했습니다. 직접 선택하세요.`);
-  }
-  const qty = r.ct_count || 1;
-  const perWt = qty > 1 ? Math.round(r.weight_kg / qty * 10) / 10 : r.weight_kg;
-  state.ctData = [{wt: perWt, L: r.length_cm, W: r.width_cm, H: r.height_cm, qty: qty}];
-  renderCTs();
-  setDocMode(r.is_document);
-  document.getElementById('remotePostal').value = r.postal_code || '';
-  document.getElementById('remoteCity').value   = r.city || '';
-  document.getElementById('aiPanel').classList.remove('open');
-  document.getElementById('aiToggleBtn').textContent = '🤖 AI 분석';
-  showToast('✅ AI 추출 결과 적용 완료');
-}
+// ─────────────────────────────────────────────
+// Email / PDF
+// ─────────────────────────────────────────────
 function buildEmailHtml(res) {
-  const CNAME  = {dhl:'DHL',fedex:'FEDEX IP',fedex_e:'FEDEX ECONOMY',ups2f:'UPS SAVER',upsb8:'UPS SAVER'};
-  const TTMAP  = {dhl:'3~5일',fedex:'3~4일',fedex_e:'5~7일',ups2f:'5~7일',upsb8:'5~7일'};
-  const FEXPIRY= {dhl:'~03/31',fedex:'~03/31',fedex_e:'~03/31',ups2f:'~03/15',upsb8:'~03/15'};
+  const CNAME   = {dhl:'DHL',fedex:'FEDEX IP',fedex_e:'FEDEX ECONOMY',ups2f:'UPS SAVER',upsb8:'UPS SAVER'};
+  const TTMAP   = {dhl:'3~5일',fedex:'3~4일',fedex_e:'5~7일',ups2f:'5~7일',upsb8:'5~7일'};
+  const FEXPIRY = {dhl:'~03/31',fedex:'~03/31',fedex_e:'~03/31',ups2f:'~03/15',upsb8:'~03/15'};
 
   const selectedArr = Array.from(state.selectedCards).filter(k => {
     const c = res.carriers[k];
@@ -1726,7 +1669,6 @@ function buildEmailHtml(res) {
     ? `${state.ctData[0].L}X${state.ctData[0].W}X${state.ctData[0].H}cm`
     : `${state.ctData.length}종`;
 
-  // .msg 파일과 동일한 텍스트 형식
   let lines = [];
   lines.push(`C/T : ${totalPkg} PKG`);
   lines.push(`W/T : ${totalWt}kg`);
@@ -1734,201 +1676,36 @@ function buildEmailHtml(res) {
   lines.push(`CHARGEABLE WEIGHT : ${chgWt}kg`);
 
   selectedArr.forEach(key => {
-    const c       = res.carriers[key];
-    const name    = CNAME[key] || key.toUpperCase();
-    const tt      = TTMAP[key] || '—';
-    const expiry  = FEXPIRY[key] || '';
+    const c      = res.carriers[key];
+    const name   = CNAME[key] || key.toUpperCase();
+    const tt     = TTMAP[key] || '—';
+    const expiry = FEXPIRY[key] || '';
     const fuelPct = (c.fuel_pct||0).toFixed(2);
     const base    = Math.round(c.pub_disc || c.pub_base || 0);
     const fuelAmt = Math.round((c.pub_fuel||0)+(c.sur_fuel_pub||0));
     const total   = Math.round(c.total_quote||0);
     const rpk     = c.disc_rpk ? ` (${Math.round(c.disc_rpk).toLocaleString('ko-KR')}원/kg)` : '';
     const surs    = (c.surs||[]);
-
-    lines.push('');
-    lines.push(name);
-    lines.push('');
+    lines.push(''); lines.push(name); lines.push('');
     lines.push(`유류할증료 : ${fuelPct}% (${expiry})`);
     lines.push('');
     lines.push(`운임${rpk} : ${base.toLocaleString('ko-KR')}원`);
     lines.push(`유류할증료 : ${fuelAmt.toLocaleString('ko-KR')}원`);
     surs.forEach(s => lines.push(`${s.name} : ${Math.round(s.amount).toLocaleString('ko-KR')}원`));
-    lines.push('');
-    lines.push(`TOTAL : ${total.toLocaleString('ko-KR')}원`);
+    lines.push(''); lines.push(`TOTAL : ${total.toLocaleString('ko-KR')}원`);
     lines.push('');
     lines.push(`T/TIME : 항공사 사정 및 통관상 지연이 없을 시 영업일 기준으로 대략 ${tt} 소요 예상됩니다.`);
   });
 
-  // <br>로 연결해 innerHTML에 저장 (붙여넣기 시 줄바꿈 유지)
   document.getElementById('emailHtmlStore').value = lines.join('\n');
-}
-
-function _buildEmailHtml_old(res) {
-  const quoteNum    = document.getElementById('quoteNum').value;
-  const customer    = document.getElementById('customerInput').value || '—';
-  const staffName   = document.getElementById('staffSelect').value || '—';
-  const custContact = document.getElementById('custContactInput').value || '—';
-  const today       = new Date().toLocaleDateString('ko-KR');
-  const dest        = `${res.dest_kr} (${res.dest_country})`;
-
-  // 화물 정보 요약
-  const totalPkg  = state.ctData.reduce((s,c)=>s+(c.qty||1),0);
-  const totalWt   = res.total_actual_wt.toFixed(1);
-  const sizeStr   = state.ctData.length === 1
-    ? `${state.ctData[0].L}×${state.ctData[0].W}×${state.ctData[0].H}cm`
-    : `${state.ctData.length}종`;
-
-  // 선택된 캐리어
-  const carrierMap  = {dhl:'DHL',fedex:'FEDEX IP',fedex_e:'FEDEX ECONOMY',ups2f:'UPS SAVER',upsb8:'UPS SAVER'};
-  const ttMap       = {dhl:'3~5일',fedex:'3~4일',fedex_e:'5~7일',ups2f:'5~7일',upsb8:'5~7일'};
-  const fuelExpiry  = {dhl:'~03/31',fedex:'~03/31',fedex_e:'~03/31',ups2f:'~03/15',upsb8:'~03/15'};
-
-  const selectedArr = Array.from(state.selectedCards).filter(k => {
-    const c = res.carriers[k];
-    if (!c) return false;
-    if (k.startsWith('ups') && res.ups_no_service) return false;
-    if (k.startsWith('fedex') && res.fedex_no_service) return false;
-    return true;
-  });
-
-  const colW = Math.floor(100 / (selectedArr.length || 1));
-
-  // 헤더 행
-  let thCols = `<td style="width:120px;padding:8px 10px;border:1px solid #ccc;background:#f5f5f5;font-weight:700;font-size:.82rem;"></td>`;
-  selectedArr.forEach(key => {
-    thCols += `<td style="width:${colW}%;padding:8px 12px;border:1px solid #ccc;background:#f0f0f0;font-weight:900;font-size:.88rem;text-align:left;">${carrierMap[key]}</td>`;
-  });
-
-  // 유류할증료 행
-  let fuelPctRow = `<td style="padding:7px 10px;border:1px solid #ccc;font-size:.8rem;color:#555;">유류할증료</td>`;
-  selectedArr.forEach(key => {
-    const c = res.carriers[key];
-    const expiry = fuelExpiry[key] || '';
-    fuelPctRow += `<td style="padding:7px 12px;border:1px solid #ccc;font-size:.82rem;">${(c.fuel_pct||0).toFixed(2)}% (${expiry})</td>`;
-  });
-
-  // 운임 행
-  let baseRow = `<td style="padding:7px 10px;border:1px solid #ccc;font-size:.8rem;color:#555;">운임</td>`;
-  selectedArr.forEach(key => {
-    const c = res.carriers[key];
-    const rpk = c.disc_rpk ? `(${Math.round(c.disc_rpk).toLocaleString('ko-KR')}원/kg)` : '';
-    baseRow += `<td style="padding:7px 12px;border:1px solid #ccc;font-size:.82rem;">${rpk ? rpk+' : ' : ''}₩${Math.round(c.pub_disc||c.pub_base).toLocaleString('ko-KR')}</td>`;
-  });
-
-  // 유류할증료 금액 행
-  let fuelAmtRow = `<td style="padding:7px 10px;border:1px solid #ccc;font-size:.8rem;color:#555;">유류할증료</td>`;
-  selectedArr.forEach(key => {
-    const c = res.carriers[key];
-    const fuelAmt = Math.round((c.pub_fuel||0) + (c.sur_fuel_pub||0));
-    fuelAmtRow += `<td style="padding:7px 12px;border:1px solid #ccc;font-size:.82rem;">₩${fuelAmt.toLocaleString('ko-KR')}</td>`;
-  });
-
-  // 부가서비스 행 (있는 경우)
-  const allSurNames = new Set();
-  selectedArr.forEach(key => {
-    (res.carriers[key].surs||[]).forEach(s => allSurNames.add(s.name));
-  });
-  let surRows = '';
-  allSurNames.forEach(name => {
-    let row = `<td style="padding:7px 10px;border:1px solid #ccc;font-size:.8rem;color:#555;">${name}</td>`;
-    selectedArr.forEach(key => {
-      const c = res.carriers[key];
-      const s = (c.surs||[]).find(x => x.name === name);
-      row += `<td style="padding:7px 12px;border:1px solid #ccc;font-size:.82rem;">${s ? '₩'+s.amount.toLocaleString('ko-KR') : '—'}</td>`;
-    });
-    surRows += `<tr>${row}</tr>`;
-  });
-
-  // TOTAL 행
-  let totalRow = `<td style="padding:9px 10px;border:1px solid #ccc;font-size:.85rem;font-weight:900;background:#f9f9f9;">TOTAL</td>`;
-  selectedArr.forEach(key => {
-    const c = res.carriers[key];
-    totalRow += `<td style="padding:9px 12px;border:1px solid #ccc;font-size:.92rem;font-weight:900;background:#f9f9f9;">₩${Math.round(c.total_quote).toLocaleString('ko-KR')}</td>`;
-  });
-
-  // T/TIME 행
-  let ttRow = `<td style="padding:7px 10px;border:1px solid #ccc;font-size:.8rem;color:#555;">T/TIME</td>`;
-  selectedArr.forEach(key => {
-    ttRow += `<td style="padding:7px 12px;border:1px solid #ccc;font-size:.78rem;color:#444;">항공사 사정 및 통관상 지연이 없을 시 영업일 기준으로 대략 ${ttMap[key]} 소요 예상됩니다.</td>`;
-  });
-
-  const STAFF = {
-    '호영준': {phone:'010-3767-5413', email:'cs@airos.co.kr'},
-    '양희석': {phone:'010-4594-0768', email:'cs@airos.co.kr'},
-    '이현종': {phone:'010-4767-3264', email:'cs@airos.co.kr'},
-  };
-  const s = STAFF[staffName];
-  const staffInfo = s ? `${staffName}  ${s.phone}  ${s.email}` : staffName;
-
-  const html = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:16px;font-family:'Malgun Gothic','Noto Sans KR',Arial,sans-serif;background:#fff;">
-<div style="max-width:700px;margin:0 auto;">
-
-  <!-- 기본 정보 -->
-  <table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:.82rem;">
-    <tr><td style="padding:4px 0;width:80px;color:#555;">견적번호</td><td style="padding:4px 0;font-weight:700;">${quoteNum}</td><td style="padding:4px 0;width:80px;color:#555;">일자</td><td style="padding:4px 0;">${today}</td></tr>
-    <tr><td style="padding:4px 0;color:#555;">고객사</td><td style="padding:4px 0;font-weight:700;">${customer}</td><td style="padding:4px 0;color:#555;">담당자</td><td style="padding:4px 0;">${custContact}</td></tr>
-    <tr><td style="padding:4px 0;color:#555;">목적지</td><td colspan="3" style="padding:4px 0;font-weight:700;">${dest}</td></tr>
-  </table>
-
-  <!-- 화물/운임 메인 테이블 -->
-  <table style="width:100%;border-collapse:collapse;border:1px solid #ccc;font-size:.82rem;">
-
-    <!-- 화물 정보 -->
-    <tr>
-      <td style="padding:8px 10px;border:1px solid #ccc;font-size:.8rem;color:#555;">C/T</td>
-      <td colspan="${selectedArr.length}" style="padding:8px 12px;border:1px solid #ccc;">${totalPkg} PKG</td>
-    </tr>
-    <tr>
-      <td style="padding:8px 10px;border:1px solid #ccc;font-size:.8rem;color:#555;">W/T</td>
-      <td colspan="${selectedArr.length}" style="padding:8px 12px;border:1px solid #ccc;">${totalWt}kg (적용중량 ${res.total_chargeable.toFixed(1)}kg)</td>
-    </tr>
-    <tr>
-      <td style="padding:8px 10px;border:1px solid #ccc;font-size:.8rem;color:#555;">SIZE</td>
-      <td colspan="${selectedArr.length}" style="padding:8px 12px;border:1px solid #ccc;">${sizeStr}</td>
-    </tr>
-
-    <!-- 구분선 -->
-    <tr><td colspan="${selectedArr.length + 1}" style="padding:0;background:#e0e0e0;height:2px;border:none;"></td></tr>
-
-    <!-- 캐리어 헤더 -->
-    <tr>${thCols}</tr>
-
-    <!-- 운임 행들 -->
-    <tr>${fuelPctRow}</tr>
-    <tr>${baseRow}</tr>
-    <tr>${fuelAmtRow}</tr>
-    ${surRows}
-    <tr>${totalRow}</tr>
-    <tr>${ttRow}</tr>
-  </table>
-
-  <!-- 안내사항 -->
-  <div style="margin-top:12px;font-size:.75rem;color:#666;line-height:1.8;">
-    ※ 본 견적은 <strong>유류할증료 포함</strong> 금액이며, 유류할증료는 변동될 수 있습니다.<br>
-    ※ <strong>관세·세금·통관비는 별도</strong>이며 실제 운임은 발송 시점에 최종 확정됩니다.
-  </div>
-
-  <!-- 담당자 -->
-  <div style="margin-top:10px;font-size:.78rem;color:#444;">
-    담당 : ${staffInfo}
-  </div>
-
-</div>
-</body></html>`;
-
-  document.getElementById('emailHtmlStore').innerHTML = html;
 }
 
 function copyEmailHtml() {
   const text = document.getElementById('emailHtmlStore').value;
   if (!text) { showToast('먼저 운임 계산을 실행하세요'); return; }
-  // 팝업 열기
   document.getElementById('emailPopupText').value = text;
   const overlay = document.getElementById('emailPopupOverlay');
   overlay.style.display = 'flex';
-  // 텍스트 전체 선택
   setTimeout(() => {
     const ta = document.getElementById('emailPopupText');
     ta.focus(); ta.select();
@@ -1940,16 +1717,11 @@ async function copyEmailPopup() {
   try {
     await navigator.clipboard.writeText(text);
     showToast('✅ 복사 완료 — 메일에 붙여넣기 하세요');
-  } catch(e) {
-    showToast('❌ 복사 실패: ' + e.message);
-  }
+  } catch(e) { showToast('❌ 복사 실패: ' + e.message); }
 }
 
-function closeEmailPopup() {
-  document.getElementById('emailPopupOverlay').style.display = 'none';
-}
+function closeEmailPopup() { document.getElementById('emailPopupOverlay').style.display = 'none'; }
 
-// 오버레이 클릭 시 닫기
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('emailPopupOverlay').addEventListener('click', function(e) {
     if (e.target === this) closeEmailPopup();
@@ -1958,16 +1730,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function generatePdf() {
   if (!state.lastResult) return;
-  const res       = state.lastResult;
-  const quoteNum  = document.getElementById('quoteNum').value;
-  const customer  = (document.getElementById('customerInput').value || '—')
-                    .replace(/\s+\(.*/, '').trim() || '—';
+  const res         = state.lastResult;
+  const quoteNum    = document.getElementById('quoteNum').value;
+  const customer    = (document.getElementById('customerInput').value || '—').replace(/\s+\(.*/, '').trim() || '—';
   const custContact = document.getElementById('custContactInput')?.value || '—';
-  const staffName = document.getElementById('staffSelect').value || '—';
-  const notes     = document.getElementById('notesInput')?.value || '';
-  const today     = new Date().toLocaleDateString('ko-KR');
-  const dest      = `${res.dest_kr} (${res.dest_country})`;
-  const modeLabel = res.mode === '수출' ? '수출 (EXPORT)' : '수입 (IMPORT)';
+  const staffName   = document.getElementById('staffSelect').value || '—';
+  const notes       = document.getElementById('notesInput')?.value || '';
+  const today       = new Date().toLocaleDateString('ko-KR');
+  const dest        = `${res.dest_kr} (${res.dest_country})`;
+  const modeLabel   = res.mode === '수출' ? '수출 (EXPORT)' : '수입 (IMPORT)';
 
   const STAFF = {
     '호영준': {phone:'010-3767-5413', email:'cs@airos.co.kr'},
@@ -1975,30 +1746,26 @@ function generatePdf() {
     '이현종': {phone:'010-4767-3264', email:'cs@airos.co.kr'},
   };
   const si = STAFF[staffName] || {};
-  const staffInfo = si.phone ? `${staffName}  ${si.phone}  ${si.email||''}` : staffName;
 
   const PDF_NAME = {dhl:'DHL EXPRESS',fedex:'FEDEX EXPRESS',fedex_e:'FEDEX ECONOMY',ups2f:'UPS SAVER',upsb8:'UPS SAVER'};
   const TT_MAP   = {dhl:'3~5 영업일',fedex:'3~4 영업일',fedex_e:'5~7 영업일',ups2f:'5~7 영업일',upsb8:'5~7 영업일'};
 
-  // UPS 중복 제거 (ups2f + upsb8 동시 선택 시 하나만)
   const _rawSelected = Array.from(state.selectedCards).filter(k => {
     if (!res.carriers[k]) return false;
     if (k.startsWith('ups') && res.ups_no_service) return false;
     if (k.startsWith('fedex') && res.fedex_no_service) return false;
     return true;
   });
-  const _hasUps = _rawSelected.some(k => k.startsWith('ups'));
   const selectedArr = _rawSelected.filter((k, idx, arr) => {
     if (k === 'upsb8' && arr.includes('ups2f')) return false;
     return true;
   });
 
-  // 화물 상세 행
   const cargoRows = state.ctData.map((ct, i) => {
-    const qty  = ct.qty || 1;
-    const vol  = (ct.L * ct.W * ct.H / 5000).toFixed(2);          // 박스 1개 부피중량
-    const chg  = Math.max(ct.wt, parseFloat(vol));                  // 박스 1개 적용중량
-    const totalAct = (ct.wt * qty).toFixed(1);                      // 소계 실중량
+    const qty    = ct.qty || 1;
+    const vol    = (ct.L * ct.W * ct.H / 5000).toFixed(2);
+    const chg    = Math.max(ct.wt, parseFloat(vol));
+    const totalAct = (ct.wt * qty).toFixed(1);
     return `<tr style="background:${i%2===0?'#f9fafb':'#fff'}">
       <td>${i+1}</td><td>${qty}</td><td>${ct.wt} kg</td>
       <td>${ct.L}×${ct.W}×${ct.H} cm</td><td>${vol} kg</td>
@@ -2006,9 +1773,6 @@ function generatePdf() {
     </tr>`;
   }).join('');
 
-  // 운임 비교 행
-  // 1줄에 최대 2개: 1개→100%, 2개 이상→50% (3~4개는 2×2 배치)
-  const cardW = selectedArr.length === 1 ? '100%' : 'calc(50% - 4px)';
   const rateCards = selectedArr.map((key) => {
     const c       = res.carriers[key];
     const name    = PDF_NAME[key] || key.toUpperCase();
@@ -2075,19 +1839,13 @@ function generatePdf() {
   .remarks-fixed { position:fixed; bottom:22mm; left:0; right:0; font-size:10px; color:#666; border-top:1px solid #dee2e6; padding-top:6px; background:white; }
   .remarks-list { margin:3px 0 0; padding-left:16px; line-height:1.7; }
   footer { position:fixed; bottom:10mm; left:0; right:0; border-top:2px solid #003366; padding-top:6px; display:flex; justify-content:space-between; font-size:11px; color:#555; background:white; }
-  @media print {
-    body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-    button { display:none !important; }
-    .remarks-fixed { position:fixed; bottom:22mm; }
-    footer { position:fixed; bottom:10mm; }
-  }
+  @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } button { display:none !important; } }
 </style>
 </head><body>
 <div style="position:fixed;top:10px;right:10px;z-index:999;">
   <button onclick="window.print()" style="background:#003366;color:#fff;border:none;padding:8px 18px;font-size:13px;cursor:pointer;border-radius:4px;">🖨️ 인쇄 / PDF 저장</button>
   <button onclick="window.close()" style="background:#666;color:#fff;border:none;padding:8px 14px;font-size:13px;cursor:pointer;border-radius:4px;margin-left:6px;">✕ 닫기</button>
 </div>
-
 <header>
   <div>
     <div class="logo-h1">✈ AIRBRIDGE</div>
@@ -2098,16 +1856,12 @@ function generatePdf() {
     견적번호: <strong>${quoteNum}</strong>&nbsp;&nbsp;|&nbsp;&nbsp;견적일자: ${today}
   </div>
 </header>
-
-<!-- 담당자 강조 띠 -->
 <div style="background:#003366;padding:10px 18px;margin-bottom:14px;border-radius:4px;display:flex;align-items:center;gap:20px;">
   <span style="font-size:11px;font-weight:700;color:#aac4e8;white-space:nowrap;letter-spacing:1px;">에어브리지 담당자</span>
   <span style="font-size:15px;font-weight:900;color:#ffffff;">${staffName}</span>
   <span style="font-size:13px;font-weight:600;color:#d0e4f7;">${si.phone||''}</span>
   <span style="font-size:12px;color:#aac4e8;">${si.email||'cs@airos.co.kr'}</span>
 </div>
-
-<!-- 2단: 견적기본정보 | 화물명세 -->
 <div class="grid-2" style="margin-bottom:12px;">
   <section>
     <h3>견적 기본 정보</h3>
@@ -2134,7 +1888,6 @@ function generatePdf() {
     </div>
   </section>
 </div>
-
 <section>
   <h3>화물 상세</h3>
   <table>
@@ -2142,17 +1895,11 @@ function generatePdf() {
     <tbody>${cargoRows}</tbody>
   </table>
 </section>
-
 <section>
   <h3>운송사별 운임 비교 (Rate Comparison)</h3>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-    ${rateCards}
-  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">${rateCards}</div>
 </section>
-
 ${notesBlock}
-
-<!-- 하단 고정: 유의사항 -->
 <div class="remarks-fixed">
   <strong style="font-size:10px;color:#003366;">유의사항</strong>
   <ol class="remarks-list">
@@ -2161,22 +1908,17 @@ ${notesBlock}
     <li>유류할증료는 매월 변동될 수 있으며, 발송 시점의 요율이 적용됩니다.</li>
     <li>도착지 세금(관세, 부가세 등) 및 현지 발생 비용은 포함되지 않았습니다.</li>
     <li>오지 배송료, 주소 정정료 등 추가 비용 발생 시 실비 청구됩니다.</li>
-    <li>본 견적서는 발급일로부터 7일간 유효합니다. 항공사 사정 및 통관상 지연에 따라 소요시간이 더 걸릴 수 있습니다.</li>
+    <li>본 견적서는 발급일로부터 7일간 유효합니다.</li>
   </ol>
 </div>
-
-<!-- 하단 고정: 푸터 -->
 <footer>
   <div><strong>(주)에어브리지 (AIRBRIDGE Co., Ltd.)</strong></div>
   <div>Tel: 032-502-1880 &nbsp;|&nbsp; Email: ${si.email||'cs@airos.co.kr'}</div>
 </footer>
-
 </body></html>`;
 
   const win = window.open('', '_blank', 'width=900,height=1100');
-  win.document.write(html);
-  win.document.close();
-  win.focus();
+  win.document.write(html); win.document.close(); win.focus();
 }
 
 // ─────────────────────────────────────────────
@@ -2228,7 +1970,6 @@ async function runAiScan() {
   finally { btn.disabled=false; btn.innerHTML='🔍 AI 분석'; }
 }
 
-// ── 클립보드 붙여넣기 ──
 async function pasteFromClipboard() {
   try {
     const items = await navigator.clipboard.read();
@@ -2246,10 +1987,8 @@ async function pasteFromClipboard() {
         return;
       }
     }
-    showToast('⚠️ 클립보드에 이미지 없음. 스크린샷 복사(PrtSc) 후 다시 시도');
-  } catch(e) {
-    showToast('❌ 클립보드 접근 불가: ' + e.message);
-  }
+    showToast('⚠️ 클립보드에 이미지 없음. 스크린샷 복사 후 다시 시도');
+  } catch(e) { showToast('❌ 클립보드 접근 불가: ' + e.message); }
 }
 
 async function runAiPaste() {
@@ -2292,7 +2031,29 @@ function showAiResult(r) {
   document.getElementById('aiResultPreview').classList.add('show');
 }
 
-function applyAiResult_old_removed() {}
+function applyAiResult() {
+  const r = state.aiResult; if (!r) return;
+  const en = resolveCountry(r.country);
+  if (en && COUNTRY_MAP[en]) {
+    document.getElementById('destSelect').value = en;
+    document.getElementById('destInput').value  = `${COUNTRY_MAP[en]} (${en})`;
+    const mDest = document.getElementById('destInputMobile');
+    if (mDest) mDest.value = `${COUNTRY_MAP[en]} (${en})`;
+    updateCtxBar();
+  } else if (r.country) {
+    showToast(`⚠️ 국가 "${r.country}" 를 목록에서 찾지 못했습니다.`);
+  }
+  const qty   = r.ct_count || 1;
+  const perWt = qty > 1 ? Math.round(r.weight_kg / qty * 10) / 10 : r.weight_kg;
+  state.ctData = [{wt:perWt, L:r.length_cm, W:r.width_cm, H:r.height_cm, qty:qty}];
+  renderCTs();
+  setDocMode(r.is_document);
+  document.getElementById('remotePostal').value = r.postal_code || '';
+  document.getElementById('remoteCity').value   = r.city || '';
+  document.getElementById('aiPanel').classList.remove('open');
+  document.getElementById('aiToggleBtn').textContent = '🤖 AI 분석';
+  showToast('✅ AI 추출 결과 적용 완료');
+}
 
 // ─────────────────────────────────────────────
 // Toast
@@ -2300,8 +2061,7 @@ function applyAiResult_old_removed() {}
 let _toastTimer;
 function showToast(msg) {
   const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
+  t.textContent = msg; t.classList.add('show');
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
 }
