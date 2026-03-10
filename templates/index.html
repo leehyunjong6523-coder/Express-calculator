@@ -1687,7 +1687,162 @@ function applyAiResult() {
   showToast('✅ AI 추출 결과 적용 완료');
 }
 function buildEmailHtml(res) {
-  const accColor  = res.mode === '수출' ? '#1e3a8a' : '#9d174d';
+  const quoteNum    = document.getElementById('quoteNum').value;
+  const customer    = document.getElementById('customerInput').value || '—';
+  const staffName   = document.getElementById('staffSelect').value || '—';
+  const custContact = document.getElementById('custContactInput').value || '—';
+  const today       = new Date().toLocaleDateString('ko-KR');
+  const dest        = `${res.dest_kr} (${res.dest_country})`;
+
+  // 화물 정보 요약
+  const totalPkg  = state.ctData.reduce((s,c)=>s+(c.qty||1),0);
+  const totalWt   = res.total_actual_wt.toFixed(1);
+  const sizeStr   = state.ctData.length === 1
+    ? `${state.ctData[0].L}×${state.ctData[0].W}×${state.ctData[0].H}cm`
+    : `${state.ctData.length}종`;
+
+  // 선택된 캐리어
+  const carrierMap  = {dhl:'DHL',fedex:'FEDEX IP',fedex_e:'FEDEX ECONOMY',ups2f:'UPS SAVER',upsb8:'UPS SAVER'};
+  const ttMap       = {dhl:'3~5일',fedex:'3~4일',fedex_e:'5~7일',ups2f:'5~7일',upsb8:'5~7일'};
+  const fuelExpiry  = {dhl:'~03/31',fedex:'~03/31',fedex_e:'~03/31',ups2f:'~03/15',upsb8:'~03/15'};
+
+  const selectedArr = Array.from(state.selectedCards).filter(k => {
+    const c = res.carriers[k];
+    if (!c) return false;
+    if (k.startsWith('ups') && res.ups_no_service) return false;
+    if (k.startsWith('fedex') && res.fedex_no_service) return false;
+    return true;
+  });
+
+  const colW = Math.floor(100 / (selectedArr.length || 1));
+
+  // 헤더 행
+  let thCols = `<td style="width:120px;padding:8px 10px;border:1px solid #ccc;background:#f5f5f5;font-weight:700;font-size:.82rem;"></td>`;
+  selectedArr.forEach(key => {
+    thCols += `<td style="width:${colW}%;padding:8px 12px;border:1px solid #ccc;background:#f0f0f0;font-weight:900;font-size:.88rem;text-align:left;">${carrierMap[key]}</td>`;
+  });
+
+  // 유류할증료 행
+  let fuelPctRow = `<td style="padding:7px 10px;border:1px solid #ccc;font-size:.8rem;color:#555;">유류할증료</td>`;
+  selectedArr.forEach(key => {
+    const c = res.carriers[key];
+    const expiry = fuelExpiry[key] || '';
+    fuelPctRow += `<td style="padding:7px 12px;border:1px solid #ccc;font-size:.82rem;">${(c.fuel_pct||0).toFixed(2)}% (${expiry})</td>`;
+  });
+
+  // 운임 행
+  let baseRow = `<td style="padding:7px 10px;border:1px solid #ccc;font-size:.8rem;color:#555;">운임</td>`;
+  selectedArr.forEach(key => {
+    const c = res.carriers[key];
+    const rpk = c.disc_rpk ? `(${Math.round(c.disc_rpk).toLocaleString('ko-KR')}원/kg)` : '';
+    baseRow += `<td style="padding:7px 12px;border:1px solid #ccc;font-size:.82rem;">${rpk ? rpk+' : ' : ''}₩${Math.round(c.pub_disc||c.pub_base).toLocaleString('ko-KR')}</td>`;
+  });
+
+  // 유류할증료 금액 행
+  let fuelAmtRow = `<td style="padding:7px 10px;border:1px solid #ccc;font-size:.8rem;color:#555;">유류할증료</td>`;
+  selectedArr.forEach(key => {
+    const c = res.carriers[key];
+    const fuelAmt = Math.round((c.pub_fuel||0) + (c.sur_fuel_pub||0));
+    fuelAmtRow += `<td style="padding:7px 12px;border:1px solid #ccc;font-size:.82rem;">₩${fuelAmt.toLocaleString('ko-KR')}</td>`;
+  });
+
+  // 부가서비스 행 (있는 경우)
+  const allSurNames = new Set();
+  selectedArr.forEach(key => {
+    (res.carriers[key].surs||[]).forEach(s => allSurNames.add(s.name));
+  });
+  let surRows = '';
+  allSurNames.forEach(name => {
+    let row = `<td style="padding:7px 10px;border:1px solid #ccc;font-size:.8rem;color:#555;">${name}</td>`;
+    selectedArr.forEach(key => {
+      const c = res.carriers[key];
+      const s = (c.surs||[]).find(x => x.name === name);
+      row += `<td style="padding:7px 12px;border:1px solid #ccc;font-size:.82rem;">${s ? '₩'+s.amount.toLocaleString('ko-KR') : '—'}</td>`;
+    });
+    surRows += `<tr>${row}</tr>`;
+  });
+
+  // TOTAL 행
+  let totalRow = `<td style="padding:9px 10px;border:1px solid #ccc;font-size:.85rem;font-weight:900;background:#f9f9f9;">TOTAL</td>`;
+  selectedArr.forEach(key => {
+    const c = res.carriers[key];
+    totalRow += `<td style="padding:9px 12px;border:1px solid #ccc;font-size:.92rem;font-weight:900;background:#f9f9f9;">₩${Math.round(c.total_quote).toLocaleString('ko-KR')}</td>`;
+  });
+
+  // T/TIME 행
+  let ttRow = `<td style="padding:7px 10px;border:1px solid #ccc;font-size:.8rem;color:#555;">T/TIME</td>`;
+  selectedArr.forEach(key => {
+    ttRow += `<td style="padding:7px 12px;border:1px solid #ccc;font-size:.78rem;color:#444;">항공사 사정 및 통관상 지연이 없을 시 영업일 기준으로 대략 ${ttMap[key]} 소요 예상됩니다.</td>`;
+  });
+
+  const STAFF = {
+    '호영준': {phone:'010-3767-5413', email:'cs@airos.co.kr'},
+    '양희석': {phone:'010-4594-0768', email:'cs@airos.co.kr'},
+    '이현종': {phone:'010-4767-3264', email:'cs@airos.co.kr'},
+  };
+  const s = STAFF[staffName];
+  const staffInfo = s ? `${staffName}  ${s.phone}  ${s.email}` : staffName;
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:16px;font-family:'Malgun Gothic','Noto Sans KR',Arial,sans-serif;background:#fff;">
+<div style="max-width:700px;margin:0 auto;">
+
+  <!-- 기본 정보 -->
+  <table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:.82rem;">
+    <tr><td style="padding:4px 0;width:80px;color:#555;">견적번호</td><td style="padding:4px 0;font-weight:700;">${quoteNum}</td><td style="padding:4px 0;width:80px;color:#555;">일자</td><td style="padding:4px 0;">${today}</td></tr>
+    <tr><td style="padding:4px 0;color:#555;">고객사</td><td style="padding:4px 0;font-weight:700;">${customer}</td><td style="padding:4px 0;color:#555;">담당자</td><td style="padding:4px 0;">${custContact}</td></tr>
+    <tr><td style="padding:4px 0;color:#555;">목적지</td><td colspan="3" style="padding:4px 0;font-weight:700;">${dest}</td></tr>
+  </table>
+
+  <!-- 화물/운임 메인 테이블 -->
+  <table style="width:100%;border-collapse:collapse;border:1px solid #ccc;font-size:.82rem;">
+
+    <!-- 화물 정보 -->
+    <tr>
+      <td style="padding:8px 10px;border:1px solid #ccc;font-size:.8rem;color:#555;">C/T</td>
+      <td colspan="${selectedArr.length}" style="padding:8px 12px;border:1px solid #ccc;">${totalPkg} PKG</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 10px;border:1px solid #ccc;font-size:.8rem;color:#555;">W/T</td>
+      <td colspan="${selectedArr.length}" style="padding:8px 12px;border:1px solid #ccc;">${totalWt}kg (적용중량 ${res.total_chargeable.toFixed(1)}kg)</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 10px;border:1px solid #ccc;font-size:.8rem;color:#555;">SIZE</td>
+      <td colspan="${selectedArr.length}" style="padding:8px 12px;border:1px solid #ccc;">${sizeStr}</td>
+    </tr>
+
+    <!-- 구분선 -->
+    <tr><td colspan="${selectedArr.length + 1}" style="padding:0;background:#e0e0e0;height:2px;border:none;"></td></tr>
+
+    <!-- 캐리어 헤더 -->
+    <tr>${thCols}</tr>
+
+    <!-- 운임 행들 -->
+    <tr>${fuelPctRow}</tr>
+    <tr>${baseRow}</tr>
+    <tr>${fuelAmtRow}</tr>
+    ${surRows}
+    <tr>${totalRow}</tr>
+    <tr>${ttRow}</tr>
+  </table>
+
+  <!-- 안내사항 -->
+  <div style="margin-top:12px;font-size:.75rem;color:#666;line-height:1.8;">
+    ※ 본 견적은 <strong>유류할증료 포함</strong> 금액이며, 유류할증료는 변동될 수 있습니다.<br>
+    ※ <strong>관세·세금·통관비는 별도</strong>이며 실제 운임은 발송 시점에 최종 확정됩니다.
+  </div>
+
+  <!-- 담당자 -->
+  <div style="margin-top:10px;font-size:.78rem;color:#444;">
+    담당 : ${staffInfo}
+  </div>
+
+</div>
+</body></html>`;
+
+  document.getElementById('emailHtmlStore').innerHTML = html;
+}
   const accLight  = res.mode === '수출' ? '#dbeafe' : '#fce7f3';
   const accMid    = res.mode === '수출' ? '#3b82f6' : '#ec4899';
   const quoteNum  = document.getElementById('quoteNum').value;
