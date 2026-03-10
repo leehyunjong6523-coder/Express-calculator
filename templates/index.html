@@ -722,6 +722,79 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
   .disc-circle .dc-num, .margin-circle .mc-num { font-size: .75rem; }
   .card-quote { font-size: 1.05rem; }
 }
+
+/* ── Custom Searchable Dropdown (모바일용) ── */
+.mob-search-wrap {
+  position: relative;
+}
+.mob-search-input {
+  width: 100%;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text-pri);
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 14px;
+  padding: 8px 36px 8px 10px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border .2s;
+}
+.mob-search-input:focus { border-color: var(--acc); }
+.mob-search-clear {
+  position: absolute;
+  right: 8px; top: 50%;
+  transform: translateY(-50%);
+  background: none; border: none;
+  color: var(--text-dim); font-size: 1rem;
+  cursor: pointer; padding: 4px;
+  display: none;
+}
+.mob-search-clear.visible { display: block; }
+.mob-dropdown-list {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--bg-panel);
+  border: 1px solid var(--acc);
+  border-radius: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 300;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  overscroll-behavior: contain;
+}
+.mob-dropdown-list.open { display: block; }
+.mob-dropdown-item {
+  padding: 11px 12px;
+  font-size: 13px;
+  color: var(--text-pri);
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  transition: background .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.mob-dropdown-item:last-child { border-bottom: none; }
+.mob-dropdown-item:active,
+.mob-dropdown-item.highlighted { background: rgba(37,99,235,.25); color: #fff; }
+.mob-dropdown-empty {
+  padding: 12px;
+  font-size: 12px;
+  color: var(--text-dim);
+  text-align: center;
+}
+.mob-selected-badge {
+  margin-top: 5px;
+  background: rgba(37,99,235,.15);
+  border: 1px solid rgba(37,99,235,.3);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--acc-bright);
+  font-weight: 700;
+  display: none;
+}
+.mob-selected-badge.visible { display: block; }
 </style>
 </head>
 <body class="mode-exp" id="body">
@@ -841,20 +914,28 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
     <div class="sb-section" id="mobileFields" style="display:none;">
       <div class="sb-title" style="margin-bottom:8px;">🌏 기본 설정</div>
       <div class="sb-label">목적지 국가</div>
-      <!-- 모바일: 네이티브 select (스크롤 선택 + 검색 모두 지원) -->
-      <select class="sb-select" id="destSelectMobileNative" onchange="onDestSelectMobileNative(this.value)">
-        <option value="">국가 선택...</option>
-        {% for c in countries %}
-        <option value="{{ c.en }}">{{ c.kr }} ({{ c.en }})</option>
-        {% endfor %}
-      </select>
-      <div class="sb-label" style="margin-top:8px;">고객사</div>
-      <select class="sb-select" id="customerInputMobile" onchange="onCustomerChangeMobile(this.value)">
-        <option value="">고객사 선택...</option>
-        {% for c in customer_list %}
-        <option value="{{ c }}">{{ c }}</option>
-        {% endfor %}
-      </select>
+      <div class="mob-search-wrap" id="countrySearchWrap">
+        <input class="mob-search-input" id="countrySearchInput"
+          placeholder="🔍 국가명 검색 (한글/영문)"
+          autocomplete="off" autocorrect="off" spellcheck="false"
+          oninput="filterMobDropdown('country', this.value)"
+          onfocus="openMobDropdown('country')">
+        <button class="mob-search-clear" id="countrySearchClear" onclick="clearMobDropdown('country')">✕</button>
+        <div class="mob-dropdown-list" id="countryDropdownList"></div>
+      </div>
+      <div class="mob-selected-badge" id="countrySelectedBadge"></div>
+
+      <div class="sb-label" style="margin-top:10px;">고객사</div>
+      <div class="mob-search-wrap" id="customerSearchWrap">
+        <input class="mob-search-input" id="customerSearchInput"
+          placeholder="🔍 고객사 검색"
+          autocomplete="off" autocorrect="off" spellcheck="false"
+          oninput="filterMobDropdown('customer', this.value)"
+          onfocus="openMobDropdown('customer')">
+        <button class="mob-search-clear" id="customerSearchClear" onclick="clearMobDropdown('customer')">✕</button>
+        <div class="mob-dropdown-list" id="customerDropdownList"></div>
+      </div>
+      <div class="mob-selected-badge" id="customerSelectedBadge"></div>
       <div class="sb-row2" style="margin-top:8px;">
         <div>
           <div class="sb-label" style="margin-top:0;">고객사 담당자</div>
@@ -1233,16 +1314,8 @@ async function mobileCalculate() {
 
 // Sync mobile sidebar inputs → main inputs
 function syncMobileFields() {
-  // 국가 (native select)
-  const mDestNative = document.getElementById('destSelectMobileNative');
-  if (mDestNative && mDestNative.value) {
-    onDestSelectMobileNative(mDestNative.value);
-  }
-  // 고객사 (native select)
-  const mCust = document.getElementById('customerInputMobile');
-  if (mCust && mCust.value) {
-    document.getElementById('customerInput').value = mCust.value;
-  }
+  // 국가: destSelect는 onDestSelectMobileNative에서 이미 동기화됨
+  // 고객사: customerInput도 onCustomerChangeMobile에서 이미 동기화됨
   const mContact = document.getElementById('custContactMobile');
   if (mContact && mContact.value) document.getElementById('custContactInput').value = mContact.value;
   const mStaff = document.getElementById('staffSelectMobile');
@@ -1253,6 +1326,113 @@ function syncMobileFields() {
   const mQuote = document.getElementById('quoteNumMobile');
   if (mQuote && mQuote.value) document.getElementById('quoteNum').value = mQuote.value;
 }
+
+// ─────────────────────────────────────────────
+// 모바일 커스텀 검색 드롭다운
+// ─────────────────────────────────────────────
+
+// 데이터 캐시 (checkMobileUI 이후 채워짐)
+const MOB_DATA = { country: [], customer: [] };
+let _mobDropdownOpen = null; // 현재 열린 드롭다운 키
+
+function initMobDropdowns() {
+  // 국가 목록 구성
+  MOB_DATA.country = Object.entries(COUNTRY_MAP).map(([en, kr]) => ({
+    label: `${kr} (${en})`, value: en, search: `${kr} ${en}`.toLowerCase()
+  }));
+  // 고객사 목록 — desktop datalist에서 추출
+  const dl = document.getElementById('customerList');
+  if (dl) {
+    MOB_DATA.customer = Array.from(dl.options).map(o => ({
+      label: o.value, value: o.value, search: o.value.toLowerCase()
+    }));
+  }
+}
+
+function openMobDropdown(key) {
+  _mobDropdownOpen = key;
+  const input = document.getElementById(key === 'country' ? 'countrySearchInput' : 'customerSearchInput');
+  filterMobDropdown(key, input.value);
+}
+
+function filterMobDropdown(key, query) {
+  const listEl  = document.getElementById(key === 'country' ? 'countryDropdownList' : 'customerDropdownList');
+  const clearBtn = document.getElementById(key === 'country' ? 'countrySearchClear' : 'customerSearchClear');
+  const q = (query || '').trim().toLowerCase();
+
+  clearBtn.classList.toggle('visible', q.length > 0);
+  listEl.classList.add('open');
+  _mobDropdownOpen = key;
+
+  const data = MOB_DATA[key];
+  const filtered = q
+    ? data.filter(d => d.search.includes(q)).slice(0, 60)
+    : data.slice(0, 60);
+
+  if (filtered.length === 0) {
+    listEl.innerHTML = `<div class="mob-dropdown-empty">검색 결과 없음</div>`;
+    return;
+  }
+
+  listEl.innerHTML = filtered.map(d =>
+    `<div class="mob-dropdown-item"
+       onmousedown="selectMobItem(event,'${key}','${d.value.replace(/'/g,"\\'")}','${d.label.replace(/'/g,"\\'")}')"
+       ontouchstart="this.classList.add('highlighted')"
+       ontouchend="selectMobItem(event,'${key}','${d.value.replace(/'/g,"\\'")}','${d.label.replace(/'/g,"\\'")}');this.classList.remove('highlighted')"
+     >${d.label}</div>`
+  ).join('');
+}
+
+function selectMobItem(e, key, value, label) {
+  e.preventDefault();
+  // 선택 반영
+  if (key === 'country') {
+    onDestSelectMobileNative(value);
+    document.getElementById('countrySearchInput').value = label;
+    document.getElementById('countrySearchClear').classList.add('visible');
+    document.getElementById('countrySelectedBadge').textContent = '✅ ' + label;
+    document.getElementById('countrySelectedBadge').classList.add('visible');
+  } else {
+    onCustomerChangeMobile(value);
+    document.getElementById('customerSearchInput').value = label;
+    document.getElementById('customerSearchClear').classList.add('visible');
+    document.getElementById('customerSelectedBadge').textContent = '✅ ' + label;
+    document.getElementById('customerSelectedBadge').classList.add('visible');
+  }
+  closeMobDropdown(key);
+  // 키보드 닫기
+  const inputEl = document.getElementById(key === 'country' ? 'countrySearchInput' : 'customerSearchInput');
+  inputEl.blur();
+}
+
+function closeMobDropdown(key) {
+  const listEl = document.getElementById(key === 'country' ? 'countryDropdownList' : 'customerDropdownList');
+  listEl.classList.remove('open');
+  if (_mobDropdownOpen === key) _mobDropdownOpen = null;
+}
+
+function clearMobDropdown(key) {
+  const inputEl  = document.getElementById(key === 'country' ? 'countrySearchInput' : 'customerSearchInput');
+  const clearBtn = document.getElementById(key === 'country' ? 'countrySearchClear' : 'customerSearchClear');
+  const badge    = document.getElementById(key === 'country' ? 'countrySelectedBadge' : 'customerSelectedBadge');
+  inputEl.value = '';
+  clearBtn.classList.remove('visible');
+  badge.classList.remove('visible');
+  closeMobDropdown(key);
+  inputEl.focus();
+}
+
+// 드롭다운 외부 탭시 닫기
+document.addEventListener('touchstart', function(e) {
+  if (!_mobDropdownOpen) return;
+  const wrap = document.getElementById(_mobDropdownOpen === 'country' ? 'countrySearchWrap' : 'customerSearchWrap');
+  if (wrap && !wrap.contains(e.target)) closeMobDropdown(_mobDropdownOpen);
+}, {passive: true});
+document.addEventListener('click', function(e) {
+  if (!_mobDropdownOpen) return;
+  const wrap = document.getElementById(_mobDropdownOpen === 'country' ? 'countrySearchWrap' : 'customerSearchWrap');
+  if (wrap && !wrap.contains(e.target)) closeMobDropdown(_mobDropdownOpen);
+});
 
 // Native select handler for mobile country
 function onDestSelectMobileNative(val) {
@@ -1267,7 +1447,6 @@ function onCustomerChangeMobile(val) {
   if (!val) return;
   document.getElementById('customerInput').value = val;
   document.getElementById('ctxCustomer').textContent = val;
-  // 할인율 자동 조회
   if (val.length > 1) {
     fetch('/api/customer-disc', {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -1308,6 +1487,8 @@ function checkMobileUI() {
   if (isMobile()) {
     if (mobileFields) mobileFields.style.display = 'block';
     if (mobileHint)   mobileHint.style.display = 'block';
+    // 드롭다운 데이터 초기화 (최초 1회)
+    if (MOB_DATA.country.length === 0) initMobDropdowns();
   } else {
     if (mobileFields) mobileFields.style.display = 'none';
     if (mobileHint)   mobileHint.style.display = 'none';
