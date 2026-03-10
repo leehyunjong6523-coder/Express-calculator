@@ -58,6 +58,15 @@ STAFF = {
 def _get_settings() -> dict:
     s = dict(DEFAULTS)
     s.update({k: session.get(k, v) for k, v in DEFAULTS.items()})
+    # fuel_cache.json에서 저장된 유류할증료 읽기
+    try:
+        from fuel_scraper import _load_file_cache, _cache
+        _load_file_cache()
+        for carrier, key in (("dhl","fuel_dhl"),("fedex","fuel_fedex"),("ups","fuel_ups")):
+            if carrier in _cache and _cache[carrier].get("value") is not None:
+                s[key] = _cache[carrier]["value"]
+    except Exception:
+        pass
     return s
 
 def _fmt(n: float) -> str:
@@ -186,6 +195,21 @@ def api_fuel():
             return jsonify({carrier: get_fuel(carrier)})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/save-fuel", methods=["POST"])
+def api_save_fuel():
+    """앱 화면에서 수동 입력한 유류할증료 저장"""
+    data = request.get_json(force=True)
+    from fuel_scraper import set_fuel_from_api
+    for carrier, key in (("dhl","dhl"),("fedex","fedex"),("ups","ups")):
+        val = data.get(key)
+        if val is not None:
+            try:
+                set_fuel_from_api(carrier, float(val))
+            except Exception:
+                pass
+    return jsonify({"ok": True})
 
 
 @app.route("/api/update-fuel", methods=["POST"])
