@@ -21,6 +21,33 @@ _cache = {}
 _CACHE_TTL = {"dhl": 21600, "fedex": 7200, "ups": 7200}
 _DEFAULTS  = {"dhl": 28.75, "fedex": 29.75, "ups": 29.50}
 
+import os as _os
+_CACHE_FILE = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "fuel_cache.json")
+
+def _load_file_cache():
+    global _cache
+    try:
+        with open(_CACHE_FILE, "r", encoding="utf-8") as f:
+            _cache = json.load(f)
+    except Exception:
+        _cache = {}
+
+def _save_file_cache():
+    try:
+        with open(_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(_cache, f, ensure_ascii=False)
+    except Exception as e:
+        logger.error(f"[fuel_scraper] 캐시 저장 실패: {e}")
+
+def set_fuel_from_api(carrier: str, value: float):
+    """GitHub Actions → /api/update-fuel 에서 호출"""
+    ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    _load_file_cache()
+    _cache[carrier] = {"value": value, "ts": time.time(), "updated": ts}
+    _save_file_cache()
+
+_load_file_cache()
+
 
 def _fetch(url, timeout=10, extra=None):
     h = dict(_HEADERS)
@@ -138,6 +165,7 @@ _FETCHERS = {"dhl": _get_dhl, "fedex": _get_fedex, "ups": _get_ups}
 
 
 def get_fuel(carrier: str) -> dict:
+    _load_file_cache()  # 매 요청마다 파일에서 최신값 읽기 (워커 간 공유)
     now = time.time()
     c = _cache.get(carrier)
     if c and (now - c["ts"]) < _CACHE_TTL[carrier]:
@@ -146,6 +174,7 @@ def get_fuel(carrier: str) -> dict:
         val = _FETCHERS[carrier]()
         ts  = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         _cache[carrier] = {"value": val, "ts": now, "updated": ts}
+        _save_file_cache()
         return {"value": val, "source": "live", "updated": ts, "error": None}
     except Exception as e:
         logger.error(f"[fuel_scraper] {carrier} 조회 실패: {e}")

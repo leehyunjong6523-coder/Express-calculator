@@ -197,17 +197,12 @@ def api_update_fuel():
         return jsonify({"error": "unauthorized"}), 401
     data = request.get_json(force=True)
     updated = []
+    from fuel_scraper import set_fuel_from_api
     for carrier in ("dhl", "fedex", "ups"):
         val = data.get(carrier)
         if val is not None:
             try:
-                from fuel_scraper import _cache
-                import datetime, time
-                _cache[carrier] = {
-                    "value": float(val),
-                    "ts": time.time(),
-                    "updated": datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-                }
+                set_fuel_from_api(carrier, float(val))
                 updated.append(f"{carrier}={val}")
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
