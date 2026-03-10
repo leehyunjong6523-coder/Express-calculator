@@ -2007,8 +2007,8 @@ function generatePdf() {
   }).join('');
 
   // 운임 비교 행
-  const colCount = Math.min(selectedArr.length, 4);
-  const cardW = colCount <= 2 ? `calc(${100/colCount}% - 6px)` : 'calc(25% - 6px)';
+  // 1줄에 최대 2개: 1개→100%, 2개 이상→50% (3~4개는 2×2 배치)
+  const cardW = selectedArr.length === 1 ? '100%' : 'calc(50% - 4px)';
   const rateCards = selectedArr.map((key) => {
     const c       = res.carriers[key];
     const name    = PDF_NAME[key] || key.toUpperCase();
@@ -2023,7 +2023,7 @@ function generatePdf() {
         <span style="color:#555;">${s.name}</span>
         <span>₩${Math.round(s.amount).toLocaleString('ko-KR')}</span>
       </div>`).join('');
-    return `<div style="width:${cardW};border:1px solid #dee2e6;border-radius:4px;overflow:hidden;flex-shrink:0;">
+    return `<div style="border:1px solid #dee2e6;border-radius:4px;overflow:hidden;">
       <div style="background:#003366;color:#fff;font-weight:800;font-size:11px;padding:6px 10px;text-align:center;letter-spacing:.5px;">${name}</div>
       <div style="padding:8px 10px;">
         <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0;font-size:11px;">
@@ -2145,7 +2145,7 @@ function generatePdf() {
 
 <section>
   <h3>운송사별 운임 비교 (Rate Comparison)</h3>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
     ${rateCards}
   </div>
 </section>
