@@ -2007,24 +2007,41 @@ function generatePdf() {
   }).join('');
 
   // 운임 비교 행
-  const rateRows = selectedArr.map((key, i) => {
-    const c    = res.carriers[key];
-    const name = PDF_NAME[key] || key.toUpperCase();
-    const tt   = TT_MAP[key] || '—';
-    const base = Math.round(c.pub_disc || c.pub_base || 0);
+  const colCount = Math.min(selectedArr.length, 4);
+  const cardW = colCount <= 2 ? `calc(${100/colCount}% - 6px)` : 'calc(25% - 6px)';
+  const rateCards = selectedArr.map((key) => {
+    const c       = res.carriers[key];
+    const name    = PDF_NAME[key] || key.toUpperCase();
+    const tt      = TT_MAP[key] || '—';
+    const base    = Math.round(c.pub_disc || c.pub_base || 0);
     const fuelPct = (c.fuel_pct||0).toFixed(2);
     const fuelAmt = Math.round((c.pub_fuel||0)+(c.sur_fuel_pub||0));
-    const surs = (c.surs||[]).map(s=>`${s.name} ₩${s.amount.toLocaleString('ko-KR')}`).join('<br>') || '—';
-    const total = Math.round(c.total_quote||0);
-    const bg = i%2===0 ? '#fafafa':'#fff';
-    return `<tr style="background:${bg}">
-      <td style="font-weight:800;">${name}</td>
-      <td>₩${base.toLocaleString('ko-KR')}</td>
-      <td>${fuelPct}%<br><span style="font-size:11px;color:#888;">₩${fuelAmt.toLocaleString('ko-KR')}</span></td>
-      <td style="font-size:11px;">${surs}</td>
-      <td>${tt}</td>
-      <td style="font-weight:900;color:#e63946;font-size:15px;">₩${total.toLocaleString('ko-KR')}</td>
-    </tr>`;
+    const surs    = (c.surs||[]);
+    const total   = Math.round(c.total_quote||0);
+    const surLines = surs.map(s =>
+      `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:10px;">
+        <span style="color:#555;">${s.name}</span>
+        <span>₩${Math.round(s.amount).toLocaleString('ko-KR')}</span>
+      </div>`).join('');
+    return `<div style="width:${cardW};border:1px solid #dee2e6;border-radius:4px;overflow:hidden;flex-shrink:0;">
+      <div style="background:#003366;color:#fff;font-weight:800;font-size:11px;padding:6px 10px;text-align:center;letter-spacing:.5px;">${name}</div>
+      <div style="padding:8px 10px;">
+        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0;font-size:11px;">
+          <span style="color:#666;">기본운임</span><span>₩${base.toLocaleString('ko-KR')}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0;font-size:11px;">
+          <span style="color:#666;">유류할증료 (${fuelPct}%)</span><span>₩${fuelAmt.toLocaleString('ko-KR')}</span>
+        </div>
+        ${surLines ? `<div style="border-bottom:1px solid #f0f0f0;padding:2px 0;">${surLines}</div>` : ''}
+        <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11px;">
+          <span style="color:#666;">소요시간</span><span>${tt}</span>
+        </div>
+      </div>
+      <div style="background:#f8f9ff;border-top:2px solid #003366;padding:7px 10px;text-align:right;">
+        <span style="font-size:9px;color:#888;margin-right:4px;">총 견적금액</span>
+        <span style="font-size:15px;font-weight:900;color:#e63946;">₩${total.toLocaleString('ko-KR')}</span>
+      </div>
+    </div>`;
   }).join('');
 
   const notesBlock = notes.trim() ? `
@@ -2055,9 +2072,9 @@ function generatePdf() {
   table { width:100%; border-collapse:collapse; font-size:11px; }
   th { background:#003366; color:#fff; font-weight:700; padding:6px 8px; text-align:center; border:1px solid #dee2e6; }
   td { padding:5px 8px; border:1px solid #dee2e6; text-align:center; vertical-align:middle; }
-  .remarks-fixed { position:fixed; bottom:22mm; left:15mm; right:15mm; font-size:10px; color:#666; border-top:1px solid #dee2e6; padding-top:6px; background:white; }
+  .remarks-fixed { position:fixed; bottom:22mm; left:0; right:0; font-size:10px; color:#666; border-top:1px solid #dee2e6; padding-top:6px; background:white; }
   .remarks-list { margin:3px 0 0; padding-left:16px; line-height:1.7; }
-  footer { position:fixed; bottom:10mm; left:15mm; right:15mm; border-top:2px solid #003366; padding-top:6px; display:flex; justify-content:space-between; font-size:11px; color:#555; background:white; }
+  footer { position:fixed; bottom:10mm; left:0; right:0; border-top:2px solid #003366; padding-top:6px; display:flex; justify-content:space-between; font-size:11px; color:#555; background:white; }
   @media print {
     body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     button { display:none !important; }
@@ -2128,12 +2145,9 @@ function generatePdf() {
 
 <section>
   <h3>운송사별 운임 비교 (Rate Comparison)</h3>
-  <table>
-    <thead>
-      <tr><th>운송사</th><th>기본운임</th><th>유류할증료</th><th>부가서비스</th><th>소요시간</th><th>총 견적금액</th></tr>
-    </thead>
-    <tbody>${rateRows}</tbody>
-  </table>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    ${rateCards}
+  </div>
 </section>
 
 ${notesBlock}
