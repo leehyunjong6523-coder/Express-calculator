@@ -1879,7 +1879,8 @@ function generatePdf() {
   if (!state.lastResult) return;
   const res       = state.lastResult;
   const quoteNum  = document.getElementById('quoteNum').value;
-  const customer  = document.getElementById('customerInput').value || '—';
+  const customer  = (document.getElementById('customerInput').value || '—')
+                    .replace(/\s+\(.*/, '').trim() || '—';
   const custContact = document.getElementById('custContactInput')?.value || '—';
   const staffName = document.getElementById('staffSelect').value || '—';
   const notes     = document.getElementById('notesInput')?.value || '';
@@ -1984,12 +1985,16 @@ function generatePdf() {
   <button onclick="window.close()" style="background:#666;color:#fff;border:none;padding:8px 14px;font-size:13px;cursor:pointer;border-radius:4px;margin-left:6px;">✕ 닫기</button>
 </div>
 
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:3px solid #003366;">
-  <div style="font-size:18px;font-weight:900;color:#003366;">국제 특송 운임견적서</div>
-  <div style="font-size:11.5px;color:#555;text-align:right;">
+<header>
+  <div>
+    <div class="logo-h1">✈ AIRBRIDGE</div>
+    <div class="logo-sub">International Express</div>
+  </div>
+  <div class="doc-right">
+    <h2 style="background:none;color:#333;padding:0;">국제 특송 운임견적서</h2>
     견적번호: <strong>${quoteNum}</strong>&nbsp;&nbsp;|&nbsp;&nbsp;견적일자: ${today}
   </div>
-</div>
+</header>
 
 <div class="grid-2">
   <section>
