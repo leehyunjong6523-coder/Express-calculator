@@ -18,12 +18,12 @@ from fuel_scraper import get_all_fuels, get_fuel
 from google_sheets import load_customer_db, get_customer_list, get_customer_disc, clear_cache
 import ai_ocr
 
-# ── PDF 생성 (선택적) ──
+# ── PDF 생성 (weasyprint 기반) ──
 try:
-    from pdf_gen import generate_pdf
-    PDF_AVAILABLE = True
+    from pdf_gen import generate_pdf, PDF_AVAILABLE
 except Exception:
     PDF_AVAILABLE = False
+    def generate_pdf(**kwargs): raise RuntimeError("PDF 생성 불가")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "airbridge-secret-2026")
