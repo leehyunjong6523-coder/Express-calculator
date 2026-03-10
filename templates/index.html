@@ -921,14 +921,8 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
     <div class="sb-section">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
         <div style="font-size:13px;font-weight:800;color:var(--text-sec);">⛽ 유류할증료 (%)</div>
-        <button id="fuelAutoBtn" onclick="autoFetchFuel()"
-          style="background:var(--acc);border:none;border-radius:5px;color:#fff;
-                 font-size:11px;font-weight:700;padding:4px 10px;cursor:pointer;
-                 font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">
-          🔄 자동조회
-        </button>
       </div>
-      <div id="fuelStatus" style="font-size:11px;color:var(--text-dim);margin-bottom:5px;min-height:14px;line-height:1.4;"></div>
+      <div id="fuelStatus" style="display:none;"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">
         <div>
           <div style="font-size:11px;color:var(--text-sec);margin-bottom:3px;">DHL<br><span style="color:var(--text-dim);font-size:10px;">월별</span></div>
@@ -1212,8 +1206,7 @@ window.onload = () => {
   document.getElementById('destInput').value = '독일 (Germany)';
   renderCTs();
   updateCtxBar();
-  // 유류할증료 자동 조회 (백그라운드)
-  setTimeout(() => autoFetchFuel(), 800);
+  // 유류할증료 자동 조회 제거됨 (수동 입력 방식으로 변경)
 };
 
 // ─────────────────────────────────────────────
