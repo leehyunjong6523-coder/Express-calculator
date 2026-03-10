@@ -1687,6 +1687,26 @@ function applyAiResult() {
   showToast('✅ AI 추출 결과 적용 완료');
 }
 function buildEmailHtml(res) {
+  // 텍스트 전용 — 운임 요약만
+  const carrierMap = {dhl:'DHL EXPRESS',fedex:'FEDEX IP',fedex_e:'FEDEX ECONOMY',ups2f:'UPS SAVER',upsb8:'UPS SAVER'};
+  const selectedArr = Array.from(state.selectedCards).filter(k => {
+    const c = res.carriers[k];
+    if (!c) return false;
+    if (k.startsWith('ups') && res.ups_no_service) return false;
+    if (k.startsWith('fedex') && res.fedex_no_service) return false;
+    return true;
+  });
+  let lines = [];
+  selectedArr.forEach(key => {
+    const c = res.carriers[key];
+    const name = carrierMap[key] || key.toUpperCase();
+    const total = Math.round(c.total_quote).toLocaleString('ko-KR');
+    lines.push(`${name} : ₩${total}`);
+  });
+  document.getElementById('emailHtmlStore').innerHTML = lines.join('\n');
+}
+
+function _buildEmailHtml_old(res) {
   const quoteNum    = document.getElementById('quoteNum').value;
   const customer    = document.getElementById('customerInput').value || '—';
   const staffName   = document.getElementById('staffSelect').value || '—';
@@ -1845,16 +1865,13 @@ function buildEmailHtml(res) {
 }
 
 async function copyEmailHtml() {
-  const html = document.getElementById('emailHtmlStore').innerHTML;
-  if (!html) { showToast('먼저 운임 계산을 실행하세요'); return; }
+  const text = document.getElementById('emailHtmlStore').innerHTML;
+  if (!text) { showToast('먼저 운임 계산을 실행하세요'); return; }
   try {
-    await navigator.clipboard.write([
-      new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob(['에어브리지 견적서'],{type:'text/plain'})}),
-    ]);
-    showToast('✅ HTML 이메일 복사 완료 (Outlook·Gmail에 붙여넣기 가능)');
+    await navigator.clipboard.writeText(text);
+    showToast('✅ 운임 복사 완료');
   } catch(e) {
-    navigator.clipboard.writeText(html);
-    showToast('📋 HTML 텍스트로 복사됨');
+    showToast('❌ 복사 실패: ' + e.message);
   }
 }
 
