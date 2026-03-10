@@ -14,17 +14,37 @@ def _get_api_key():
 _EXTRACT_SCHEMA = """
 다음 JSON 형식으로만 응답:
 {
-  "country": "국가명(반드시 영문으로, 아래 규칙 엄수: England/Britain/UK→United Kingdom, USA/US/America→United States of America, Turkey/Türkiye→Turkiye, China/PRC→China (People's Republic), HongKong/HK→Hong Kong SAR China, Taiwan/ROC→Taiwan China, Vietnam/Viet Nam→Vietnam, Korea/South Korea→South Korea, UAE/Dubai→United Arab Emirates, Laos→Lao P.D.R., Iran→Iran Islamic Rep. of, Russia→Russia, Czech/Czechia→Czech Republic)",
+  "country": "국가명(영문)",
   "postal_code": "우편번호(없으면 빈 문자열)",
   "city": "도시명(없으면 빈 문자열)",
   "ct_count": 박스/C.T 수(정수),
-  "weight_kg": 총중량(kg, 소수점 1자리),
+  "weight_kg": 총중량(kg 단위. g이면 1000으로 나눠 변환. 예: 400g→0.4),
   "length_cm": 가로(cm, 정수),
   "width_cm": 세로(cm, 정수),
   "height_cm": 높이(cm, 정수),
   "is_document": true/false
 }
 모든 값이 없으면 null. 반드시 JSON만 출력.
+
+[국가 추론 규칙 - 텍스트에 국가명 없어도 주소/우편번호/도시명으로 반드시 추론]
+- 인도 우편번호: 6자리 숫자(예:603204). 주명 TN/MH/KA/DL/UP/AP/TS/GJ/RJ/WB/PB 포함시 → India
+- 인도 도시: Chennai, Mumbai, Delhi, Bangalore, Hyderabad, Kolkata, Chengalpattu, Coimbatore, Pune, Maraimalai, Nagar, Ahmedabad 등 → India
+- England/Britain/UK → United Kingdom
+- USA/US + 미국 주명(CA/NY/TX/FL 등) 또는 5자리 ZIP → United States of America
+- Turkey/Turkiye → Turkiye
+- China/PRC → China (People's Republic)
+- HongKong/HK → Hong Kong SAR China
+- Taiwan/ROC → Taiwan China
+- Vietnam/Viet Nam → Vietnam
+- Korea/South Korea → South Korea
+- UAE/Dubai/Abu Dhabi → United Arab Emirates
+- Laos → Lao P.D.R.
+- Iran → Iran Islamic Rep. of
+- Russia → Russia
+- Czech/Czechia → Czech Republic
+- 일본: 〒 또는 xxx-xxxx 우편번호 형식 → Japan
+- 호주: 4자리 우편번호 + 호주 주명(NSW/VIC/QLD/WA 등) → Australia
+- 캐나다: A1A 1A1 형식 우편번호 → Canada
 """
 
 
