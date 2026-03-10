@@ -1057,7 +1057,7 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
 <div class="toast" id="toast"></div>
 
 <!-- Hidden email HTML -->
-<div class="email-html-hidden" id="emailHtmlStore"></div>
+<textarea id="emailHtmlStore" style="position:absolute;left:-9999px;top:-9999px;opacity:0;" readonly></textarea>
 
 <script>
 // ─────────────────────────────────────────────
@@ -1740,7 +1740,7 @@ function buildEmailHtml(res) {
   });
 
   // <br>로 연결해 innerHTML에 저장 (붙여넣기 시 줄바꿈 유지)
-  document.getElementById('emailHtmlStore').innerHTML = lines.join('<br>');
+  document.getElementById('emailHtmlStore').value = lines.join('\n');
 }
 
 function _buildEmailHtml_old(res) {
@@ -1902,25 +1902,13 @@ function _buildEmailHtml_old(res) {
 }
 
 async function copyEmailHtml() {
-  const stored = document.getElementById('emailHtmlStore').innerHTML;
-  if (!stored) { showToast('먼저 운임 계산을 실행하세요'); return; }
-  // <br> → 줄바꿈 변환한 plain text
-  const plainText = stored.replace(/<br>/gi, '\n').replace(/<[^>]+>/g, '').trim();
+  const text = document.getElementById('emailHtmlStore').value;
+  if (!text) { showToast('먼저 운임 계산을 실행하세요'); return; }
   try {
-    await navigator.clipboard.write([
-      new ClipboardItem({
-        'text/plain': new Blob([plainText], {type:'text/plain'}),
-        'text/html' : new Blob([stored.replace(/<br>/gi,'<br>\n')], {type:'text/html'})
-      })
-    ]);
+    await navigator.clipboard.writeText(text);
     showToast('✅ 복사 완료 — 메일에 붙여넣기 하세요');
   } catch(e) {
-    try {
-      await navigator.clipboard.writeText(plainText);
-      showToast('✅ 복사 완료');
-    } catch(e2) {
-      showToast('❌ 복사 실패: ' + e2.message);
-    }
+    showToast('❌ 복사 실패: ' + e.message);
   }
 }
 
