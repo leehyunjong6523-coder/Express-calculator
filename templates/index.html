@@ -1045,7 +1045,7 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
     <div class="quote-panel" id="quotePanel" style="display:none;">
       <div class="quote-title">📨 견적서 출력</div>
       <div class="quote-actions">
-        <button class="action-btn primary" onclick="copyEmailHtml()" id="btnCopyEmail">📧 이메일 HTML 복사</button>
+        <button class="action-btn primary" onclick="copyEmailHtml()" id="btnCopyEmail">📧 이메일 복사</button>
         <button class="action-btn" onclick="generatePdf()" id="btnPdf">📄 PDF 생성</button>
       </div>
     </div>
@@ -1058,6 +1058,26 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
 
 <!-- Hidden email HTML -->
 <textarea id="emailHtmlStore" style="position:absolute;left:-9999px;top:-9999px;opacity:0;" readonly></textarea>
+
+<!-- 이메일 복사 팝업 -->
+<div id="emailPopupOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;align-items:center;justify-content:center;">
+  <div style="background:#1e2433;border:1px solid #334155;border-radius:10px;width:min(600px,92vw);max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5);">
+    <!-- 팝업 헤더 -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #334155;">
+      <span style="font-weight:700;font-size:.95rem;color:#e2e8f0;">📧 이메일 운임 내용</span>
+      <div style="display:flex;gap:8px;">
+        <button onclick="copyEmailPopup()" style="background:#3b82f6;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:.82rem;cursor:pointer;font-weight:600;">📋 복사</button>
+        <button onclick="closeEmailPopup()" style="background:#475569;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:.82rem;cursor:pointer;">✕ 닫기</button>
+      </div>
+    </div>
+    <!-- 팝업 본문 -->
+    <textarea id="emailPopupText" readonly
+      style="flex:1;background:#0f172a;color:#e2e8f0;border:none;padding:16px 18px;font-family:'Malgun Gothic','Noto Sans KR',monospace;font-size:.88rem;line-height:1.9;resize:none;outline:none;overflow-y:auto;min-height:300px;white-space:pre;"></textarea>
+    <div style="padding:8px 18px;font-size:.75rem;color:#64748b;border-top:1px solid #334155;">
+      드래그로 선택 후 복사하거나, 위 복사 버튼을 클릭하세요.
+    </div>
+  </div>
+</div>
 
 <script>
 // ─────────────────────────────────────────────
@@ -1901,9 +1921,22 @@ function _buildEmailHtml_old(res) {
   document.getElementById('emailHtmlStore').innerHTML = html;
 }
 
-async function copyEmailHtml() {
+function copyEmailHtml() {
   const text = document.getElementById('emailHtmlStore').value;
   if (!text) { showToast('먼저 운임 계산을 실행하세요'); return; }
+  // 팝업 열기
+  document.getElementById('emailPopupText').value = text;
+  const overlay = document.getElementById('emailPopupOverlay');
+  overlay.style.display = 'flex';
+  // 텍스트 전체 선택
+  setTimeout(() => {
+    const ta = document.getElementById('emailPopupText');
+    ta.focus(); ta.select();
+  }, 100);
+}
+
+async function copyEmailPopup() {
+  const text = document.getElementById('emailPopupText').value;
   try {
     await navigator.clipboard.writeText(text);
     showToast('✅ 복사 완료 — 메일에 붙여넣기 하세요');
@@ -1911,6 +1944,17 @@ async function copyEmailHtml() {
     showToast('❌ 복사 실패: ' + e.message);
   }
 }
+
+function closeEmailPopup() {
+  document.getElementById('emailPopupOverlay').style.display = 'none';
+}
+
+// 오버레이 클릭 시 닫기
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('emailPopupOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeEmailPopup();
+  });
+});
 
 function generatePdf() {
   if (!state.lastResult) return;
@@ -2001,7 +2045,7 @@ function generatePdf() {
   .doc-right h2 { margin:0 0 3px; font-size:16px; color:#333; }
   h3 { font-size:12px; color:#fff; background:#003366; padding:5px 10px; margin:0 0 6px; font-weight:700; }
   section { margin-bottom:12px; }
-  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:12px; }
+  .grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:12px; }
   .info-box { border:1px solid #dee2e6; padding:8px 10px; border-radius:3px; }
   .info-row { display:flex; justify-content:space-between; padding:3px 0; font-size:11.5px; border-bottom:1px solid #f0f0f0; }
   .info-row:last-child { border-bottom:none; }
@@ -2009,11 +2053,14 @@ function generatePdf() {
   table { width:100%; border-collapse:collapse; font-size:11px; }
   th { background:#003366; color:#fff; font-weight:700; padding:6px 8px; text-align:center; border:1px solid #dee2e6; }
   td { padding:5px 8px; border:1px solid #dee2e6; text-align:center; vertical-align:middle; }
-  .remarks-list { font-size:10.5px; color:#666; margin:4px 0 0; padding-left:18px; line-height:1.8; }
-  footer { border-top:2px solid #003366; padding-top:8px; margin-top:12px; display:flex; justify-content:space-between; font-size:11px; color:#555; }
+  .remarks-fixed { position:fixed; bottom:22mm; left:15mm; right:15mm; font-size:10px; color:#666; border-top:1px solid #dee2e6; padding-top:6px; background:white; }
+  .remarks-list { margin:3px 0 0; padding-left:16px; line-height:1.7; }
+  footer { position:fixed; bottom:10mm; left:15mm; right:15mm; border-top:2px solid #003366; padding-top:6px; display:flex; justify-content:space-between; font-size:11px; color:#555; background:white; }
   @media print {
     body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     button { display:none !important; }
+    .remarks-fixed { position:fixed; bottom:22mm; }
+    footer { position:fixed; bottom:10mm; }
   }
 </style>
 </head><body>
@@ -2033,7 +2080,7 @@ function generatePdf() {
   </div>
 </header>
 
-<div class="grid-2">
+<div class="grid-3">
   <section>
     <h3>견적 기본 정보</h3>
     <div class="info-box">
@@ -2047,7 +2094,7 @@ function generatePdf() {
   <section>
     <h3>화물 명세 (Cargo Details)</h3>
     <div class="info-box">
-      <div class="info-row"><span class="info-label">총 중량 (Gross Weight)</span><span>${res.total_actual_wt.toFixed(1)} kg</span></div>
+      <div class="info-row"><span class="info-label">실 중 량 (Act. Weight)</span><span>${res.total_actual_wt.toFixed(1)} kg</span></div>
       <div class="info-row"><span class="info-label">부피 중량 (Vol. Weight)</span><span>${res.total_vol_wt.toFixed(1)} kg</span></div>
       <div class="info-row" style="color:#003366;">
         <span class="info-label" style="color:#003366;font-weight:700;">청구 중량 (Chg. Weight)</span>
@@ -2058,13 +2105,14 @@ function generatePdf() {
       </div>
     </div>
   </section>
-</div>
-
-<div style="display:flex;align-items:center;gap:24px;padding:8px 12px;background:#f0f4f8;border:1px solid #dee2e6;border-radius:3px;margin-bottom:12px;">
-  <span style="font-size:11px;color:#555;font-weight:600;white-space:nowrap;">에어브리지 담당</span>
-  <span style="font-size:13px;font-weight:800;color:#003366;">${staffName}</span>
-  <span style="font-size:12px;color:#333;">${si.phone||''}</span>
-  <span style="font-size:11px;color:#888;">${si.email||'cs@airos.co.kr'}</span>
+  <section>
+    <h3>에어브리지 담당</h3>
+    <div class="info-box">
+      <div class="info-row"><span class="info-label">담 당 자</span><span style="font-weight:800;color:#003366;">${staffName}</span></div>
+      <div class="info-row"><span class="info-label">연 락 처</span><span>${si.phone||''}</span></div>
+      <div class="info-row"><span class="info-label">이 메 일</span><span>${si.email||'cs@airos.co.kr'}</span></div>
+    </div>
+  </section>
 </div>
 
 <section>
@@ -2087,21 +2135,20 @@ function generatePdf() {
 
 ${notesBlock}
 
-<section>
-  <h3>유의사항 (Remarks)</h3>
-  <div style="border:1px solid #eee;padding:8px 10px;background:#fafafa;">
-    <ol class="remarks-list">
-      <li>상기 견적은 제시된 화물의 중량 및 부피를 기준으로 작성되었으며, 실제 화물 정보가 다를 경우 운임이 변경될 수 있습니다.</li>
-      <li>부피중량(가로×세로×높이÷5,000)이 실중량보다 클 경우 부피중량이 청구 중량으로 적용됩니다.</li>
-      <li>유류할증료는 매월 변동될 수 있으며, 발송 시점의 요율이 적용됩니다.</li>
-      <li>도착지 세금(관세, 부가세 등) 및 현지 발생 비용은 포함되지 않았습니다.</li>
-      <li>오지 배송료, 주소 정정료 등 추가 비용 발생 시 실비 청구됩니다.</li>
-      <li>본 견적서는 발급일로부터 7일간 유효합니다.</li>
-      <li>항공사 사정 및 통관상 지연에 따라 소요시간이 더 걸릴 수 있습니다.</li>
-    </ol>
-  </div>
-</section>
+<!-- 하단 고정: 유의사항 -->
+<div class="remarks-fixed">
+  <strong style="font-size:10px;color:#003366;">유의사항</strong>
+  <ol class="remarks-list">
+    <li>상기 견적은 화물의 중량 및 부피 기준이며, 실제 정보가 다를 경우 운임이 변경될 수 있습니다.</li>
+    <li>부피중량(가로×세로×높이÷5,000)이 실중량보다 클 경우 부피중량이 청구 중량으로 적용됩니다.</li>
+    <li>유류할증료는 매월 변동될 수 있으며, 발송 시점의 요율이 적용됩니다.</li>
+    <li>도착지 세금(관세, 부가세 등) 및 현지 발생 비용은 포함되지 않았습니다.</li>
+    <li>오지 배송료, 주소 정정료 등 추가 비용 발생 시 실비 청구됩니다.</li>
+    <li>본 견적서는 발급일로부터 7일간 유효합니다. 항공사 사정 및 통관상 지연에 따라 소요시간이 더 걸릴 수 있습니다.</li>
+  </ol>
+</div>
 
+<!-- 하단 고정: 푸터 -->
 <footer>
   <div><strong>(주)에어브리지 (AIRBRIDGE Co., Ltd.)</strong></div>
   <div>Tel: 032-502-1880 &nbsp;|&nbsp; Email: ${si.email||'cs@airos.co.kr'}</div>
