@@ -1687,23 +1687,60 @@ function applyAiResult() {
   showToast('✅ AI 추출 결과 적용 완료');
 }
 function buildEmailHtml(res) {
-  // 텍스트 전용 — 운임 요약만
-  const carrierMap = {dhl:'DHL EXPRESS',fedex:'FEDEX IP',fedex_e:'FEDEX ECONOMY',ups2f:'UPS SAVER',upsb8:'UPS SAVER'};
+  const CNAME  = {dhl:'DHL',fedex:'FEDEX IP',fedex_e:'FEDEX ECONOMY',ups2f:'UPS SAVER',upsb8:'UPS SAVER'};
+  const TTMAP  = {dhl:'3~5일',fedex:'3~4일',fedex_e:'5~7일',ups2f:'5~7일',upsb8:'5~7일'};
+  const FEXPIRY= {dhl:'~03/31',fedex:'~03/31',fedex_e:'~03/31',ups2f:'~03/15',upsb8:'~03/15'};
+
   const selectedArr = Array.from(state.selectedCards).filter(k => {
     const c = res.carriers[k];
     if (!c) return false;
     if (k.startsWith('ups') && res.ups_no_service) return false;
     if (k.startsWith('fedex') && res.fedex_no_service) return false;
     return true;
-  });
+  }).filter((k, _, arr) => !(k === 'upsb8' && arr.includes('ups2f')));
+
+  const totalPkg = state.ctData.reduce((s,c) => s+(c.qty||1), 0);
+  const totalWt  = res.total_actual_wt.toFixed(1);
+  const chgWt    = res.total_chargeable.toFixed(1);
+  const sizeStr  = state.ctData.length === 1
+    ? `${state.ctData[0].L}X${state.ctData[0].W}X${state.ctData[0].H}cm`
+    : `${state.ctData.length}종`;
+
+  // .msg 파일과 동일한 텍스트 형식
   let lines = [];
+  lines.push(`C/T : ${totalPkg} PKG`);
+  lines.push(`W/T : ${totalWt}kg`);
+  lines.push(`SIZE : ${sizeStr}`);
+  lines.push(`CHARGEABLE WEIGHT : ${chgWt}kg`);
+
   selectedArr.forEach(key => {
-    const c = res.carriers[key];
-    const name = carrierMap[key] || key.toUpperCase();
-    const total = Math.round(c.total_quote).toLocaleString('ko-KR');
-    lines.push(`${name} : ₩${total}`);
+    const c       = res.carriers[key];
+    const name    = CNAME[key] || key.toUpperCase();
+    const tt      = TTMAP[key] || '—';
+    const expiry  = FEXPIRY[key] || '';
+    const fuelPct = (c.fuel_pct||0).toFixed(2);
+    const base    = Math.round(c.pub_disc || c.pub_base || 0);
+    const fuelAmt = Math.round((c.pub_fuel||0)+(c.sur_fuel_pub||0));
+    const total   = Math.round(c.total_quote||0);
+    const rpk     = c.disc_rpk ? ` (${Math.round(c.disc_rpk).toLocaleString('ko-KR')}원/kg)` : '';
+    const surs    = (c.surs||[]);
+
+    lines.push('');
+    lines.push(name);
+    lines.push('');
+    lines.push(`유류할증료 : ${fuelPct}% (${expiry})`);
+    lines.push('');
+    lines.push(`운임${rpk} : ${base.toLocaleString('ko-KR')}원`);
+    lines.push(`유류할증료 : ${fuelAmt.toLocaleString('ko-KR')}원`);
+    surs.forEach(s => lines.push(`${s.name} : ${Math.round(s.amount).toLocaleString('ko-KR')}원`));
+    lines.push('');
+    lines.push(`TOTAL : ${total.toLocaleString('ko-KR')}원`);
+    lines.push('');
+    lines.push(`T/TIME : 항공사 사정 및 통관상 지연이 없을 시 영업일 기준으로 대략 ${tt} 소요 예상됩니다.`);
   });
-  document.getElementById('emailHtmlStore').innerHTML = lines.join('\n');
+
+  // <br>로 연결해 innerHTML에 저장 (붙여넣기 시 줄바꿈 유지)
+  document.getElementById('emailHtmlStore').innerHTML = lines.join('<br>');
 }
 
 function _buildEmailHtml_old(res) {
@@ -1865,13 +1902,25 @@ function _buildEmailHtml_old(res) {
 }
 
 async function copyEmailHtml() {
-  const text = document.getElementById('emailHtmlStore').innerHTML;
-  if (!text) { showToast('먼저 운임 계산을 실행하세요'); return; }
+  const stored = document.getElementById('emailHtmlStore').innerHTML;
+  if (!stored) { showToast('먼저 운임 계산을 실행하세요'); return; }
+  // <br> → 줄바꿈 변환한 plain text
+  const plainText = stored.replace(/<br>/gi, '\n').replace(/<[^>]+>/g, '').trim();
   try {
-    await navigator.clipboard.writeText(text);
-    showToast('✅ 운임 복사 완료');
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        'text/plain': new Blob([plainText], {type:'text/plain'}),
+        'text/html' : new Blob([stored.replace(/<br>/gi,'<br>\n')], {type:'text/html'})
+      })
+    ]);
+    showToast('✅ 복사 완료 — 메일에 붙여넣기 하세요');
   } catch(e) {
-    showToast('❌ 복사 실패: ' + e.message);
+    try {
+      await navigator.clipboard.writeText(plainText);
+      showToast('✅ 복사 완료');
+    } catch(e2) {
+      showToast('❌ 복사 실패: ' + e2.message);
+    }
   }
 }
 
