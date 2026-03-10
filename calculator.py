@@ -1959,14 +1959,17 @@ def run_calculation(
     ups_freight_flag = sur_ups_ct.get("__freight__", 0) > 0
 
     # UPS 외곽지역 서비스(EAS)
+    # 수출: 목적지 배송(delivery)만 적용 / 수입: 픽업(pickup)만 적용
     _ups_eas = get_ups_eas(dest_country, remote_postal, remote_city)
     _ups_eas_sur = calc_ups_eas_sur(_ups_eas, _total_w)
-    if _ups_eas_sur["pickup"] > 0:
-        sur_ups_ct["외곽지역 픽업(EAS)"] = _ups_eas_sur["pickup"]
-        total_sur_ups += _ups_eas_sur["pickup"]
-    if _ups_eas_sur["delivery"] > 0:
-        sur_ups_ct["외곽지역 배송(EAS)"] = _ups_eas_sur["delivery"]
-        total_sur_ups += _ups_eas_sur["delivery"]
+    if mode == "수출":
+        if _ups_eas_sur["delivery"] > 0:
+            sur_ups_ct["외곽지역 배송(EAS)"] = _ups_eas_sur["delivery"]
+            total_sur_ups += _ups_eas_sur["delivery"]
+    else:  # 수입
+        if _ups_eas_sur["pickup"] > 0:
+            sur_ups_ct["외곽지역 픽업(EAS)"] = _ups_eas_sur["pickup"]
+            total_sur_ups += _ups_eas_sur["pickup"]
 
     # ── DHL ──
     if mode == "수출":
