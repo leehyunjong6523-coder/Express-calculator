@@ -4,4 +4,4 @@ pillow==10.4.0
 requests==2.32.3
 gunicorn==22.0.0
 python-dotenv
-weasyprint==62.3
+fpdf2==2.8.3
