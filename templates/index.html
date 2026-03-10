@@ -1046,7 +1046,7 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
       <div class="quote-title">📨 견적서 출력</div>
       <div class="quote-actions">
         <button class="action-btn primary" onclick="copyEmailHtml()" id="btnCopyEmail">📧 이메일 HTML 복사</button>
-        <button class="action-btn" onclick="generatePdf()" id="btnPdf" {% if not pdf_available %}disabled{% endif %}>📄 PDF 생성</button>
+        <button class="action-btn" onclick="generatePdf()" id="btnPdf">📄 PDF 생성</button>
       </div>
     </div>
 
@@ -1875,32 +1875,194 @@ async function copyEmailHtml() {
   }
 }
 
-async function generatePdf() {
+function generatePdf() {
   if (!state.lastResult) return;
-  const btn = document.getElementById('btnPdf');
-  btn.disabled = true; btn.textContent = '생성 중...';
-  try {
-    const r = await fetch('/api/pdf', {method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        quote_num: document.getElementById('quoteNum').value,
-        result:    state.lastResult,
-        customer:  document.getElementById('customerInput').value,
-        staff:     state.staffName || document.getElementById('staffSelect').value,
-        selected:  Array.from(state.selectedCards),
-        ct_data:   state.ctData,
-        fuel_dhl:  parseFloat(document.getElementById('fuelDhl').value)||28.75,
-        fuel_fedex:parseFloat(document.getElementById('fuelFedex').value)||29.75,
-        fuel_ups:  parseFloat(document.getElementById('fuelUps').value)||29.50,
-        notes:     document.getElementById('notesInput').value,
-      })});
-    if (!r.ok) throw new Error('PDF 생성 실패');
-    const blob = await r.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href=url; a.download=`airbridge_${document.getElementById('quoteNum').value}.pdf`;
-    a.click(); URL.revokeObjectURL(url);
-  } catch(e) { showToast('❌ '+e.message); }
-  finally { btn.disabled=false; btn.textContent='📄 PDF 생성'; }
+  const res       = state.lastResult;
+  const quoteNum  = document.getElementById('quoteNum').value;
+  const customer  = document.getElementById('customerInput').value || '—';
+  const custContact = document.getElementById('custContactInput')?.value || '—';
+  const staffName = document.getElementById('staffSelect').value || '—';
+  const notes     = document.getElementById('notesInput')?.value || '';
+  const today     = new Date().toLocaleDateString('ko-KR');
+  const dest      = `${res.dest_kr} (${res.dest_country})`;
+  const modeLabel = res.mode === '수출' ? '수출 (EXPORT)' : '수입 (IMPORT)';
+
+  const STAFF = {
+    '호영준': {phone:'010-3767-5413', email:'cs@airos.co.kr'},
+    '양희석': {phone:'010-4594-0768', email:'cs@airos.co.kr'},
+    '이현종': {phone:'010-4767-3264', email:'cs@airos.co.kr'},
+  };
+  const si = STAFF[staffName] || {};
+  const staffInfo = si.phone ? `${staffName}  ${si.phone}  ${si.email||''}` : staffName;
+
+  const PDF_NAME = {dhl:'DHL EXPRESS',fedex:'FEDEX EXPRESS',fedex_e:'FEDEX ECONOMY',ups2f:'UPS SAVER',upsb8:'UPS SAVER'};
+  const TT_MAP   = {dhl:'3~5 영업일',fedex:'3~4 영업일',fedex_e:'5~7 영업일',ups2f:'5~7 영업일',upsb8:'5~7 영업일'};
+
+  const selectedArr = Array.from(state.selectedCards).filter(k => {
+    if (!res.carriers[k]) return false;
+    if (k.startsWith('ups') && res.ups_no_service) return false;
+    if (k.startsWith('fedex') && res.fedex_no_service) return false;
+    return true;
+  });
+
+  // 화물 상세 행
+  const cargoRows = state.ctData.map((ct, i) => {
+    const vol = (ct.L * ct.W * ct.H / 5000).toFixed(2);
+    const chg = Math.max(ct.wt, parseFloat(vol));
+    return `<tr style="background:${i%2===0?'#f9fafb':'#fff'}">
+      <td>${i+1}</td><td>${ct.qty||1}</td><td>${ct.wt} kg</td>
+      <td>${ct.L}×${ct.W}×${ct.H} cm</td><td>${vol} kg</td>
+      <td style="font-weight:700;color:#003366;">${chg.toFixed(2)} kg</td>
+    </tr>`;
+  }).join('');
+
+  // 운임 비교 행
+  const rateRows = selectedArr.map((key, i) => {
+    const c    = res.carriers[key];
+    const name = PDF_NAME[key] || key.toUpperCase();
+    const tt   = TT_MAP[key] || '—';
+    const base = Math.round(c.pub_disc || c.pub_base || 0);
+    const fuelPct = (c.fuel_pct||0).toFixed(2);
+    const fuelAmt = Math.round((c.pub_fuel||0)+(c.sur_fuel_pub||0));
+    const surs = (c.surs||[]).map(s=>`${s.name} ₩${s.amount.toLocaleString('ko-KR')}`).join('<br>') || '—';
+    const total = Math.round(c.total_quote||0);
+    const bg = i%2===0 ? '#fafafa':'#fff';
+    return `<tr style="background:${bg}">
+      <td style="font-weight:800;">${name}</td>
+      <td>₩${base.toLocaleString('ko-KR')}</td>
+      <td>${fuelPct}%<br><span style="font-size:11px;color:#888;">₩${fuelAmt.toLocaleString('ko-KR')}</span></td>
+      <td style="font-size:11px;">${surs}</td>
+      <td>${tt}</td>
+      <td style="font-weight:900;color:#e63946;font-size:15px;">₩${total.toLocaleString('ko-KR')}</td>
+    </tr>`;
+  }).join('');
+
+  const notesBlock = notes.trim() ? `
+    <div style="margin-top:16px;">
+      <div style="background:#003366;color:#fff;font-size:12px;font-weight:700;padding:5px 10px;margin-bottom:6px;">비고 (NOTES)</div>
+      <div style="font-size:12px;line-height:1.8;padding:8px;border:1px solid #dee2e6;">${notes.split('\n').join('<br>')}</div>
+    </div>` : '';
+
+  const html = `<!DOCTYPE html><html lang="ko"><head>
+<meta charset="UTF-8">
+<title>Airbridge Quotation ${quoteNum}</title>
+<style>
+  @page { size:A4; margin:10mm 15mm; }
+  * { box-sizing:border-box; }
+  body { font-family:'Malgun Gothic','Noto Sans KR',Arial,sans-serif; font-size:12px; color:#333; margin:0; padding:0; }
+  header { border-bottom:3px solid #003366; padding-bottom:10px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:flex-end; }
+  .logo-h1 { color:#003366; margin:0; font-size:22px; font-weight:900; }
+  .logo-sub { font-size:10px; color:#666; letter-spacing:3px; margin-top:2px; text-transform:uppercase; }
+  .doc-right { text-align:right; font-size:12px; color:#555; }
+  .doc-right h2 { margin:0 0 3px; font-size:16px; color:#333; }
+  h3 { font-size:12px; color:#fff; background:#003366; padding:5px 10px; margin:0 0 6px; font-weight:700; }
+  section { margin-bottom:12px; }
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:12px; }
+  .info-box { border:1px solid #dee2e6; padding:8px 10px; border-radius:3px; }
+  .info-row { display:flex; justify-content:space-between; padding:3px 0; font-size:11.5px; border-bottom:1px solid #f0f0f0; }
+  .info-row:last-child { border-bottom:none; }
+  .info-label { color:#666; font-weight:600; }
+  table { width:100%; border-collapse:collapse; font-size:11px; }
+  th { background:#003366; color:#fff; font-weight:700; padding:6px 8px; text-align:center; border:1px solid #dee2e6; }
+  td { padding:5px 8px; border:1px solid #dee2e6; text-align:center; vertical-align:middle; }
+  .remarks-list { font-size:10.5px; color:#666; margin:4px 0 0; padding-left:18px; line-height:1.8; }
+  footer { border-top:2px solid #003366; padding-top:8px; margin-top:12px; display:flex; justify-content:space-between; font-size:11px; color:#555; }
+  @media print {
+    body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    button { display:none !important; }
+  }
+</style>
+</head><body>
+<div style="position:fixed;top:10px;right:10px;z-index:999;">
+  <button onclick="window.print()" style="background:#003366;color:#fff;border:none;padding:8px 18px;font-size:13px;cursor:pointer;border-radius:4px;">🖨️ 인쇄 / PDF 저장</button>
+  <button onclick="window.close()" style="background:#666;color:#fff;border:none;padding:8px 14px;font-size:13px;cursor:pointer;border-radius:4px;margin-left:6px;">✕ 닫기</button>
+</div>
+
+<header>
+  <div>
+    <div class="logo-h1">✈ AIRBRIDGE</div>
+    <div class="logo-sub">International Express</div>
+  </div>
+  <div class="doc-right">
+    <h2 style="background:none;color:#333;padding:0;">국제 특송 운임견적서</h2>
+    견적번호: <strong>${quoteNum}</strong>&nbsp;&nbsp;|&nbsp;&nbsp;견적일자: ${today}
+  </div>
+</header>
+
+<div class="grid-2">
+  <section>
+    <h3>견적 기본 정보</h3>
+    <div class="info-box">
+      <div class="info-row"><span class="info-label">고 객 사</span><span>${customer}</span></div>
+      <div class="info-row"><span class="info-label">고객 담당자</span><span>${custContact}</span></div>
+      <div class="info-row"><span class="info-label">목 적 지</span><span>${dest}</span></div>
+      <div class="info-row"><span class="info-label">구 분</span><span>${modeLabel}</span></div>
+      <div class="info-row"><span class="info-label">에어브리지 담당</span><span>${staffInfo}</span></div>
+      <div class="info-row"><span class="info-label">유 효 기 간</span><span>견적일로부터 7일</span></div>
+    </div>
+  </section>
+  <section>
+    <h3>화물 명세 (Cargo Details)</h3>
+    <div class="info-box">
+      <div class="info-row"><span class="info-label">총 중량 (Gross Weight)</span><span>${res.total_actual_wt.toFixed(1)} kg</span></div>
+      <div class="info-row"><span class="info-label">부피 중량 (Vol. Weight)</span><span>${res.total_vol_wt.toFixed(1)} kg</span></div>
+      <div class="info-row" style="color:#003366;">
+        <span class="info-label" style="color:#003366;font-weight:700;">청구 중량 (Chg. Weight)</span>
+        <span style="font-weight:800;">${res.total_chargeable.toFixed(1)} kg</span>
+      </div>
+      <div class="info-row"><span class="info-label">청구 기준</span>
+        <span>${res.total_vol_wt > res.total_actual_wt ? '부피중량 (Vol.Weight)' : '실중량 (Act.Weight)'}</span>
+      </div>
+    </div>
+  </section>
+</div>
+
+<section>
+  <h3>화물 상세</h3>
+  <table>
+    <thead><tr><th>#</th><th>수량</th><th>실중량</th><th>사이즈 (cm)</th><th>부피중량</th><th>적용중량</th></tr></thead>
+    <tbody>${cargoRows}</tbody>
+  </table>
+</section>
+
+<section>
+  <h3>운송사별 운임 비교 (Rate Comparison)</h3>
+  <table>
+    <thead>
+      <tr><th>운송사</th><th>기본운임</th><th>유류할증료</th><th>부가서비스</th><th>소요시간</th><th>총 견적금액</th></tr>
+    </thead>
+    <tbody>${rateRows}</tbody>
+  </table>
+</section>
+
+${notesBlock}
+
+<section>
+  <h3>유의사항 (Remarks)</h3>
+  <div style="border:1px solid #eee;padding:8px 10px;background:#fafafa;">
+    <ol class="remarks-list">
+      <li>상기 견적은 제시된 화물의 중량 및 부피를 기준으로 작성되었으며, 실제 화물 정보가 다를 경우 운임이 변경될 수 있습니다.</li>
+      <li>부피중량(가로×세로×높이÷5,000)이 실중량보다 클 경우 부피중량이 청구 중량으로 적용됩니다.</li>
+      <li>유류할증료는 매월 변동될 수 있으며, 발송 시점의 요율이 적용됩니다.</li>
+      <li>도착지 세금(관세, 부가세 등) 및 현지 발생 비용은 포함되지 않았습니다.</li>
+      <li>오지 배송료, 주소 정정료 등 추가 비용 발생 시 실비 청구됩니다.</li>
+      <li>본 견적서는 발급일로부터 7일간 유효합니다.</li>
+    </ol>
+  </div>
+</section>
+
+<footer>
+  <div><strong>(주)에어브리지 (AIRBRIDGE Co., Ltd.)</strong></div>
+  <div>Tel: 032-502-1880 &nbsp;|&nbsp; Email: ${si.email||'cs@airos.co.kr'}</div>
+</footer>
+
+</body></html>`;
+
+  const win = window.open('', '_blank', 'width=900,height=1100');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { try { win.print(); } catch(e) {} }, 600);
 }
 
 // ─────────────────────────────────────────────
