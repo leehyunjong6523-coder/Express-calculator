@@ -841,21 +841,20 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
     <div class="sb-section" id="mobileFields" style="display:none;">
       <div class="sb-title" style="margin-bottom:8px;">🌏 기본 설정</div>
       <div class="sb-label">목적지 국가</div>
-      <input class="sb-input" id="destInputMobile" list="countryDatalistMobile"
-        placeholder="국가명 검색..." autocomplete="off"
-        oninput="onDestInput(this.value)" onchange="onDestSelectMobile(this.value)">
-      <datalist id="countryDatalistMobile">
+      <!-- 모바일: 네이티브 select (스크롤 선택 + 검색 모두 지원) -->
+      <select class="sb-select" id="destSelectMobileNative" onchange="onDestSelectMobileNative(this.value)">
+        <option value="">국가 선택...</option>
         {% for c in countries %}
-        <option value="{{ c.kr }} ({{ c.en }})">
+        <option value="{{ c.en }}">{{ c.kr }} ({{ c.en }})</option>
         {% endfor %}
-      </datalist>
+      </select>
       <div class="sb-label" style="margin-top:8px;">고객사</div>
-      <input class="sb-input" id="customerInputMobile" list="customerListMobile" placeholder="고객사 입력" oninput="onCustomerChangeMobile()">
-      <datalist id="customerListMobile">
+      <select class="sb-select" id="customerInputMobile" onchange="onCustomerChangeMobile(this.value)">
+        <option value="">고객사 선택...</option>
         {% for c in customer_list %}
-        <option value="{{ c }}">
+        <option value="{{ c }}">{{ c }}</option>
         {% endfor %}
-      </datalist>
+      </select>
       <div class="sb-row2" style="margin-top:8px;">
         <div>
           <div class="sb-label" style="margin-top:0;">고객사 담당자</div>
@@ -1004,8 +1003,8 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
       </div>
     </div>
 
-    <!-- Calc button (desktop sidebar) -->
-    <button class="calc-btn" onclick="calculate()" id="calcBtn">⚡ 운임 계산</button>
+    <!-- Calc button -->
+    <button class="calc-btn" onclick="mobileCalculate()" id="calcBtn">⚡ 운임 계산</button>
 
   </aside>
 
@@ -1217,50 +1216,82 @@ function closeSidebar() {
   document.body.style.overflow = '';
 }
 
-// Mobile calculate: closes sidebar then calculates
+// Mobile calculate: syncs fields, calculates, then closes sidebar
 async function mobileCalculate() {
-  if (isMobile()) {
-    // sync mobile fields → desktop fields
-    syncMobileFields();
-    closeSidebar();
-  }
-  const btn = document.getElementById('mbCalcBtn');
-  if (btn) { btn.disabled = true; btn.querySelector('.mb-label').textContent = '계산 중...'; }
+  if (isMobile()) syncMobileFields();
+  const isM    = isMobile();
+  const calcBtn = document.getElementById('calcBtn');
+  const mbBtn   = document.getElementById('mbCalcBtn');
+  if (calcBtn) { calcBtn.disabled = true; calcBtn.innerHTML = '<span class="spinner"></span>계산 중...'; }
+  if (mbBtn)   { mbBtn.disabled   = true; mbBtn.querySelector('.mb-label').textContent = '계산 중...'; }
   await calculate();
-  if (btn) { btn.disabled = false; btn.querySelector('.mb-label').textContent = '운임 계산'; }
+  if (calcBtn) { calcBtn.disabled = false; calcBtn.innerHTML = '⚡ 운임 계산'; }
+  if (mbBtn)   { mbBtn.disabled   = false; mbBtn.querySelector('.mb-label').textContent = '운임 계산'; }
+  // 계산 완료 후 사이드바 닫기
+  if (isM) closeSidebar();
 }
 
 // Sync mobile sidebar inputs → main inputs
 function syncMobileFields() {
-  const mDest = document.getElementById('destInputMobile');
-  const mCust = document.getElementById('customerInputMobile');
-  const mContact = document.getElementById('custContactMobile');
-  const mStaff = document.getElementById('staffSelectMobile');
-  const mQuote = document.getElementById('quoteNumMobile');
-  if (mDest && mDest.value) {
-    document.getElementById('destInput').value = mDest.value;
-    onDestSelect(mDest.value);
+  // 국가 (native select)
+  const mDestNative = document.getElementById('destSelectMobileNative');
+  if (mDestNative && mDestNative.value) {
+    onDestSelectMobileNative(mDestNative.value);
   }
-  if (mCust && mCust.value) document.getElementById('customerInput').value = mCust.value;
+  // 고객사 (native select)
+  const mCust = document.getElementById('customerInputMobile');
+  if (mCust && mCust.value) {
+    document.getElementById('customerInput').value = mCust.value;
+  }
+  const mContact = document.getElementById('custContactMobile');
   if (mContact && mContact.value) document.getElementById('custContactInput').value = mContact.value;
+  const mStaff = document.getElementById('staffSelectMobile');
   if (mStaff && mStaff.value) {
     document.getElementById('staffSelect').value = mStaff.value;
     state.staffName = mStaff.value;
   }
+  const mQuote = document.getElementById('quoteNumMobile');
   if (mQuote && mQuote.value) document.getElementById('quoteNum').value = mQuote.value;
+}
+
+// Native select handler for mobile country
+function onDestSelectMobileNative(val) {
+  if (!val) return;
+  document.getElementById('destSelect').value = val;
+  document.getElementById('destInput').value  = `${COUNTRY_MAP[val]||val} (${val})`;
+  updateCtxBar();
+}
+
+// Native select handler for mobile customer
+function onCustomerChangeMobile(val) {
+  if (!val) return;
+  document.getElementById('customerInput').value = val;
+  document.getElementById('ctxCustomer').textContent = val;
+  // 할인율 자동 조회
+  if (val.length > 1) {
+    fetch('/api/customer-disc', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({company:val, mode:state.mode})
+    }).then(r=>r.json()).then(data => {
+      if (data.ok) {
+        const d = data.disc;
+        document.getElementById('discDhl').value    = d.dhl.toFixed(2);
+        document.getElementById('discFedex').value  = d.fedex.toFixed(2);
+        document.getElementById('discFedexE').value = d.fedex_e.toFixed(2);
+        document.getElementById('discUps').value    = d.ups.toFixed(2);
+        const anyDisc = d.dhl > 0 || d.fedex > 0 || d.ups > 0;
+        showToast(anyDisc
+          ? `✅ ${val} — DHL ${d.dhl.toFixed(0)}% / FX ${d.fedex.toFixed(0)}% / UPS ${d.ups.toFixed(0)}%`
+          : `⚠️ ${val} 할인율 없음`);
+      }
+    }).catch(() => {});
+  }
 }
 
 function onDestSelectMobile(val) {
   onDestSelect(val);
-  // also sync hidden input
   const m = val.match(/\(([^)]+)\)\s*$/);
   if (m) document.getElementById('destInput').value = val;
-}
-
-function onCustomerChangeMobile() {
-  const v = document.getElementById('customerInputMobile').value;
-  document.getElementById('customerInput').value = v;
-  onCustomerChange();
 }
 
 function onStaffChangeMobile() {
@@ -1444,8 +1475,6 @@ function updateCT(i, field, val) {
 // Calculate
 // ─────────────────────────────────────────────
 async function calculate() {
-  const btn = document.getElementById('calcBtn');
-  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>계산 중...'; }
   const payload = {
     dest_country:  getDestCountry(),
     mode:          state.mode,
@@ -1479,8 +1508,6 @@ async function calculate() {
     if (mbPdf)   mbPdf.disabled   = false;
   } catch(e) {
     showToast('❌ ' + e.message); console.error(e);
-  } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = '⚡ 운임 계산'; }
   }
 }
 
@@ -1917,8 +1944,24 @@ ${notesBlock}
 </footer>
 </body></html>`;
 
-  const win = window.open('', '_blank', 'width=900,height=1100');
-  win.document.write(html); win.document.close(); win.focus();
+  // Blob URL 방식: 모바일 팝업 차단 우회
+  try {
+    const blob = new Blob([html], {type: 'text/html;charset=utf-8'});
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+  } catch(e) {
+    // fallback
+    const win = window.open('', '_blank', 'width=900,height=1100');
+    if (win) { win.document.write(html); win.document.close(); win.focus(); }
+    else { showToast('⚠️ 팝업 차단됨 — 브라우저 팝업 허용 후 다시 시도하세요'); }
+  }
 }
 
 // ─────────────────────────────────────────────
