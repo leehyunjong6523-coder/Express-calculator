@@ -314,10 +314,14 @@ def _load_fedex_oda_opa():
     return _fedex_oda_opa_data
 
 def get_fedex_oda_opa_tier(country_name: str, postal_code: str = "", city_name: str = "") -> dict:
-    """FedEx ODA/OPA 티어 반환 → {"opa": "A"/"B"/"C", "oda": "A"/"B"/"C"}"""
+    """FedEx ODA/OPA 티어 반환 → {"opa": "A"/"B"/"C", "oda": "A"/"B"/"C"}
+    우편번호·도시명 모두 없으면 조회 불가 → None 반환 (수수료 0)"""
+    # 조회할 정보가 없으면 수수료 없음
+    if not postal_code.strip() and not city_name.strip():
+        return {"opa": None, "oda": None}
     cc = _COUNTRY_ISO.get(country_name, "")
     if not cc:
-        return {"opa": "A", "oda": "A"}
+        return {"opa": None, "oda": None}
     db = _load_fedex_oda_opa()
     postal_data = db.get("p", {}).get(cc, [])
     city_data   = db.get("c", {}).get(cc, {})
@@ -346,7 +350,7 @@ def get_fedex_oda_opa_tier(country_name: str, postal_code: str = "", city_name: 
             r = city_data[cn]
             return {"opa": r[0], "oda": r[1]}
 
-    return {"opa": "A", "oda": "A"}
+    return {"opa": None, "oda": None}  # 매칭 없음 → 수수료 없음
 
 def calc_fedex_oda_opa_sur(tier_info: dict, chargeable_wt: float) -> dict:
     """ODA/OPA 각 추가요금 계산 → {"opa": int, "oda": int}"""
@@ -356,8 +360,8 @@ def calc_fedex_oda_opa_sur(tier_info: dict, chargeable_wt: float) -> dict:
         if fix == 0 and kg == 0: return 0
         return max(fix, ceil10(kg * wt))
     return {
-        "opa": _calc(_FEDEX_OPA_FIX, _FEDEX_OPA_KG, tier_info["opa"], chargeable_wt),
-        "oda": _calc(_FEDEX_ODA_FIX, _FEDEX_ODA_KG, tier_info["oda"], chargeable_wt),
+        "opa": 0 if tier_info["opa"] is None else _calc(_FEDEX_OPA_FIX, _FEDEX_OPA_KG, tier_info["opa"], chargeable_wt),
+        "oda": 0 if tier_info["oda"] is None else _calc(_FEDEX_ODA_FIX, _FEDEX_ODA_KG, tier_info["oda"], chargeable_wt),
     }
 
 
