@@ -1898,10 +1898,16 @@ function generatePdf() {
   const PDF_NAME = {dhl:'DHL EXPRESS',fedex:'FEDEX EXPRESS',fedex_e:'FEDEX ECONOMY',ups2f:'UPS SAVER',upsb8:'UPS SAVER'};
   const TT_MAP   = {dhl:'3~5 영업일',fedex:'3~4 영업일',fedex_e:'5~7 영업일',ups2f:'5~7 영업일',upsb8:'5~7 영업일'};
 
-  const selectedArr = Array.from(state.selectedCards).filter(k => {
+  // UPS 중복 제거 (ups2f + upsb8 동시 선택 시 하나만)
+  const _rawSelected = Array.from(state.selectedCards).filter(k => {
     if (!res.carriers[k]) return false;
     if (k.startsWith('ups') && res.ups_no_service) return false;
     if (k.startsWith('fedex') && res.fedex_no_service) return false;
+    return true;
+  });
+  const _hasUps = _rawSelected.some(k => k.startsWith('ups'));
+  const selectedArr = _rawSelected.filter((k, idx, arr) => {
+    if (k === 'upsb8' && arr.includes('ups2f')) return false;
     return true;
   });
 
@@ -1978,16 +1984,12 @@ function generatePdf() {
   <button onclick="window.close()" style="background:#666;color:#fff;border:none;padding:8px 14px;font-size:13px;cursor:pointer;border-radius:4px;margin-left:6px;">✕ 닫기</button>
 </div>
 
-<header>
-  <div>
-    <div class="logo-h1">✈ AIRBRIDGE</div>
-    <div class="logo-sub">International Express</div>
-  </div>
-  <div class="doc-right">
-    <h2 style="background:none;color:#333;padding:0;">국제 특송 운임견적서</h2>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:3px solid #003366;">
+  <div style="font-size:18px;font-weight:900;color:#003366;">국제 특송 운임견적서</div>
+  <div style="font-size:11.5px;color:#555;text-align:right;">
     견적번호: <strong>${quoteNum}</strong>&nbsp;&nbsp;|&nbsp;&nbsp;견적일자: ${today}
   </div>
-</header>
+</div>
 
 <div class="grid-2">
   <section>
@@ -1997,7 +1999,6 @@ function generatePdf() {
       <div class="info-row"><span class="info-label">고객 담당자</span><span>${custContact}</span></div>
       <div class="info-row"><span class="info-label">목 적 지</span><span>${dest}</span></div>
       <div class="info-row"><span class="info-label">구 분</span><span>${modeLabel}</span></div>
-      <div class="info-row"><span class="info-label">에어브리지 담당</span><span>${staffInfo}</span></div>
       <div class="info-row"><span class="info-label">유 효 기 간</span><span>견적일로부터 7일</span></div>
     </div>
   </section>
@@ -2015,6 +2016,13 @@ function generatePdf() {
       </div>
     </div>
   </section>
+</div>
+
+<div style="display:flex;align-items:center;gap:24px;padding:8px 12px;background:#f0f4f8;border:1px solid #dee2e6;border-radius:3px;margin-bottom:12px;">
+  <span style="font-size:11px;color:#555;font-weight:600;white-space:nowrap;">에어브리지 담당</span>
+  <span style="font-size:13px;font-weight:800;color:#003366;">${staffName}</span>
+  <span style="font-size:12px;color:#333;">${si.phone||''}</span>
+  <span style="font-size:11px;color:#888;">${si.email||'cs@airos.co.kr'}</span>
 </div>
 
 <section>
@@ -2047,6 +2055,7 @@ ${notesBlock}
       <li>도착지 세금(관세, 부가세 등) 및 현지 발생 비용은 포함되지 않았습니다.</li>
       <li>오지 배송료, 주소 정정료 등 추가 비용 발생 시 실비 청구됩니다.</li>
       <li>본 견적서는 발급일로부터 7일간 유효합니다.</li>
+      <li>항공사 사정 및 통관상 지연에 따라 소요시간이 더 걸릴 수 있습니다.</li>
     </ol>
   </div>
 </section>
@@ -2062,7 +2071,6 @@ ${notesBlock}
   win.document.write(html);
   win.document.close();
   win.focus();
-  setTimeout(() => { try { win.print(); } catch(e) {} }, 600);
 }
 
 // ─────────────────────────────────────────────
