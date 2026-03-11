@@ -2101,7 +2101,7 @@ function generatePdf() {
         <span style="color:#555;">${s.name}</span>
         <span>₩${Math.round(s.amount).toLocaleString('ko-KR')}</span>
       </div>`).join('');
-    return `<div style="border:1px solid #dee2e6;border-radius:4px;overflow:hidden;">
+    return `<div class="rate-card" style="border:1px solid #dee2e6;border-radius:4px;overflow:hidden;">
       <div style="background:#003366;color:#fff;font-weight:800;font-size:11px;padding:6px 10px;text-align:center;letter-spacing:.5px;">${name}</div>
       <div style="padding:8px 10px;">
         <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0;font-size:11px;">
@@ -2132,7 +2132,7 @@ function generatePdf() {
 <meta charset="UTF-8">
 <title>Airbridge Quotation ${quoteNum}</title>
 <style>
-  @page { size:A4; margin:10mm 15mm; }
+  @page { size:A4; margin:15mm 15mm 20mm; }
   * { box-sizing:border-box; }
   body { font-family:'Malgun Gothic','Noto Sans KR',Arial,sans-serif; font-size:12px; color:#333; margin:0; padding:0; }
   header { border-bottom:3px solid #003366; padding-bottom:10px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:flex-end; }
@@ -2150,15 +2150,24 @@ function generatePdf() {
   table { width:100%; border-collapse:collapse; font-size:11px; }
   th { background:#003366; color:#fff; font-weight:700; padding:6px 8px; text-align:center; border:1px solid #dee2e6; }
   td { padding:5px 8px; border:1px solid #dee2e6; text-align:center; vertical-align:middle; }
-  .remarks-fixed { position:fixed; bottom:22mm; left:0; right:0; font-size:10px; color:#666; border-top:1px solid #dee2e6; padding-top:6px; background:white; }
-  .remarks-list { margin:3px 0 0; padding-left:16px; line-height:1.7; }
-  footer { position:fixed; bottom:10mm; left:0; right:0; border-top:2px solid #003366; padding-top:6px; display:flex; justify-content:space-between; font-size:11px; color:#555; background:white; }
-  @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } button { display:none !important; } }
+  /* 운임 비교 — 화물이 많으면 페이지 강제 분리 */
+  .rate-section { ${state.ctData.length >= 3 ? 'page-break-before:always; padding-top:4mm;' : ''} }
+  /* 카드 내부에서 잘리지 않게 */
+  .rate-card { page-break-inside:avoid; break-inside:avoid; }
+  /* 유의사항: 고정 아닌 일반 흐름, 마지막에 배치 */
+  .remarks-block { margin-top:16px; padding-top:10px; border-top:1px solid #dee2e6; font-size:10px; color:#666; page-break-inside:avoid; }
+  .remarks-list { margin:4px 0 0; padding-left:16px; line-height:1.8; }
+  /* 하단 회사정보 */
+  .doc-footer { margin-top:10px; padding-top:8px; border-top:2px solid #003366; display:flex; justify-content:space-between; font-size:11px; color:#555; page-break-inside:avoid; }
+  @media print {
+    body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    button { display:none !important; }
+  }
 </style>
 </head><body>
-<div style="position:fixed;top:10px;right:10px;z-index:999;">
+<div style="position:fixed;top:10px;right:10px;z-index:999;display:flex;gap:6px;">
   <button onclick="window.print()" style="background:#003366;color:#fff;border:none;padding:8px 18px;font-size:13px;cursor:pointer;border-radius:4px;">🖨️ 인쇄 / PDF 저장</button>
-  <button onclick="window.close()" style="background:#666;color:#fff;border:none;padding:8px 14px;font-size:13px;cursor:pointer;border-radius:4px;margin-left:6px;">✕ 닫기</button>
+  <button onclick="window.close()" style="background:#666;color:#fff;border:none;padding:8px 14px;font-size:13px;cursor:pointer;border-radius:4px;">✕ 닫기</button>
 </div>
 <header>
   <div>
@@ -2209,12 +2218,12 @@ function generatePdf() {
     <tbody>${cargoRows}</tbody>
   </table>
 </section>
-<section>
+<section class="rate-section">
   <h3>운송사별 운임 비교 (Rate Comparison)</h3>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">${rateCards}</div>
 </section>
 ${notesBlock}
-<div class="remarks-fixed">
+<div class="remarks-block">
   <strong style="font-size:10px;color:#003366;">유의사항</strong>
   <ol class="remarks-list">
     <li>상기 견적은 화물의 중량 및 부피 기준이며, 실제 정보가 다를 경우 운임이 변경될 수 있습니다.</li>
@@ -2225,10 +2234,10 @@ ${notesBlock}
     <li>본 견적서는 발급일로부터 7일간 유효합니다.</li>
   </ol>
 </div>
-<footer>
+<div class="doc-footer">
   <div><strong>(주)에어브리지 (AIRBRIDGE Co., Ltd.)</strong></div>
   <div>Tel: 032-502-1880 &nbsp;|&nbsp; Email: ${si.email||'cs@airos.co.kr'}</div>
-</footer>
+</div>
 </body></html>`;
 
   // Blob URL 방식: 모바일 팝업 차단 우회
