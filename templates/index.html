@@ -1368,9 +1368,18 @@ const SD_CFG = {
   'mob-customer': { inputId:'customerSearchInput',listId:'customerDropdownList',clearId:'customerSearchClear',badgeId:'customerSelectedBadge',wrapId:'customerSearchWrap',dataKey:'customer', onSelect: _sdSelectCustomer },
 };
 
+// HTML 엔티티 디코딩 헬퍼 (Jinja2 이스케이프 대응)
+function _htmlDecode(s) {
+  const t = document.createElement('textarea');
+  t.innerHTML = s;
+  return t.value;
+}
+
 function _sdSelectCountry(val, label) {
-  document.getElementById('destSelect').value = val;
-  document.getElementById('destInput').value  = label;
+  const cleanVal   = _htmlDecode(val);
+  const cleanLabel = _htmlDecode(label);
+  document.getElementById('destSelect').value = cleanVal;
+  document.getElementById('destInput').value  = cleanLabel;
   updateCtxBar();
 }
 function _sdSelectCustomer(val) {
@@ -1398,10 +1407,21 @@ function _sdSelectCustomer(val) {
 }
 
 function sdInit() {
-  SD_DATA.country = Object.entries(COUNTRY_MAP).map(([en, kr]) => ({
-    label: `${kr} (${en})`, value: en, search: `${kr} ${en}`.toLowerCase()
-  }));
-  // 고객사 목록은 Flask 템플릿에서 직접 생성
+  // Jinja2가 People's → People&#39;s 로 이스케이프하므로 디코딩 필요
+  const decode = s => {
+    const t = document.createElement('textarea');
+    t.innerHTML = s;
+    return t.value;
+  };
+  SD_DATA.country = Object.entries(COUNTRY_MAP).map(([en, kr]) => {
+    const cleanEn = decode(en);
+    const cleanKr = decode(kr);
+    return {
+      label:  `${cleanKr} (${cleanEn})`,
+      value:  cleanEn,
+      search: `${cleanKr} ${cleanEn}`.toLowerCase()
+    };
+  });
   SD_DATA.customer = (window._CUSTOMER_LIST || []).map(v => ({
     label: v, value: v, search: v.toLowerCase()
   }));
@@ -1432,12 +1452,13 @@ function sdFilter(key, query) {
     listEl.innerHTML = `<div class="sd-empty">검색 결과 없음</div>`;
     return;
   }
-  const esc = s => s.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-  listEl.innerHTML = filtered.map(d =>
-    `<div class="sd-item"
-       onmousedown="sdSelect(event,'${key}','${esc(d.value)}','${esc(d.label)}')"
+  // inline 문자열 이스케이프 대신 data-index 방식으로 안전하게 처리
+  listEl._sdFiltered = filtered; // 현재 필터 결과를 DOM 노드에 캐시
+  listEl.innerHTML = filtered.map((d, i) =>
+    `<div class="sd-item" data-idx="${i}"
+       onmousedown="sdSelectByIdx(event,'${key}',${i})"
        ontouchstart="this.classList.add('highlighted')"
-       ontouchend="sdSelect(event,'${key}','${esc(d.value)}','${esc(d.label)}');this.classList.remove('highlighted')"
+       ontouchend="sdSelectByIdx(event,'${key}',${i});this.classList.remove('highlighted')"
      >${d.label}</div>`
   ).join('');
 }
@@ -1445,17 +1466,34 @@ function sdFilter(key, query) {
 function sdSelect(e, key, value, label) {
   e.preventDefault();
   const cfg = SD_CFG[key]; if (!cfg) return;
-  // 입력창에 선택값 표시
   const inputEl = document.getElementById(cfg.inputId);
   const clearEl = document.getElementById(cfg.clearId);
   const badgeEl = document.getElementById(cfg.badgeId);
   if (inputEl) inputEl.value = label;
   if (clearEl) clearEl.classList.add('visible');
   if (badgeEl) { badgeEl.textContent = '✅ ' + label; badgeEl.classList.add('visible'); }
-  // 실제 값 반영
   if (cfg.dataKey === 'country') cfg.onSelect(value, label);
   else cfg.onSelect(value);
-  // 닫기 + 키보드 내리기
+  sdClose(key);
+  if (inputEl) inputEl.blur();
+}
+
+// data-index 방식 선택 (특수문자 안전)
+function sdSelectByIdx(e, key, idx) {
+  e.preventDefault();
+  const cfg = SD_CFG[key]; if (!cfg) return;
+  const listEl = document.getElementById(cfg.listId);
+  if (!listEl || !listEl._sdFiltered) return;
+  const d = listEl._sdFiltered[idx];
+  if (!d) return;
+  const inputEl = document.getElementById(cfg.inputId);
+  const clearEl = document.getElementById(cfg.clearId);
+  const badgeEl = document.getElementById(cfg.badgeId);
+  if (inputEl) inputEl.value = d.label;
+  if (clearEl) clearEl.classList.add('visible');
+  if (badgeEl) { badgeEl.textContent = '✅ ' + d.label; badgeEl.classList.add('visible'); }
+  if (cfg.dataKey === 'country') cfg.onSelect(d.value, d.label);
+  else cfg.onSelect(d.value);
   sdClose(key);
   if (inputEl) inputEl.blur();
 }
@@ -1510,7 +1548,7 @@ function sdKeyDown(e, key) {
   } else if (e.key === 'Enter') {
     e.preventDefault();
     if (_sdHighlightIdx >= 0 && items[_sdHighlightIdx]) {
-      items[_sdHighlightIdx].dispatchEvent(new MouseEvent('mousedown', {bubbles:true}));
+      sdSelectByIdx({preventDefault:()=>{}}, key, parseInt(items[_sdHighlightIdx].dataset.idx));
     }
   } else if (e.key === 'Escape') {
     sdClose(key);
@@ -1554,15 +1592,35 @@ function onDestSelectMobile(val)        { onDestSelect(val); }
 
 // reloadCustomers — 고객사 목록 갱신 후 SD_DATA도 갱신
 async function reloadCustomers() {
+  const btn = document.querySelector('button[onclick="reloadCustomers()"]');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
   showToast('⏳ 구글시트 새로고침 중...');
   try {
     const r = await fetch('/api/reload-customers', {method:'POST'});
     const d = await r.json();
     if (d.ok) {
+      // 데이터 갱신
       SD_DATA.customer = d.customers.map(v => ({label:v, value:v, search:v.toLowerCase()}));
-      showToast(`✅ ${d.count}개 고객사 로드 완료`);
+      // 데스크탑 검색창 초기화
+      const tbInput = document.getElementById('tbCustomerInput');
+      const tbClear = document.getElementById('tbCustomerClear');
+      if (tbInput) { tbInput.value = ''; tbInput.placeholder = '고객사 검색...'; }
+      if (tbClear) tbClear.classList.remove('visible');
+      document.getElementById('customerInput').value = '';
+      // 모바일 검색창 초기화
+      const mInput = document.getElementById('customerSearchInput');
+      const mClear = document.getElementById('customerSearchClear');
+      const mBadge = document.getElementById('customerSelectedBadge');
+      if (mInput) mInput.value = '';
+      if (mClear) mClear.classList.remove('visible');
+      if (mBadge) mBadge.classList.remove('visible');
+      // 열려있는 드롭다운 닫기
+      sdClose('tb-customer');
+      sdClose('mob-customer');
+      showToast(`✅ ${d.count}개 고객사 로드 완료 — 다시 검색하세요`);
     } else { showToast('❌ ' + d.error); }
   } catch(e) { showToast('❌ 새로고침 실패: ' + e.message); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = '🔄'; } }
 }
 
 function onStaffChangeMobile() {
@@ -2374,10 +2432,11 @@ function applyAiResult() {
   const r = state.aiResult; if (!r) return;
   const en = resolveCountry(r.country);
   if (en && COUNTRY_MAP[en]) {
-    const kr    = COUNTRY_MAP[en];
-    const label = `${kr} (${en})`;
+    const kr    = _htmlDecode(COUNTRY_MAP[en]);
+    const cleanEn = _htmlDecode(en);
+    const label = `${kr} (${cleanEn})`;
     // 공통 hidden inputs
-    document.getElementById('destSelect').value = en;
+    document.getElementById('destSelect').value = cleanEn;
     document.getElementById('destInput').value  = label;
     // 데스크탑 topbar 드롭다운
     const tbInput = document.getElementById('tbCountryInput');
