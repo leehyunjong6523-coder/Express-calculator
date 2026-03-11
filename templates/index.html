@@ -172,25 +172,6 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
 .tb-input  { min-width: 140px; }
 
 /* Ctx strip */
-.ctx-bar {
-  display: flex; flex-wrap: nowrap; gap: 0;
-  background: var(--bg-panel); border-bottom: 1px solid var(--border);
-  padding: 0 20px; overflow-x: auto;
-  scrollbar-width: none;
-}
-.ctx-bar::-webkit-scrollbar { display: none; }
-.ctx-item {
-  display: flex; flex-direction: column;
-  padding: 6px 16px 6px 0; margin-right: 16px;
-  border-right: 1px solid var(--border); flex-shrink: 0;
-}
-.ctx-item:last-child { border-right: none; margin-right: 0; margin-left: auto; }
-.ctx-lbl { font-size: .58rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
-.ctx-val { font-size: .88rem; font-weight: 900; color: var(--acc-bright); font-family: var(--mono); }
-.ctx-val-small { font-size: .82rem; font-weight: 700; color: var(--text-pri); }
-.ctx-remote { background: rgba(251,191,36,.15); border: 1px solid rgba(251,191,36,.4); border-radius: 6px; padding: 2px 8px; font-size: .72rem; font-weight: 800; color: #fbbf24; align-self: center; margin-left: 12px; }
-.ctx-conflict { background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.4); border-radius: 6px; padding: 2px 8px; font-size: .72rem; font-weight: 800; color: #ef4444; align-self: center; margin-left: 8px; }
-
 /* ═══ SIDEBAR OVERLAY ═══ */
 .sidebar-overlay {
   display: none;
@@ -386,6 +367,16 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
 .mc-bad  .mc-lbl { color: rgba(248,113,113,.6); }
 
 .card-quote { font-family: var(--mono); font-size: 1.45rem; font-weight: 700; line-height: 1; margin: 3px 0 1px; }
+.card-zone-badge {
+  display: inline-block;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.22);
+  color: rgba(255,255,255,.9);
+  font-size: .62rem; font-weight: 900;
+  padding: 1px 7px; border-radius: 4px;
+  margin-left: 7px; vertical-align: middle;
+  letter-spacing: .04em;
+}
 .card-best-badge {
   display: inline-block; background: #fbbf24; color: #1a1a00;
   font-size: .65rem; font-weight: 900; padding: 1px 6px; border-radius: 4px;
@@ -394,41 +385,76 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
 
 .card-cost-bar {
   display: flex; align-items: center; gap: 6px;
-  background: rgba(0,0,0,.2); border-radius: 6px; padding: 5px 10px; margin-bottom: 6px;
+  background: rgba(0,0,0,.25); border-radius: 6px; padding: 5px 10px; margin-bottom: 6px;
 }
-.cost-bar-label { font-size: .72rem; color: #889aaa; font-weight: 700; }
-.cost-bar-val   { font-family: var(--mono); font-size: .95rem; font-weight: 800; color: #94a3b8; }
-.cost-bar-fee   { font-size: .68rem; color: #b08030; background: rgba(255,180,0,.15); border-radius: 4px; padding: 1px 5px; font-weight: 700; }
+.cost-bar-label { font-size: .72rem; color: #b8c8d8; font-weight: 700; }
+.cost-bar-val   { font-family: var(--mono); font-size: .95rem; font-weight: 800; color: #e2eaf4; }
+.cost-bar-fee   { font-size: .68rem; color: #fbbf24; background: rgba(251,191,36,.18); border-radius: 4px; padding: 1px 6px; font-weight: 700; }
 
 .card-divider { border: none; border-top: 1px solid var(--border); margin: 5px 0; }
 
+/* ── 원가 섹션: 따뜻한 앰버 테마 ── */
 .section-cost {
-  background: rgba(15,10,30,.6); border: 1px solid rgba(148,103,84,.25);
-  border-radius: 8px; padding: 6px 8px; margin-bottom: 5px;
+  background: rgba(28, 14, 6, 0.72);
+  border: 1px solid rgba(194, 120, 60, 0.35);
+  border-radius: 8px; padding: 7px 9px; margin-bottom: 5px;
 }
+/* ── 청구가 섹션: 블루 테마 ── */
 .section-quote {
-  background: rgba(10,20,50,.7); border: 1px solid rgba(37,99,235,.25);
-  border-radius: 8px; padding: 6px 8px; margin-bottom: 5px;
-}
-.detail-header-cost {
-  font-size: .68rem; font-weight: 900; color: #cd9070; text-transform: uppercase;
-  letter-spacing: .07em; margin-bottom: 4px; padding-bottom: 3px; border-bottom: 1px solid rgba(148,103,84,.3);
-}
-.detail-header-quote {
-  font-size: .68rem; font-weight: 900; color: #60a5fa; text-transform: uppercase;
-  letter-spacing: .07em; margin-bottom: 4px; padding-bottom: 3px; border-bottom: 1px solid rgba(37,99,235,.3);
+  background: rgba(6, 16, 42, 0.78);
+  border: 1px solid rgba(59, 130, 246, 0.38);
+  border-radius: 8px; padding: 7px 9px; margin-bottom: 5px;
 }
 
+/* 섹션 헤더 */
+.detail-header-cost {
+  font-size: .67rem; font-weight: 900; color: #f0a060;
+  text-transform: uppercase; letter-spacing: .07em;
+  margin-bottom: 5px; padding-bottom: 4px;
+  border-bottom: 1px solid rgba(194,120,60,.4);
+}
+.detail-header-quote {
+  font-size: .67rem; font-weight: 900; color: #60aaff;
+  text-transform: uppercase; letter-spacing: .07em;
+  margin-bottom: 5px; padding-bottom: 4px;
+  border-bottom: 1px solid rgba(59,130,246,.45);
+}
+
+/* ── 원가 섹션 행 ── */
+.section-cost .bd-row           { color: #d4a882; }
+.section-cost .bd-row .bd-val   { color: #fde8cc; font-family: var(--mono); }
+.section-cost .bd-row.sub-item  { color: #b08060; font-size: .68rem; padding-left: 8px; }
+.section-cost .bd-row.sub-item .bd-val { color: #f5d4a8; }
+.section-cost .bd-row.total-row {
+  color: #ffe8c8; font-weight: 800; font-size: .78rem;
+  border-top: 1px solid rgba(194,120,60,.35);
+  margin-top: 4px; padding-top: 5px;
+}
+.section-cost .bd-row.total-row .bd-val { color: #ffe8c8; }
+
+/* ── 청구가 섹션 행 ── */
+.section-quote .bd-row           { color: #93c5fd; }
+.section-quote .bd-row .bd-val   { color: #dbeafe; font-family: var(--mono); }
+.section-quote .bd-row.sub-item  { color: #6ea8d8; font-size: .68rem; padding-left: 8px; }
+.section-quote .bd-row.sub-item .bd-val { color: #bfdbfe; }
+.section-quote .bd-row.total-row {
+  color: #eff6ff; font-weight: 800; font-size: .78rem;
+  border-top: 1px solid rgba(59,130,246,.4);
+  margin-top: 4px; padding-top: 5px;
+}
+.section-quote .bd-row.total-row .bd-val { color: #eff6ff; }
+
+/* 섹션 밖 일반 bd-row (기존 호환) */
 .bd-row {
   display: flex; justify-content: space-between;
-  font-size: .72rem; padding: 2px 0; color: var(--text-sec);
+  font-size: .72rem; padding: 2px 0; color: #b0bfcc;
 }
 .bd-row.total-row {
   border-top: 1px solid var(--border); margin-top: 3px; padding-top: 4px;
   font-weight: 800; font-size: .78rem; color: var(--text-pri);
 }
 .bd-row .bd-val { font-family: var(--mono); color: var(--text-pri); }
-.bd-row.sub-item { color: var(--text-dim); padding-left: 8px; font-size: .68rem; }
+.bd-row.sub-item { color: #7a8fa0; padding-left: 8px; font-size: .68rem; }
 
 .margin-alert { display: none; }
 .tag-ns { background: rgba(239,68,68,.15); color: #f87171; border: 1px solid rgba(239,68,68,.3); border-radius:4px; padding: 2px 8px; font-size:.72rem; font-weight:700; }
@@ -641,21 +667,6 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
   }
   .drawer-close-btn { display: block; }
 
-  /* ── Context bar: horizontal scroll, compact ── */
-  .ctx-bar {
-    padding: 0 12px;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-  }
-  .ctx-item {
-    padding: 5px 12px 5px 0;
-    margin-right: 12px;
-    flex-shrink: 0;
-  }
-  .ctx-lbl { font-size: .55rem; }
-  .ctx-val { font-size: .8rem; }
-  .ctx-val-small { font-size: .75rem; }
-  .ctx-item:last-child { display: none; } /* hide 견적번호 on mobile */
 
   /* ── Main: adjust padding for bottom bar ── */
   .main {
@@ -723,11 +734,11 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
   .card-quote { font-size: 1.05rem; }
 }
 
-/* ── Custom Searchable Dropdown (모바일용) ── */
-.mob-search-wrap {
+/* ── Universal Searchable Dropdown (sd-*) ── */
+.sd-wrap {
   position: relative;
 }
-.mob-search-input {
+.sd-input {
   width: 100%;
   background: var(--bg-panel);
   border: 1px solid var(--border);
@@ -735,23 +746,24 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
   color: var(--text-pri);
   font-family: 'Noto Sans KR', sans-serif;
   font-size: 14px;
-  padding: 8px 36px 8px 10px;
+  padding: 8px 32px 8px 10px;
   outline: none;
   box-sizing: border-box;
   transition: border .2s;
 }
-.mob-search-input:focus { border-color: var(--acc); }
-.mob-search-clear {
+.sd-input:focus { border-color: var(--acc); }
+.sd-clear {
   position: absolute;
-  right: 8px; top: 50%;
+  right: 7px; top: 50%;
   transform: translateY(-50%);
   background: none; border: none;
-  color: var(--text-dim); font-size: 1rem;
+  color: var(--text-dim); font-size: .95rem;
   cursor: pointer; padding: 4px;
+  line-height: 1;
   display: none;
 }
-.mob-search-clear.visible { display: block; }
-.mob-dropdown-list {
+.sd-clear.visible { display: block; }
+.sd-list {
   display: none;
   position: absolute;
   top: calc(100% + 4px); left: 0; right: 0;
@@ -760,30 +772,34 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
   border-radius: 8px;
   max-height: 220px;
   overflow-y: auto;
-  z-index: 300;
-  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  z-index: 500;
+  box-shadow: 0 8px 24px rgba(0,0,0,.55);
   overscroll-behavior: contain;
+  min-width: 220px;
 }
-.mob-dropdown-list.open { display: block; }
-.mob-dropdown-item {
-  padding: 11px 12px;
+.sd-list.open { display: block; }
+.sd-item {
+  padding: 10px 12px;
   font-size: 13px;
   color: var(--text-pri);
   cursor: pointer;
   border-bottom: 1px solid rgba(255,255,255,.04);
-  transition: background .15s;
+  transition: background .12s;
   -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.mob-dropdown-item:last-child { border-bottom: none; }
-.mob-dropdown-item:active,
-.mob-dropdown-item.highlighted { background: rgba(37,99,235,.25); color: #fff; }
-.mob-dropdown-empty {
+.sd-item:last-child { border-bottom: none; }
+.sd-item:hover,
+.sd-item.highlighted { background: rgba(37,99,235,.28); color: #fff; }
+.sd-empty {
   padding: 12px;
   font-size: 12px;
   color: var(--text-dim);
   text-align: center;
 }
-.mob-selected-badge {
+.sd-badge {
   margin-top: 5px;
   background: rgba(37,99,235,.15);
   border: 1px solid rgba(37,99,235,.3);
@@ -794,7 +810,35 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
   font-weight: 700;
   display: none;
 }
-.mob-selected-badge.visible { display: block; }
+.sd-badge.visible { display: block; }
+
+/* ── Topbar context: compact style ── */
+.tb-sd .sd-input {
+  background: var(--bg-dark);
+  font-size: .82rem;
+  padding: 5px 28px 5px 10px;
+  height: 30px;
+}
+.tb-sd .sd-list {
+  min-width: 240px;
+  max-height: 260px;
+}
+.tb-sd .sd-item { font-size: 12.5px; padding: 9px 12px; }
+
+/* Backward-compat aliases (mobile sidebar) */
+.mob-search-wrap  { position: relative; }
+.mob-search-input { width:100%; background:var(--bg-panel); border:1px solid var(--border); border-radius:7px; color:var(--text-pri); font-family:'Noto Sans KR',sans-serif; font-size:14px; padding:8px 32px 8px 10px; outline:none; box-sizing:border-box; transition:border .2s; }
+.mob-search-input:focus { border-color:var(--acc); }
+.mob-search-clear { position:absolute; right:7px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--text-dim); font-size:.95rem; cursor:pointer; padding:4px; display:none; }
+.mob-search-clear.visible { display:block; }
+.mob-dropdown-list { display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--bg-panel); border:1px solid var(--acc); border-radius:8px; max-height:220px; overflow-y:auto; z-index:500; box-shadow:0 8px 24px rgba(0,0,0,.55); overscroll-behavior:contain; }
+.mob-dropdown-list.open { display:block; }
+.mob-dropdown-item { padding:11px 12px; font-size:13px; color:var(--text-pri); cursor:pointer; border-bottom:1px solid rgba(255,255,255,.04); transition:background .12s; -webkit-tap-highlight-color:transparent; }
+.mob-dropdown-item:last-child { border-bottom:none; }
+.mob-dropdown-item:active,.mob-dropdown-item.highlighted { background:rgba(37,99,235,.28); color:#fff; }
+.mob-dropdown-empty { padding:12px; font-size:12px; color:var(--text-dim); text-align:center; }
+.mob-selected-badge { margin-top:5px; background:rgba(37,99,235,.15); border:1px solid rgba(37,99,235,.3); border-radius:6px; padding:4px 10px; font-size:12px; color:var(--acc-bright); font-weight:700; display:none; }
+.mob-selected-badge.visible { display:block; }
 </style>
 </head>
 <body class="mode-exp" id="body">
@@ -821,31 +865,32 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
       <!-- Dest country -->
       <div class="tb-field">
         <div class="tb-label">🌏 목적지 국가</div>
-        <div style="position:relative;">
-          <input class="tb-select" id="destInput" list="countryDatalist"
-            placeholder="국가명 검색..." autocomplete="off"
-            oninput="onDestInput(this.value)" onchange="onDestSelect(this.value)"
-            style="min-width:220px;">
-          <datalist id="countryDatalist">
-            {% for c in countries %}
-            <option value="{{ c.kr }} ({{ c.en }})">
-            {% endfor %}
-          </datalist>
-          <input type="hidden" id="destSelect" value="Germany">
+        <div class="sd-wrap tb-sd" id="tbCountryWrap" style="min-width:220px;">
+          <input class="sd-input" id="tbCountryInput"
+            placeholder="국가명 검색..." autocomplete="off" autocorrect="off" spellcheck="false"
+            oninput="sdFilter('tb-country',this.value)"
+            onfocus="sdOpen('tb-country')">
+          <button class="sd-clear" id="tbCountryClear" onclick="sdClear('tb-country')">✕</button>
+          <div class="sd-list" id="tbCountryList"></div>
         </div>
+        <input type="hidden" id="destSelect" value="Germany">
+        <input type="hidden" id="destInput" value="독일 (Germany)">
       </div>
       <!-- Customer -->
       <div class="tb-field">
         <div class="tb-label">🏢 고객사</div>
         <div style="display:flex;gap:4px;align-items:center;">
-          <input class="tb-input" id="customerInput" list="customerList" placeholder="고객사 입력" oninput="onCustomerChange()" style="min-width:160px;">
-          <datalist id="customerList">
-            {% for c in customer_list %}
-            <option value="{{ c }}">
-            {% endfor %}
-          </datalist>
+          <div class="sd-wrap tb-sd" id="tbCustomerWrap" style="min-width:180px;">
+            <input class="sd-input" id="tbCustomerInput"
+              placeholder="고객사 검색..." autocomplete="off" autocorrect="off" spellcheck="false"
+              oninput="sdFilter('tb-customer',this.value)"
+              onfocus="sdOpen('tb-customer')">
+            <button class="sd-clear" id="tbCustomerClear" onclick="sdClear('tb-customer')">✕</button>
+            <div class="sd-list" id="tbCustomerList"></div>
+          </div>
+          <input type="hidden" id="customerInput" value="">
           <button onclick="reloadCustomers()" title="구글시트 새로고침"
-            style="background:rgba(255,255,255,.08);border:1px solid var(--border);border-radius:6px;color:var(--text-sec);cursor:pointer;padding:4px 8px;font-size:.9rem;">🔄</button>
+            style="background:rgba(255,255,255,.08);border:1px solid var(--border);border-radius:6px;color:var(--text-sec);cursor:pointer;padding:4px 8px;font-size:.9rem;flex-shrink:0;">🔄</button>
         </div>
       </div>
       <!-- 고객사 담당자 -->
@@ -877,32 +922,6 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
   </header>
 
   <!-- ═══ CONTEXT BAR ═══ -->
-  <div id="ctxBar" class="ctx-bar" style="grid-column:1/-1;">
-    <div class="ctx-item">
-      <div class="ctx-lbl">모드</div>
-      <div class="ctx-val" id="ctxMode">✈ 수출</div>
-    </div>
-    <div class="ctx-item">
-      <div class="ctx-lbl">목적지</div>
-      <div class="ctx-val-small" id="ctxDest">독일 (Germany)</div>
-    </div>
-    <div class="ctx-item">
-      <div class="ctx-lbl">존 DHL · FX · UPS</div>
-      <div class="ctx-val" id="ctxZones">—</div>
-    </div>
-    <div class="ctx-item">
-      <div class="ctx-lbl">청구중량</div>
-      <div class="ctx-val" id="ctxWeight">—</div>
-    </div>
-    <div class="ctx-item">
-      <div class="ctx-lbl">고객사</div>
-      <div class="ctx-val-small" id="ctxCustomer">—</div>
-    </div>
-    <div class="ctx-item" style="margin-left:auto;border-right:none;">
-      <div class="ctx-lbl">견적번호</div>
-      <div class="ctx-val" id="ctxQuoteNum" style="font-size:.78rem;">—</div>
-    </div>
-  </div>
 
   <!-- ═══ SIDEBAR ═══ -->
   <aside class="sidebar" id="sidebar">
@@ -1181,6 +1200,8 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
 </div>
 
 <script>
+// 고객사 목록 (Flask 서버 렌더링)
+window._CUSTOMER_LIST = [{% for c in customer_list %}"{{ c }}"{% if not loop.last %},{% endif %}{% endfor %}];
 // ─────────────────────────────────────────────
 // Country map
 // ─────────────────────────────────────────────
@@ -1328,125 +1349,29 @@ function syncMobileFields() {
 }
 
 // ─────────────────────────────────────────────
-// 모바일 커스텀 검색 드롭다운
+// 범용 검색 드롭다운 (sd-*)
+// 키 → 설정 매핑
 // ─────────────────────────────────────────────
+const SD_DATA = { country: [], customer: [] };
+let _sdOpen = null; // 현재 열린 드롭다운 key
 
-// 데이터 캐시 (checkMobileUI 이후 채워짐)
-const MOB_DATA = { country: [], customer: [] };
-let _mobDropdownOpen = null; // 현재 열린 드롭다운 키
+const SD_CFG = {
+  // 데스크탑 topbar
+  'tb-country':  { inputId:'tbCountryInput',    listId:'tbCountryList',    clearId:'tbCountryClear',    badgeId:null,                      wrapId:'tbCountryWrap',    dataKey:'country',  onSelect: _sdSelectCountry },
+  'tb-customer': { inputId:'tbCustomerInput',   listId:'tbCustomerList',   clearId:'tbCustomerClear',   badgeId:null,                      wrapId:'tbCustomerWrap',   dataKey:'customer', onSelect: _sdSelectCustomer },
+  // 모바일 사이드바
+  'mob-country':  { inputId:'countrySearchInput', listId:'countryDropdownList', clearId:'countrySearchClear', badgeId:'countrySelectedBadge', wrapId:'countrySearchWrap', dataKey:'country',  onSelect: _sdSelectCountry },
+  'mob-customer': { inputId:'customerSearchInput',listId:'customerDropdownList',clearId:'customerSearchClear',badgeId:'customerSelectedBadge',wrapId:'customerSearchWrap',dataKey:'customer', onSelect: _sdSelectCustomer },
+};
 
-function initMobDropdowns() {
-  // 국가 목록 구성
-  MOB_DATA.country = Object.entries(COUNTRY_MAP).map(([en, kr]) => ({
-    label: `${kr} (${en})`, value: en, search: `${kr} ${en}`.toLowerCase()
-  }));
-  // 고객사 목록 — desktop datalist에서 추출
-  const dl = document.getElementById('customerList');
-  if (dl) {
-    MOB_DATA.customer = Array.from(dl.options).map(o => ({
-      label: o.value, value: o.value, search: o.value.toLowerCase()
-    }));
-  }
-}
-
-function openMobDropdown(key) {
-  _mobDropdownOpen = key;
-  const input = document.getElementById(key === 'country' ? 'countrySearchInput' : 'customerSearchInput');
-  filterMobDropdown(key, input.value);
-}
-
-function filterMobDropdown(key, query) {
-  const listEl  = document.getElementById(key === 'country' ? 'countryDropdownList' : 'customerDropdownList');
-  const clearBtn = document.getElementById(key === 'country' ? 'countrySearchClear' : 'customerSearchClear');
-  const q = (query || '').trim().toLowerCase();
-
-  clearBtn.classList.toggle('visible', q.length > 0);
-  listEl.classList.add('open');
-  _mobDropdownOpen = key;
-
-  const data = MOB_DATA[key];
-  const filtered = q
-    ? data.filter(d => d.search.includes(q)).slice(0, 60)
-    : data.slice(0, 60);
-
-  if (filtered.length === 0) {
-    listEl.innerHTML = `<div class="mob-dropdown-empty">검색 결과 없음</div>`;
-    return;
-  }
-
-  listEl.innerHTML = filtered.map(d =>
-    `<div class="mob-dropdown-item"
-       onmousedown="selectMobItem(event,'${key}','${d.value.replace(/'/g,"\\'")}','${d.label.replace(/'/g,"\\'")}')"
-       ontouchstart="this.classList.add('highlighted')"
-       ontouchend="selectMobItem(event,'${key}','${d.value.replace(/'/g,"\\'")}','${d.label.replace(/'/g,"\\'")}');this.classList.remove('highlighted')"
-     >${d.label}</div>`
-  ).join('');
-}
-
-function selectMobItem(e, key, value, label) {
-  e.preventDefault();
-  // 선택 반영
-  if (key === 'country') {
-    onDestSelectMobileNative(value);
-    document.getElementById('countrySearchInput').value = label;
-    document.getElementById('countrySearchClear').classList.add('visible');
-    document.getElementById('countrySelectedBadge').textContent = '✅ ' + label;
-    document.getElementById('countrySelectedBadge').classList.add('visible');
-  } else {
-    onCustomerChangeMobile(value);
-    document.getElementById('customerSearchInput').value = label;
-    document.getElementById('customerSearchClear').classList.add('visible');
-    document.getElementById('customerSelectedBadge').textContent = '✅ ' + label;
-    document.getElementById('customerSelectedBadge').classList.add('visible');
-  }
-  closeMobDropdown(key);
-  // 키보드 닫기
-  const inputEl = document.getElementById(key === 'country' ? 'countrySearchInput' : 'customerSearchInput');
-  inputEl.blur();
-}
-
-function closeMobDropdown(key) {
-  const listEl = document.getElementById(key === 'country' ? 'countryDropdownList' : 'customerDropdownList');
-  listEl.classList.remove('open');
-  if (_mobDropdownOpen === key) _mobDropdownOpen = null;
-}
-
-function clearMobDropdown(key) {
-  const inputEl  = document.getElementById(key === 'country' ? 'countrySearchInput' : 'customerSearchInput');
-  const clearBtn = document.getElementById(key === 'country' ? 'countrySearchClear' : 'customerSearchClear');
-  const badge    = document.getElementById(key === 'country' ? 'countrySelectedBadge' : 'customerSelectedBadge');
-  inputEl.value = '';
-  clearBtn.classList.remove('visible');
-  badge.classList.remove('visible');
-  closeMobDropdown(key);
-  inputEl.focus();
-}
-
-// 드롭다운 외부 탭시 닫기
-document.addEventListener('touchstart', function(e) {
-  if (!_mobDropdownOpen) return;
-  const wrap = document.getElementById(_mobDropdownOpen === 'country' ? 'countrySearchWrap' : 'customerSearchWrap');
-  if (wrap && !wrap.contains(e.target)) closeMobDropdown(_mobDropdownOpen);
-}, {passive: true});
-document.addEventListener('click', function(e) {
-  if (!_mobDropdownOpen) return;
-  const wrap = document.getElementById(_mobDropdownOpen === 'country' ? 'countrySearchWrap' : 'customerSearchWrap');
-  if (wrap && !wrap.contains(e.target)) closeMobDropdown(_mobDropdownOpen);
-});
-
-// Native select handler for mobile country
-function onDestSelectMobileNative(val) {
-  if (!val) return;
+function _sdSelectCountry(val, label) {
   document.getElementById('destSelect').value = val;
-  document.getElementById('destInput').value  = `${COUNTRY_MAP[val]||val} (${val})`;
+  document.getElementById('destInput').value  = label;
   updateCtxBar();
 }
-
-// Native select handler for mobile customer
-function onCustomerChangeMobile(val) {
-  if (!val) return;
+function _sdSelectCustomer(val) {
   document.getElementById('customerInput').value = val;
-  document.getElementById('ctxCustomer').textContent = val;
+  
   if (val.length > 1) {
     fetch('/api/customer-disc', {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -1462,15 +1387,127 @@ function onCustomerChangeMobile(val) {
         showToast(anyDisc
           ? `✅ ${val} — DHL ${d.dhl.toFixed(0)}% / FX ${d.fedex.toFixed(0)}% / UPS ${d.ups.toFixed(0)}%`
           : `⚠️ ${val} 할인율 없음`);
+        if (anyDisc && state.lastResult) calculate();
       }
-    }).catch(() => {});
+    }).catch(()=>{});
   }
 }
 
-function onDestSelectMobile(val) {
-  onDestSelect(val);
-  const m = val.match(/\(([^)]+)\)\s*$/);
-  if (m) document.getElementById('destInput').value = val;
+function sdInit() {
+  SD_DATA.country = Object.entries(COUNTRY_MAP).map(([en, kr]) => ({
+    label: `${kr} (${en})`, value: en, search: `${kr} ${en}`.toLowerCase()
+  }));
+  // 고객사 목록은 Flask 템플릿에서 직접 생성
+  SD_DATA.customer = (window._CUSTOMER_LIST || []).map(v => ({
+    label: v, value: v, search: v.toLowerCase()
+  }));
+}
+
+function sdOpen(key) {
+  _sdOpen = key;
+  const cfg = SD_CFG[key]; if (!cfg) return;
+  const input = document.getElementById(cfg.inputId);
+  sdFilter(key, input ? input.value : '');
+}
+
+function sdFilter(key, query) {
+  const cfg = SD_CFG[key]; if (!cfg) return;
+  const listEl  = document.getElementById(cfg.listId);
+  const clearEl = document.getElementById(cfg.clearId);
+  if (!listEl) return;
+  const q = (query || '').trim().toLowerCase();
+  if (clearEl) clearEl.classList.toggle('visible', q.length > 0);
+  listEl.classList.add('open');
+  _sdOpen = key;
+
+  const items = SD_DATA[cfg.dataKey] || [];
+  const filtered = q ? items.filter(d => d.search.includes(q)).slice(0, 80) : items.slice(0, 80);
+
+  if (filtered.length === 0) {
+    listEl.innerHTML = `<div class="sd-empty">검색 결과 없음</div>`;
+    return;
+  }
+  const esc = s => s.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  listEl.innerHTML = filtered.map(d =>
+    `<div class="sd-item"
+       onmousedown="sdSelect(event,'${key}','${esc(d.value)}','${esc(d.label)}')"
+       ontouchstart="this.classList.add('highlighted')"
+       ontouchend="sdSelect(event,'${key}','${esc(d.value)}','${esc(d.label)}');this.classList.remove('highlighted')"
+     >${d.label}</div>`
+  ).join('');
+}
+
+function sdSelect(e, key, value, label) {
+  e.preventDefault();
+  const cfg = SD_CFG[key]; if (!cfg) return;
+  // 입력창에 선택값 표시
+  const inputEl = document.getElementById(cfg.inputId);
+  const clearEl = document.getElementById(cfg.clearId);
+  const badgeEl = document.getElementById(cfg.badgeId);
+  if (inputEl) inputEl.value = label;
+  if (clearEl) clearEl.classList.add('visible');
+  if (badgeEl) { badgeEl.textContent = '✅ ' + label; badgeEl.classList.add('visible'); }
+  // 실제 값 반영
+  if (cfg.dataKey === 'country') cfg.onSelect(value, label);
+  else cfg.onSelect(value);
+  // 닫기 + 키보드 내리기
+  sdClose(key);
+  if (inputEl) inputEl.blur();
+}
+
+function sdClose(key) {
+  const cfg = SD_CFG[key]; if (!cfg) return;
+  const listEl = document.getElementById(cfg.listId);
+  if (listEl) listEl.classList.remove('open');
+  if (_sdOpen === key) _sdOpen = null;
+}
+
+function sdClear(key) {
+  const cfg = SD_CFG[key]; if (!cfg) return;
+  const inputEl = document.getElementById(cfg.inputId);
+  const clearEl = document.getElementById(cfg.clearId);
+  const badgeEl = document.getElementById(cfg.badgeId);
+  if (inputEl) { inputEl.value = ''; inputEl.focus(); }
+  if (clearEl) clearEl.classList.remove('visible');
+  if (badgeEl) badgeEl.classList.remove('visible');
+  sdClose(key);
+}
+
+// 외부 클릭/탭 시 닫기
+document.addEventListener('touchstart', e => {
+  if (!_sdOpen) return;
+  const cfg = SD_CFG[_sdOpen]; if (!cfg) return;
+  const wrap = document.getElementById(cfg.wrapId);
+  if (wrap && !wrap.contains(e.target)) sdClose(_sdOpen);
+}, {passive:true});
+document.addEventListener('click', e => {
+  if (!_sdOpen) return;
+  const cfg = SD_CFG[_sdOpen]; if (!cfg) return;
+  const wrap = document.getElementById(cfg.wrapId);
+  if (wrap && !wrap.contains(e.target)) sdClose(_sdOpen);
+});
+
+// ── 하위 호환 래퍼 (모바일 HTML 인라인 호출용) ──
+function openMobDropdown(key)           { sdOpen('mob-' + key); }
+function filterMobDropdown(key, query)  { sdFilter('mob-' + key, query); }
+function selectMobItem(e, key, v, l)    { sdSelect(e, 'mob-' + key, v, l); }
+function closeMobDropdown(key)          { sdClose('mob-' + key); }
+function clearMobDropdown(key)          { sdClear('mob-' + key); }
+function onDestSelectMobileNative(val)  { _sdSelectCountry(val, `${COUNTRY_MAP[val]||val} (${val})`); }
+function onCustomerChangeMobile(val)    { _sdSelectCustomer(val); }
+function onDestSelectMobile(val)        { onDestSelect(val); }
+
+// reloadCustomers — 고객사 목록 갱신 후 SD_DATA도 갱신
+async function reloadCustomers() {
+  showToast('⏳ 구글시트 새로고침 중...');
+  try {
+    const r = await fetch('/api/reload-customers', {method:'POST'});
+    const d = await r.json();
+    if (d.ok) {
+      SD_DATA.customer = d.customers.map(v => ({label:v, value:v, search:v.toLowerCase()}));
+      showToast(`✅ ${d.count}개 고객사 로드 완료`);
+    } else { showToast('❌ ' + d.error); }
+  } catch(e) { showToast('❌ 새로고침 실패: ' + e.message); }
 }
 
 function onStaffChangeMobile() {
@@ -1487,8 +1524,6 @@ function checkMobileUI() {
   if (isMobile()) {
     if (mobileFields) mobileFields.style.display = 'block';
     if (mobileHint)   mobileHint.style.display = 'block';
-    // 드롭다운 데이터 초기화 (최초 1회)
-    if (MOB_DATA.country.length === 0) initMobDropdowns();
   } else {
     if (mobileFields) mobileFields.style.display = 'none';
     if (mobileHint)   mobileHint.style.display = 'none';
@@ -1496,7 +1531,42 @@ function checkMobileUI() {
 }
 
 window.onload = () => {
-  document.getElementById('destInput').value = '독일 (Germany)';
+  // ── 드롭다운 데이터 초기화 ──
+  sdInit();
+
+  // ── 목적지 국가: 빈 값으로 시작 ──
+  document.getElementById('destSelect').value = '';
+  document.getElementById('destInput').value  = '';
+  document.getElementById('tbCountryInput').value = '';
+  document.getElementById('tbCountryClear').classList.remove('visible');
+
+  // ── 고객사 / 담당자 초기화 ──
+  document.getElementById('customerInput').value   = '';
+  document.getElementById('tbCustomerInput').value = '';
+  document.getElementById('tbCustomerClear').classList.remove('visible');
+  document.getElementById('custContactInput').value = '';
+  document.getElementById('staffSelect').value      = '';
+
+  // ── 할인율 초기화 (0으로) ──
+  document.getElementById('discDhl').value    = '0';
+  document.getElementById('discFedex').value  = '0';
+  document.getElementById('discFedexE').value = '0';
+  document.getElementById('discUps').value    = '0';
+
+  // ── 화물정보 초기화: C/T 1개, 빈 값 ──
+  state.ctData = [{wt: '', L: '', W: '', H: '', qty: 1}];
+
+  // ── 우편번호 / 도시명 / 특이사항 초기화 ──
+  document.getElementById('remotePostal').value = '';
+  document.getElementById('remoteCity').value   = '';
+  document.getElementById('notesInput').value   = '';
+
+  // ── 모바일 필드도 동일하게 초기화 ──
+  const mContact = document.getElementById('custContactMobile');
+  if (mContact) mContact.value = '';
+  const mStaff = document.getElementById('staffSelectMobile');
+  if (mStaff) mStaff.value = '';
+
   renderCTs();
   updateCtxBar();
   checkMobileUI();
@@ -1545,19 +1615,6 @@ function setDocMode(isDoc) {
 // ─────────────────────────────────────────────
 // Customer
 // ─────────────────────────────────────────────
-async function reloadCustomers() {
-  showToast('⏳ 구글시트 새로고침 중...');
-  try {
-    const r = await fetch('/api/reload-customers', {method:'POST'});
-    const d = await r.json();
-    if (d.ok) {
-      const dl = document.getElementById('customerList');
-      dl.innerHTML = d.customers.map(c => `<option value="${c}">`).join('');
-      showToast(`✅ ${d.count}개 고객사 로드 완료`);
-    } else { showToast('❌ ' + d.error); }
-  } catch(e) { showToast('❌ 새로고침 실패: ' + e.message); }
-}
-
 async function saveFuel() {
   const dhl   = parseFloat(document.getElementById('fuelDhl').value);
   const fedex = parseFloat(document.getElementById('fuelFedex').value);
@@ -1573,7 +1630,7 @@ async function saveFuel() {
 
 function onCustomerChange() {
   const v = document.getElementById('customerInput').value;
-  document.getElementById('ctxCustomer').textContent = v || '—';
+  
   if (v.length > 1) {
     fetch('/api/customer-disc', {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -1600,14 +1657,7 @@ function onStaffChange() {
   state.staffName = sel.options[sel.selectedIndex].value;
 }
 
-function updateCtxBar() {
-  const en = getDestCountry();
-  const kr = COUNTRY_MAP[en] || en;
-  document.getElementById('ctxMode').textContent     = state.mode === '수출' ? '✈ 수출' : '📦 수입';
-  document.getElementById('ctxDest').textContent     = `${kr} (${en})`;
-  document.getElementById('ctxQuoteNum').textContent = document.getElementById('quoteNum').value || '—';
-  document.getElementById('ctxCustomer').textContent = document.getElementById('customerInput').value || '—';
-}
+function updateCtxBar() { /* ctx-bar 제거됨 */ }
 
 // ─────────────────────────────────────────────
 // C/T Management
@@ -1704,8 +1754,7 @@ function renderResults(res) {
   document.getElementById('wtActual').textContent  = res.total_actual_wt.toFixed(1);
   document.getElementById('wtVol').textContent     = res.total_vol_wt.toFixed(1);
   document.getElementById('wtCharge').textContent  = res.total_chargeable.toFixed(1);
-  document.getElementById('ctxZones').textContent  = `Z${res.dhl_zone} · Z${res.fx_zone} · Z${res.ups_zone}`;
-  document.getElementById('ctxWeight').textContent = `${res.total_chargeable.toFixed(1)} kg`;
+
 
   const ctDiv = document.getElementById('wtCtDetail');
   if (ctDiv && state.ctData && state.ctData.length > 0) {
@@ -1745,11 +1794,11 @@ function renderResults(res) {
     .sort((a,b) => (res.carriers[b[0]].margin_rate||0) - (res.carriers[a[0]].margin_rate||0))[0]?.[0];
 
   const carriers = [
-    {key:'dhl',     label:'DHL Express',    badge:'badge-dhl',     cls:'c-dhl',     tt:'1~3 영업일', acct:''},
-    {key:'fedex',   label:'FedEx IP',       badge:'badge-fedex',   cls:'c-fedex',   tt:'1~3 영업일', acct:''},
-    {key:'fedex_e', label:'FedEx Economy',  badge:'badge-fedex-e', cls:'c-fedex-e', tt:'7~8 영업일', acct:''},
-    {key:'ups2f',   label:'UPS SAVER <span style="background:#b45309;color:#fef3c7;font-size:.75rem;font-weight:800;padding:2px 8px;border-radius:4px;margin-left:6px;vertical-align:middle;">🔑 2F94A8</span>', badge:'badge-ups', cls:'c-ups', tt:'2~5 영업일', acct:''},
-    {key:'upsb8',   label:'UPS SAVER <span style="background:#b45309;color:#fef3c7;font-size:.75rem;font-weight:800;padding:2px 8px;border-radius:4px;margin-left:6px;vertical-align:middle;">🔑 B8733R</span>', badge:'badge-ups', cls:'c-ups', tt:'2~5 영업일', acct:''},
+    {key:'dhl',     label:'DHL Express',    badge:'badge-dhl',     cls:'c-dhl',     tt:'1~3 영업일', zoneKey:'dhl_zone'},
+    {key:'fedex',   label:'FedEx IP',       badge:'badge-fedex',   cls:'c-fedex',   tt:'1~3 영업일', zoneKey:'fx_zone'},
+    {key:'fedex_e', label:'FedEx Economy',  badge:'badge-fedex-e', cls:'c-fedex-e', tt:'7~8 영업일', zoneKey:'fx_zone'},
+    {key:'ups2f',   label:'UPS SAVER <span style="background:#b45309;color:#fef3c7;font-size:.75rem;font-weight:800;padding:2px 8px;border-radius:4px;margin-left:6px;vertical-align:middle;">🔑 2F94A8</span>', badge:'badge-ups', cls:'c-ups', tt:'2~5 영업일', zoneKey:'ups_zone'},
+    {key:'upsb8',   label:'UPS SAVER <span style="background:#b45309;color:#fef3c7;font-size:.75rem;font-weight:800;padding:2px 8px;border-radius:4px;margin-left:6px;vertical-align:middle;">🔑 B8733R</span>', badge:'badge-ups', cls:'c-ups', tt:'2~5 영업일', zoneKey:'ups_zone'},
   ];
 
   const gridTop = document.getElementById('resultsGrid');
@@ -1758,7 +1807,7 @@ function renderResults(res) {
   if (gridBot) { gridBot.style.display = 'grid'; gridBot.innerHTML = ''; }
   gridTop.innerHTML = '';
 
-  carriers.forEach(({key, label, badge, cls, tt, acct}, idx) => {
+  carriers.forEach(({key, label, badge, cls, tt, zoneKey}, idx) => {
     const c = res.carriers[key];
     if (!c) return;
     const noService   = (key.startsWith('ups') && res.ups_no_service) || (key.startsWith('fedex') && res.fedex_no_service);
@@ -1766,6 +1815,8 @@ function renderResults(res) {
     const isBest      = !noService && key === bestKey;
     const marginRate  = c.margin_rate || 0;
     const tgt         = state.tgtMargin || 30;
+    const zoneNum     = res[zoneKey];
+    const zoneBadge   = zoneNum ? `<span class="card-zone-badge">ZONE ${zoneNum}</span>` : '';
 
     const card = document.createElement('div');
     card.className = `carrier-card ${cls}` + (state.selectedCards.has(key) ? ' selected' : '') + (noService ? ' no-service' : '');
@@ -1786,7 +1837,7 @@ function renderResults(res) {
 
       card.innerHTML = `
         <div class="card-check">✓</div>
-        <div class="card-badge ${badge}">${label}${isBest ? '<span class="card-best-badge">🏆 최저</span>' : ''}${(key==='dhl' && c.surcharge_5pct) ? '<span style="background:#f59e0b;color:#1a1a00;font-size:.6rem;font-weight:900;padding:1px 5px;border-radius:3px;margin-left:5px;">⚡+5%</span>' : ''}</div>
+        <div class="card-badge ${badge}">${label}${zoneBadge}${isBest ? '<span class="card-best-badge">🏆 최저</span>' : ''}${(key==='dhl' && c.surcharge_5pct) ? '<span style="background:#f59e0b;color:#1a1a00;font-size:.6rem;font-weight:900;padding:1px 5px;border-radius:3px;margin-left:5px;">⚡+5%</span>' : ''}</div>
         <div class="card-meta">
           <span class="meta-tag meta-tt">⏱ ${tt}</span>
           ${c.disc_rpk ? `<span class="meta-tag" style="background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3);">₩${Math.round(c.disc_rpk).toLocaleString()}/kg</span>` : ''}
@@ -2259,10 +2310,23 @@ function applyAiResult() {
   const r = state.aiResult; if (!r) return;
   const en = resolveCountry(r.country);
   if (en && COUNTRY_MAP[en]) {
+    const kr    = COUNTRY_MAP[en];
+    const label = `${kr} (${en})`;
+    // 공통 hidden inputs
     document.getElementById('destSelect').value = en;
-    document.getElementById('destInput').value  = `${COUNTRY_MAP[en]} (${en})`;
-    const mDest = document.getElementById('destInputMobile');
-    if (mDest) mDest.value = `${COUNTRY_MAP[en]} (${en})`;
+    document.getElementById('destInput').value  = label;
+    // 데스크탑 topbar 드롭다운
+    const tbInput = document.getElementById('tbCountryInput');
+    const tbClear = document.getElementById('tbCountryClear');
+    if (tbInput) tbInput.value = label;
+    if (tbClear) tbClear.classList.add('visible');
+    // 모바일 사이드바 드롭다운
+    const mInput = document.getElementById('countrySearchInput');
+    const mBadge = document.getElementById('countrySelectedBadge');
+    const mClear = document.getElementById('countrySearchClear');
+    if (mInput) mInput.value = label;
+    if (mClear) mClear.classList.add('visible');
+    if (mBadge) { mBadge.textContent = '✅ ' + label; mBadge.classList.add('visible'); }
     updateCtxBar();
   } else if (r.country) {
     showToast(`⚠️ 국가 "${r.country}" 를 목록에서 찾지 못했습니다.`);
