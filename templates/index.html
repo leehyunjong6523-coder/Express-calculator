@@ -869,7 +869,8 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
           <input class="sd-input" id="tbCountryInput"
             placeholder="국가명 검색..." autocomplete="off" autocorrect="off" spellcheck="false"
             oninput="sdFilter('tb-country',this.value)"
-            onfocus="sdOpen('tb-country')">
+            onfocus="sdOpen('tb-country')"
+            onkeydown="sdKeyDown(event,'tb-country')">
           <button class="sd-clear" id="tbCountryClear" onclick="sdClear('tb-country')">✕</button>
           <div class="sd-list" id="tbCountryList"></div>
         </div>
@@ -884,7 +885,8 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
             <input class="sd-input" id="tbCustomerInput"
               placeholder="고객사 검색..." autocomplete="off" autocorrect="off" spellcheck="false"
               oninput="sdFilter('tb-customer',this.value)"
-              onfocus="sdOpen('tb-customer')">
+              onfocus="sdOpen('tb-customer')"
+              onkeydown="sdKeyDown(event,'tb-customer')">
             <button class="sd-clear" id="tbCustomerClear" onclick="sdClear('tb-customer')">✕</button>
             <div class="sd-list" id="tbCustomerList"></div>
           </div>
@@ -938,7 +940,8 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
           placeholder="🔍 국가명 검색 (한글/영문)"
           autocomplete="off" autocorrect="off" spellcheck="false"
           oninput="filterMobDropdown('country', this.value)"
-          onfocus="openMobDropdown('country')">
+          onfocus="openMobDropdown('country')"
+          onkeydown="sdKeyDown(event,'mob-country')">
         <button class="mob-search-clear" id="countrySearchClear" onclick="clearMobDropdown('country')">✕</button>
         <div class="mob-dropdown-list" id="countryDropdownList"></div>
       </div>
@@ -950,7 +953,8 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
           placeholder="🔍 고객사 검색"
           autocomplete="off" autocorrect="off" spellcheck="false"
           oninput="filterMobDropdown('customer', this.value)"
-          onfocus="openMobDropdown('customer')">
+          onfocus="openMobDropdown('customer')"
+          onkeydown="sdKeyDown(event,'mob-customer')">
         <button class="mob-search-clear" id="customerSearchClear" onclick="clearMobDropdown('customer')">✕</button>
         <div class="mob-dropdown-list" id="customerDropdownList"></div>
       </div>
@@ -1419,6 +1423,7 @@ function sdFilter(key, query) {
   if (clearEl) clearEl.classList.toggle('visible', q.length > 0);
   listEl.classList.add('open');
   _sdOpen = key;
+  _sdHighlightIdx = -1; // 새 검색마다 하이라이트 초기화
 
   const items = SD_DATA[cfg.dataKey] || [];
   const filtered = q ? items.filter(d => d.search.includes(q)).slice(0, 80) : items.slice(0, 80);
@@ -1471,6 +1476,56 @@ function sdClear(key) {
   if (clearEl) clearEl.classList.remove('visible');
   if (badgeEl) badgeEl.classList.remove('visible');
   sdClose(key);
+}
+
+// ── 키보드 방향키 + 엔터 네비게이션 ──
+let _sdHighlightIdx = -1;
+
+function sdKeyDown(e, key) {
+  const cfg = SD_CFG[key]; if (!cfg) return;
+  const listEl = document.getElementById(cfg.listId);
+  if (!listEl) return;
+
+  // 드롭다운이 닫혀있으면 방향키/엔터로 열기
+  if (!listEl.classList.contains('open')) {
+    if (e.key === 'ArrowDown' || e.key === 'Enter') {
+      sdOpen(key);
+      _sdHighlightIdx = -1;
+      e.preventDefault();
+    }
+    return;
+  }
+
+  const items = listEl.querySelectorAll('.sd-item');
+  if (!items.length) return;
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    _sdHighlightIdx = Math.min(_sdHighlightIdx + 1, items.length - 1);
+    _sdApplyHighlight(listEl, items);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    _sdHighlightIdx = Math.max(_sdHighlightIdx - 1, 0);
+    _sdApplyHighlight(listEl, items);
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (_sdHighlightIdx >= 0 && items[_sdHighlightIdx]) {
+      items[_sdHighlightIdx].dispatchEvent(new MouseEvent('mousedown', {bubbles:true}));
+    }
+  } else if (e.key === 'Escape') {
+    sdClose(key);
+    _sdHighlightIdx = -1;
+  }
+}
+
+function _sdApplyHighlight(listEl, items) {
+  items.forEach((el, i) => {
+    el.classList.toggle('highlighted', i === _sdHighlightIdx);
+  });
+  // 선택 항목이 보이도록 스크롤
+  if (items[_sdHighlightIdx]) {
+    items[_sdHighlightIdx].scrollIntoView({block: 'nearest'});
+  }
 }
 
 // 외부 클릭/탭 시 닫기
