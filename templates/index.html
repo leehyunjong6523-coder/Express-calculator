@@ -23,8 +23,8 @@
   --bg-card:     #111827;
   --bg-panel:    #1f2937;
   --text-pri:    #f1f5f9;
-  --text-sec:    #94a3b8;
-  --text-dim:    #475569;
+  --text-sec:    #b8c8d8;
+  --text-dim:    #7a8fa8;
   --border:      rgba(255,255,255,.08);
   --radius:      12px;
   --mono:        'JetBrains Mono', monospace;
@@ -90,9 +90,30 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
   display: flex;
   align-items: center;
   gap: 10px;
-  padding-right: 20px;
+  padding-right: 16px;
   border-right: 1px solid var(--border);
 }
+
+.tb-calc-btn {
+  flex-shrink: 0;
+  height: 34px;
+  padding: 0 14px;
+  background: linear-gradient(135deg, var(--acc-primary), var(--acc));
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 800;
+  font-size: .75rem;
+  cursor: pointer;
+  white-space: nowrap;
+  letter-spacing: .02em;
+  transition: transform .15s, box-shadow .15s;
+  box-shadow: 0 2px 10px var(--acc-glow);
+}
+.tb-calc-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px var(--acc-glow); }
+.tb-calc-btn:active { transform: translateY(0); }
+.tb-calc-btn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+body.mode-imp .tb-calc-btn { background: linear-gradient(135deg, #9d174d, #be185d); }
 
 .logo-mark {
   width: 36px; height: 36px;
@@ -559,6 +580,44 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
 }
 .toast.show { transform: translateY(0); opacity: 1; }
 
+/* ── 비행기 현수막 애니메이션 ── */
+@keyframes planeFly {
+  0%   { transform: translateX(-120%); opacity:0; }
+  8%   { opacity:1; }
+  85%  { opacity:1; }
+  100% { transform: translateX(110vw); opacity:0; }
+}
+.plane-banner-wrap {
+  position: fixed;
+  top: calc(var(--topbar-h) + 18px);
+  left: 0;
+  z-index: 9999;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+.plane-banner-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  animation: planeFly 7.6s cubic-bezier(.18,.55,.30,1) forwards;
+  white-space: nowrap;
+}
+.plane-icon { font-size: 2rem; flex-shrink:0; filter: drop-shadow(0 2px 8px rgba(96,165,250,.6)); }
+.plane-rope { width:44px; height:2px; background:linear-gradient(90deg,rgba(96,165,250,.8),rgba(96,165,250,.3)); flex-shrink:0; }
+.plane-flag {
+  background: linear-gradient(135deg, #1e3a5f, #1d4ed8);
+  border: 1px solid rgba(96,165,250,.5);
+  border-radius: 6px;
+  padding: 7px 20px;
+  font-size: .9rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: .05em;
+  box-shadow: 0 4px 20px rgba(29,78,216,.5);
+  flex-shrink:0;
+}
+
 /* ── Mobile Bottom Action Bar ── */
 .mobile-bottom-bar {
   display: none;
@@ -734,7 +793,201 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
   .card-quote { font-size: 1.05rem; }
 }
 
-/* ── Universal Searchable Dropdown (sd-*) ── */
+/* ── LMR (Last-minute Rate) ── */
+.lmr-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: #dc2626; border: 2px solid #ff4444;
+  color: #fff; border-radius: 6px; padding: 3px 10px;
+  font-size: .65rem; font-weight: 900; cursor: pointer;
+  transition: all .2s; margin-left: 8px; vertical-align: middle;
+  font-family: 'Noto Sans KR', sans-serif;
+  box-shadow: 0 0 8px rgba(220,38,38,.6);
+  animation: lmr-pulse 2s infinite;
+}
+.lmr-btn:hover { background: #ef4444; box-shadow: 0 0 14px rgba(220,38,38,.9); transform: scale(1.05); }
+.lmr-badge {
+  display: inline-block;
+  background: #dc2626; color: #fff;
+  font-size: .62rem; font-weight: 900; padding: 1px 7px;
+  border-radius: 4px; margin-left: 7px; vertical-align: middle;
+  letter-spacing: .04em; animation: lmr-pulse 2s infinite;
+}
+@keyframes lmr-pulse {
+  0%,100% { opacity:1; } 50% { opacity:.7; }
+}
+.lmr-release-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: rgba(107,114,128,.2); border: 1px solid rgba(107,114,128,.4);
+  color: #9ca3af; border-radius: 5px; padding: 2px 8px;
+  font-size: .6rem; font-weight: 700; cursor: pointer;
+  font-family: 'Noto Sans KR', sans-serif; margin-left: 6px; vertical-align: middle;
+}
+.lmr-release-btn:hover { background: rgba(239,68,68,.2); color: #fca5a5; border-color: rgba(239,68,68,.4); }
+.lmr-panel {
+  display: none;
+  background: rgba(30,10,10,.7);
+  border: 1px solid rgba(239,68,68,.3);
+  border-radius: 8px; padding: 10px 12px; margin-top: 8px;
+}
+.lmr-panel.open { display: block; }
+.lmr-panel-title {
+  font-size: .68rem; font-weight: 900; color: #fca5a5;
+  text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px;
+}
+.lmr-upload-area {
+  border: 2px dashed rgba(239,68,68,.3); border-radius: 7px;
+  padding: 14px 10px; text-align: center; cursor: pointer;
+  background: rgba(239,68,68,.05); transition: all .2s; margin-bottom: 6px;
+}
+.lmr-upload-area:hover { border-color: #ef4444; background: rgba(239,68,68,.1); }
+.lmr-upload-area input { display: none; }
+.lmr-scan-btn {
+  width: 100%; padding: 8px; border: none; border-radius: 7px;
+  background: linear-gradient(135deg, #4c1d95, #7c3aed);
+  color: #fff; font-family: 'Noto Sans KR', sans-serif;
+  font-size: .8rem; font-weight: 800; cursor: pointer; margin-bottom: 6px;
+  transition: opacity .2s;
+}
+.lmr-scan-btn:hover { opacity: .85; }
+.lmr-paste-btn {
+  width: 100%; padding: 8px; border: none; border-radius: 7px;
+  background: linear-gradient(135deg, #1e3a5f, #1d4ed8);
+  color: #fff; font-family: 'Noto Sans KR', sans-serif;
+  font-size: .8rem; font-weight: 800; cursor: pointer; margin-bottom: 6px;
+  transition: opacity .2s;
+}
+.lmr-paste-btn:hover { opacity: .85; }.lmr-result-box {
+  background: rgba(0,0,0,.3); border: 1px solid rgba(239,68,68,.2);
+  border-radius: 6px; padding: 8px 10px; margin-top: 6px; display: none;
+}
+.lmr-result-box.visible { display: block; }
+.lmr-result-row {
+  display: flex; justify-content: space-between;
+  font-size: .72rem; padding: 2px 0; color: #fca5a5;
+  border-bottom: 1px solid rgba(239,68,68,.1);
+}
+.lmr-result-row:last-child { border-bottom: none; }
+.lmr-result-row.total { font-weight: 900; color: #fff; font-size: .78rem; padding-top: 5px; margin-top: 3px; border-top: 1px solid rgba(239,68,68,.3); border-bottom: none; }
+.lmr-result-val { font-family: var(--mono); color: #fff; }
+.lmr-apply-btn {
+  width: 100%; padding: 8px; border: none; border-radius: 6px;
+  background: #dc2626; color: #fff; font-family: 'Noto Sans KR', sans-serif;
+  font-size: .8rem; font-weight: 900; cursor: pointer; margin-top: 8px;
+}
+.lmr-apply-btn:hover { background: #b91c1c; }
+.lmr-special-tag {
+  display: inline-block;
+  background: rgba(239,68,68,.18); border: 1px solid rgba(239,68,68,.4);
+  color: #fca5a5; font-size: .6rem; font-weight: 900;
+  padding: 1px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle;
+}
+/* LMR 적용된 카드 원가 상세 */
+.section-cost.lmr-mode { background: rgba(40,5,5,.75); border-color: rgba(239,68,68,.4); }
+.section-cost.lmr-mode .detail-header-cost { color: #fca5a5; border-color: rgba(239,68,68,.4); }
+/* ── 공통 3탭 패널 (LMR/WWEF) ── */
+.rate-tabs { display:flex; gap:2px; background:rgba(0,0,0,.4); border-radius:8px; padding:3px; margin-bottom:10px; }
+.rate-tab  { flex:1; padding:5px 6px; border:none; background:none; cursor:pointer; border-radius:5px;
+             font-family:'Noto Sans KR',sans-serif; font-size:.69rem; font-weight:800; transition:all .2s; }
+.rate-tab.lmr-tab       { color:#fca5a5; }
+.rate-tab.lmr-tab.act   { background:rgba(239,68,68,.25); color:#fff; }
+.rate-tab.wwef-tab      { color:#fbbf24; }
+.rate-tab.wwef-tab.act  { background:rgba(217,119,6,.3); color:#fff; }
+.rate-tab-content       { display:none; }
+.rate-tab-content.act   { display:block; }
+.rate-upload-area {
+  border:2px dashed rgba(255,255,255,.2); border-radius:8px; padding:14px;
+  text-align:center; cursor:pointer; transition:all .2s; background:rgba(255,255,255,.03);
+}
+.rate-upload-area:hover { background:rgba(255,255,255,.07); }
+.rate-upload-text { font-size:.71rem; }
+.rate-scan-btn {
+  width:100%; margin-top:7px; padding:8px; border:none; border-radius:7px;
+  font-family:'Noto Sans KR',sans-serif; font-size:.79rem; font-weight:800; cursor:pointer; transition:opacity .2s;
+}
+.rate-scan-btn.lmr-color  { background:linear-gradient(135deg,#4c1d95,#7c3aed); color:#fff; }
+.rate-scan-btn.wwef-color { background:linear-gradient(135deg,#78350f,#d97706); color:#fff; }
+.rate-scan-btn:hover { opacity:.85; }
+.rate-paste-btn {
+  width:100%; margin-top:6px; padding:8px; border:none; border-radius:7px;
+  font-family:'Noto Sans KR',sans-serif; font-size:.79rem; font-weight:800; cursor:pointer; transition:opacity .2s;
+}
+.rate-paste-btn.lmr-color  { background:linear-gradient(135deg,#1e3a5f,#1d4ed8); color:#fff; }
+.rate-paste-btn.wwef-color { background:linear-gradient(135deg,#44403c,#292524); color:#fbbf24; border:1px solid rgba(217,119,6,.3); }
+.rate-paste-btn:hover { opacity:.85; }
+.rate-textarea {
+  width:100%; box-sizing:border-box; background:rgba(0,0,0,.35); border-radius:6px;
+  padding:6px 8px; color:#fff; font-size:.7rem; resize:vertical;
+  font-family:var(--mono); line-height:1.5; outline:none;
+}
+.rate-textarea.lmr-color  { border:1px solid rgba(239,68,68,.3); }
+.rate-textarea.wwef-color { border:1px solid rgba(217,119,6,.3); }
+.rate-ai-btn {
+  width:100%; margin-top:6px; padding:8px; border:none; border-radius:7px;
+  font-family:'Noto Sans KR',sans-serif; font-size:.79rem; font-weight:800; cursor:pointer; transition:opacity .2s;
+}
+.rate-ai-btn.lmr-color  { background:linear-gradient(135deg,#4c1d95,#7c3aed); color:#fff; }
+.rate-ai-btn.wwef-color { background:linear-gradient(135deg,#78350f,#d97706); color:#fff; }
+.rate-ai-btn:hover { opacity:.85; }
+
+/* ── WWEF (UPS Freight 특가) ── */
+.wwef-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border: none; border-radius: 5px; cursor: pointer;
+  background: linear-gradient(135deg, #78350f, #d97706);
+  color: #fff; font-size: .62rem; font-weight: 900;
+  margin-left: 6px; vertical-align: middle;
+  box-shadow: 0 2px 6px rgba(217,119,6,.4);
+  animation: pulse 1.8s infinite;
+}
+.wwef-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 7px; border-radius: 4px;
+  background: rgba(217,119,6,.2); border: 1px solid rgba(217,119,6,.5);
+  color: #fbbf24; font-size: .62rem; font-weight: 900; margin-left: 5px; vertical-align: middle;
+}
+.wwef-release-btn {
+  display: inline-flex; align-items: center;
+  padding: 2px 7px; border: 1px solid rgba(217,119,6,.4); border-radius: 4px;
+  background: rgba(217,119,6,.1); color: #fbbf24; font-size: .62rem; font-weight: 800;
+  cursor: pointer; margin-left: 4px; vertical-align: middle;
+}
+.wwef-panel {
+  background: rgba(20,10,0,.85); border: 1px solid rgba(217,119,6,.35);
+  border-radius: 8px; padding: 12px; margin-bottom: 10px; display: none;
+}
+.wwef-panel.open { display: block; }
+.wwef-panel-title { font-size: .72rem; font-weight: 800; color: #fbbf24; margin-bottom: 8px; }
+.wwef-result-box {
+  background: rgba(0,0,0,.3); border: 1px solid rgba(217,119,6,.2);
+  border-radius: 6px; padding: 8px 10px; margin-top: 6px; display: none;
+}
+.wwef-result-box.visible { display: block; }
+.wwef-result-row {
+  display: flex; justify-content: space-between;
+  font-size: .72rem; padding: 2px 0; color: #fbbf24;
+  border-bottom: 1px solid rgba(217,119,6,.15);
+}
+.wwef-result-row:last-child { border-bottom: none; }
+.wwef-result-row.total { font-weight: 900; color: #fff; font-size: .78rem; padding-top: 5px; margin-top: 3px; border-top: 1px solid rgba(217,119,6,.3); border-bottom: none; }
+.wwef-result-val { font-family: var(--mono); color: #fff; }
+.wwef-apply-btn {
+  width: 100%; padding: 8px; border: none; border-radius: 6px;
+  background: linear-gradient(135deg,#78350f,#d97706); color: #fff;
+  font-family: 'Noto Sans KR', sans-serif; font-size: .8rem; font-weight: 900;
+  cursor: pointer; margin-top: 8px; transition: opacity .2s;
+}
+.wwef-apply-btn:hover { opacity: .85; }
+.section-cost.wwef-mode { background: rgba(20,10,0,.75); border-color: rgba(217,119,6,.4); }
+.section-cost.wwef-mode .detail-header-cost { color: #fbbf24; border-color: rgba(217,119,6,.4); }
+/* Freight전환 카드 선택 불가 상태 */
+.carrier-card.freight-lock { cursor: not-allowed !important; opacity: .75; }
+.freight-notice {
+  text-align: center; padding: 14px 8px;
+  color: #f87171; font-size: .8rem; font-weight: 800; line-height: 1.6;
+  background: rgba(239,68,68,.07); border-radius: 6px; margin-bottom: 8px;
+}
+.section-cost.lmr-mode .bd-row { color: #fca5a5; }
+.section-cost.lmr-mode .bd-row .bd-val { color: #fff; }
 .sd-wrap {
   position: relative;
 }
@@ -855,10 +1108,13 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
         <div class="logo-name">AIRBRIDGE</div>
         <div class="logo-sub">Express Rate Calculator</div>
       </div>
+      
     </div>
     <div class="topbar-content">
+      <!-- 운임계산 버튼 (수출/수입 왼쪽) -->
+      <button class="tb-calc-btn" id="tbCalcBtn" onclick="mobileCalculate()">⚡ 운임 계산</button>
       <!-- Mode toggle -->
-      <div class="mode-toggle">
+      <div class="mode-toggle" style="margin-left:12px;">
         <button class="mode-btn active-exp" id="btnExp" onclick="setMode('수출')">✈ 수출</button>
         <button class="mode-btn" id="btnImp" onclick="setMode('수입')">📦 수입</button>
       </div>
@@ -1125,8 +1381,15 @@ body.mode-imp .calc-btn       { background: linear-gradient(135deg, #9d174d, #be
 
     <!-- Weight info panel -->
     <div class="wt-panel" id="wtPanel" style="display:none;">
-      <div style="display:flex;align-items:stretch;gap:16px;">
-        <div id="wtCtDetail" style="flex:1;min-width:0;"></div>
+      <div style="display:flex;align-items:stretch;gap:20px;">
+        <!-- 운임계산 버튼 -->
+        <div style="display:flex;flex-direction:column;justify-content:center;flex-shrink:0;">
+          <button class="calc-btn" onclick="mobileCalculate()" id="calcBtn"
+            style="height:56px;min-width:130px;font-size:.95rem;white-space:nowrap;letter-spacing:.02em;">⚡ 운임 계산</button>
+        </div>
+        <div style="width:1px;background:var(--border);flex-shrink:0;"></div>
+        <!-- 화물정보 (오른쪽으로) -->
+        <div id="wtCtDetail" style="flex:1;min-width:0;padding-left:8px;"></div>
         <div style="display:flex;flex-direction:column;justify-content:center;gap:6px;min-width:240px;border-left:1px solid var(--border);padding-left:16px;">
           <div style="font-size:11px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">📏 중량 요약</div>
           <div style="display:flex;gap:12px;">
@@ -1249,6 +1512,8 @@ const COUNTRY_ALIAS = {
   "오스트리아":"Austria","그리스":"Greece","헝가리":"Hungary","루마니아":"Romania",
   "불가리아":"Bulgaria","크로아티아":"Croatia","세르비아":"Serbia","슬로바키아":"Slovakia",
   "슬로베니아":"Slovenia","에스토니아":"Estonia","라트비아":"Latvia","리투아니아":"Lithuania",
+  "마케도니아":"North Macedonia","북마케도니아":"North Macedonia","Macedonia":"North Macedonia",
+  "FYROM":"North Macedonia","MKD":"North Macedonia",
   "우크라이나":"Ukraine","벨라루스":"Belarus","카자흐스탄":"Kazakhstan",
   "인도":"India","파키스탄":"Pakistan","방글라데시":"Bangladesh","스리랑카":"Sri Lanka",
   "네팔":"Nepal","미얀마":"Myanmar","태국":"Thailand","말레이시아":"Malaysia",
@@ -1286,9 +1551,13 @@ function resolveCountry(name) {
 
 let state = {
   mode: '수출', isDoc: false,
-  ctData: [{wt:1.0, L:30, W:20, H:20, qty:1}],
+  ctData: [{wt: '', L: '', W: '', H: '', qty: 1}],
   lastResult: null, selectedCards: new Set(['dhl']),
   aiResult: null, pasteImageBlob: null, staffName: '', tgtMargin: 30,
+  lmr: { fedex: null, fedex_e: null },       // LMR 적용 데이터
+  lmrPasteBlob: { fedex: null, fedex_e: null }, // LMR 붙여넣기 이미지
+  wwef: { ups: null, ups2f: null, upsb8: null }, // WWEF 적용 데이터
+  wwefPasteBlob: { ups: null, ups2f: null, upsb8: null },
 };
 
 // ─────────────────────────────────────────────
@@ -1326,13 +1595,16 @@ function closeSidebar() {
 async function mobileCalculate() {
   if (isMobile()) syncMobileFields();
   const isM    = isMobile();
-  const calcBtn = document.getElementById('calcBtn');
-  const mbBtn   = document.getElementById('mbCalcBtn');
-  if (calcBtn) { calcBtn.disabled = true; calcBtn.innerHTML = '<span class="spinner"></span>계산 중...'; }
-  if (mbBtn)   { mbBtn.disabled   = true; mbBtn.querySelector('.mb-label').textContent = '계산 중...'; }
+  const calcBtn  = document.getElementById('calcBtn');
+  const tbCalcBtn = document.getElementById('tbCalcBtn');
+  const mbBtn    = document.getElementById('mbCalcBtn');
+  if (calcBtn)   { calcBtn.disabled = true; calcBtn.innerHTML = '<span class="spinner"></span>계산 중...'; }
+  if (tbCalcBtn) { tbCalcBtn.disabled = true; tbCalcBtn.innerHTML = '<span class="spinner"></span>계산 중...'; }
+  if (mbBtn)     { mbBtn.disabled = true; mbBtn.querySelector('.mb-label').textContent = '계산 중...'; }
   await calculate();
-  if (calcBtn) { calcBtn.disabled = false; calcBtn.innerHTML = '⚡ 운임 계산'; }
-  if (mbBtn)   { mbBtn.disabled   = false; mbBtn.querySelector('.mb-label').textContent = '운임 계산'; }
+  if (calcBtn)   { calcBtn.disabled = false; calcBtn.innerHTML = '⚡ 운임 계산'; }
+  if (tbCalcBtn) { tbCalcBtn.disabled = false; tbCalcBtn.innerHTML = '⚡ 운임 계산'; }
+  if (mbBtn)     { mbBtn.disabled = false; mbBtn.querySelector('.mb-label').textContent = '운임 계산'; }
   // 계산 완료 후 사이드바 닫기
   if (isM) closeSidebar();
 }
@@ -1382,6 +1654,17 @@ function _sdSelectCountry(val, label) {
   document.getElementById('destInput').value  = cleanLabel;
   updateCtxBar();
 }
+// 고객사명 정리 — "(정상 요금 - X%)", "(할인 X%)" 등 괄호 접미사 제거
+function cleanCustomerName(raw) {
+  if (!raw) return '';
+  return raw
+    .replace(/\s*\(정상\s*요금[^)]*\)/g, '')
+    .replace(/\s*\(할인[^)]*\)/g, '')
+    .replace(/\s*\(특가[^)]*\)/g, '')
+    .replace(/\s*\([^)]*%[^)]*\)/g, '')   // 퍼센트 포함 괄호 전체 제거
+    .trim();
+}
+
 function _sdSelectCustomer(val) {
   document.getElementById('customerInput').value = val;
   
@@ -1389,7 +1672,7 @@ function _sdSelectCustomer(val) {
     fetch('/api/customer-disc', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({company:val, mode:state.mode})
-    }).then(r=>r.json()).then(data => {
+    }).then(r=>safeJson(r)).then(data => {
       if (data.ok) {
         const d = data.disc;
         document.getElementById('discDhl').value    = d.dhl.toFixed(2);
@@ -1449,7 +1732,18 @@ function sdFilter(key, query) {
   const filtered = q ? items.filter(d => d.search.includes(q)).slice(0, 80) : items.slice(0, 80);
 
   if (filtered.length === 0) {
-    listEl.innerHTML = `<div class="sd-empty">검색 결과 없음</div>`;
+    // 고객사 검색에서 결과 없을 때 직접입력 옵션 제공
+    if (cfg.dataKey === 'customer' && q.length > 0) {
+      listEl._sdFiltered = [{ label: `✏️ "${query}" 직접입력`, value: query, search: q }];
+      listEl.innerHTML = `
+        <div class="sd-item" style="color:#fbbf24;font-style:italic;" data-idx="0"
+          onmousedown="sdSelectByIdx(event,'${key}',0)"
+          ontouchend="sdSelectByIdx(event,'${key}',0)">
+          ✏️ "<strong>${query}</strong>" 직접입력
+        </div>`;
+    } else {
+      listEl.innerHTML = `<div class="sd-empty">검색 결과 없음</div>`;
+    }
     return;
   }
   // inline 문자열 이스케이프 대신 data-index 방식으로 안전하게 처리
@@ -1597,7 +1891,7 @@ async function reloadCustomers() {
   showToast('⏳ 구글시트 새로고침 중...');
   try {
     const r = await fetch('/api/reload-customers', {method:'POST'});
-    const d = await r.json();
+    const d = await safeJson(r);
     if (d.ok) {
       // 데이터 갱신
       SD_DATA.customer = d.customers.map(v => ({label:v, value:v, search:v.toLowerCase()}));
@@ -1641,6 +1935,492 @@ function checkMobileUI() {
     if (mobileFields) mobileFields.style.display = 'none';
     if (mobileHint)   mobileHint.style.display = 'none';
   }
+}
+
+// ═══════════════════════════════════════════════
+// LMR (Last-minute Rate) — FedEx IP / Economy
+// ═══════════════════════════════════════════════
+
+function _lmrBadgeHtml(key) {
+  if (key !== 'fedex' && key !== 'fedex_e') return '';
+  if (state.lmr[key]) {
+    return '<span class="lmr-badge">\uD83D\uDD34 LMR</span>'
+      + '<span class="lmr-special-tag">\uc774\ubc88\uc8fc \uc911\ub7c9\ud654\ubb3c \ud2b9\uac00\uc801\uc6a9</span>'
+      + '<button class="lmr-release-btn" onclick="event.stopPropagation();lmrRelease(\'' + key + '\')">&#x2715; \ud574\uc81c</button>';
+  }
+  return '<button class="lmr-btn" onclick="event.stopPropagation();lmrTogglePanel(\'' + key + '\')">&#128229; LMR \uc801\uc6a9</button>';
+}
+
+function lmrTogglePanel(key) {
+  const panel = document.getElementById('lmrPanel_' + key);
+  if (!panel) return;
+  const isOpen = panel.classList.contains('open');
+  document.querySelectorAll('.lmr-panel,.wwef-panel').forEach(p => p.classList.remove('open'));
+  if (!isOpen) panel.classList.add('open');
+}
+function wwefTogglePanel(key) {
+  const panel = document.getElementById('wwefPanel_' + key);
+  if (!panel) return;
+  const isOpen = panel.classList.contains('open');
+  document.querySelectorAll('.lmr-panel,.wwef-panel').forEach(p => p.classList.remove('open'));
+  if (!isOpen) panel.classList.add('open');
+}
+
+// ── 3탭 패널 HTML 빌더 ────────────────────────────
+function _lmrPanelHtml(key) {
+  var label = key === 'fedex' ? 'IP' : 'Economy';
+  var k = key;
+  var div = document.createElement('div');
+  div.className = 'lmr-panel';
+  div.id = 'lmrPanel_' + k;
+  div.innerHTML =
+    '<div class="lmr-panel-title">📥 FedEx LMR 원가 입력 — ' + label + '</div>' +
+    '<div class="rate-tabs">' +
+      '<button class="rate-tab lmr-tab act" id="lmrTab_file_' + k + '" onclick="event.stopPropagation();rateTabSwitch(\'lmr\',\'' + k + '\',\'file\')">📁 파일</button>' +
+      '<button class="rate-tab lmr-tab" id="lmrTab_paste_' + k + '" onclick="event.stopPropagation();rateTabSwitch(\'lmr\',\'' + k + '\',\'paste\')">📋 붙여넣기</button>' +
+      '<button class="rate-tab lmr-tab" id="lmrTab_text_' + k + '" onclick="event.stopPropagation();rateTabSwitch(\'lmr\',\'' + k + '\',\'text\')">✏️ 텍스트</button>' +
+    '</div>' +
+    '<div class="rate-tab-content act" id="rateTabFile_lmr_' + k + '">' +
+      '<div class="rate-upload-area" onclick="document.getElementById(\'lmrFile_' + k + '\').click()">' +
+        '<input type="file" id="lmrFile_' + k + '" accept="image/*" style="display:none" onchange="lmrHandleFile(event,\'' + k + '\')">' +
+        '<div class="rate-upload-text" style="color:#fca5a5;">📎 클릭하여 파일 선택<br><span style="font-size:.62rem;color:var(--text-dim)">JPG · PNG 지원</span></div>' +
+        '<div id="lmrFilePreview_' + k + '" style="display:none;margin-top:8px;"></div>' +
+      '</div>' +
+      '<button class="rate-scan-btn lmr-color" id="lmrScanBtn_' + k + '" onclick="event.stopPropagation();lmrRunScan(\'' + k + '\')">🔍 AI 분석</button>' +
+    '</div>' +
+    '<div class="rate-tab-content" id="rateTabPaste_lmr_' + k + '">' +
+      '<div style="font-size:.71rem;color:var(--text-sec);margin-bottom:6px;">스크린샷을 클립보드에 복사 후 아래 버튼 클릭</div>' +
+      '<button class="rate-paste-btn lmr-color" onclick="event.stopPropagation();lmrPasteFromClipboard(\'' + k + '\')">📋 클립보드에서 이미지 붙여넣기</button>' +
+      '<div id="lmrPastePreview_' + k + '" style="display:none;margin-top:8px;"></div>' +
+      '<button class="rate-scan-btn lmr-color" id="lmrPasteBtn_' + k + '" style="display:none;margin-top:6px;" onclick="event.stopPropagation();lmrRunPaste(\'' + k + '\')">🔍 AI 분석</button>' +
+    '</div>' +
+    '<div class="rate-tab-content" id="rateTabText_lmr_' + k + '">' +
+      '<textarea class="rate-textarea lmr-color" id="lmrTxtPaste_' + k + '" rows="4" placeholder="예시)\n기본 요금 ₩914,700\n유류할증료 ₩304,138\n견적 총액 ₩1,218,838" onclick="event.stopPropagation()" oninput="event.stopPropagation()"></textarea>' +
+      '<button class="rate-ai-btn lmr-color" onclick="event.stopPropagation();lmrTxtAiParse(\'' + k + '\')">🤖 AI 분석 후 적용</button>' +
+    '</div>' +
+    '<div class="lmr-result-box" id="lmrResult_' + k + '"></div>';
+  return div.outerHTML;
+}
+
+function _wwefPanelHtml(key) {
+  var k = key;
+  var div = document.createElement('div');
+  div.className = 'wwef-panel';
+  div.id = 'wwefPanel_' + k;
+  div.innerHTML =
+    '<div class="wwef-panel-title">📦 UPS WWEF 원가 입력 — Freight 특가</div>' +
+    '<div class="rate-tabs">' +
+      '<button class="rate-tab wwef-tab act" id="wwefTab_file_' + k + '" onclick="event.stopPropagation();rateTabSwitch(\'wwef\',\'' + k + '\',\'file\')">📁 파일</button>' +
+      '<button class="rate-tab wwef-tab" id="wwefTab_paste_' + k + '" onclick="event.stopPropagation();rateTabSwitch(\'wwef\',\'' + k + '\',\'paste\')">📋 붙여넣기</button>' +
+      '<button class="rate-tab wwef-tab" id="wwefTab_text_' + k + '" onclick="event.stopPropagation();rateTabSwitch(\'wwef\',\'' + k + '\',\'text\')">✏️ 텍스트</button>' +
+    '</div>' +
+    '<div class="rate-tab-content act" id="rateTabFile_wwef_' + k + '">' +
+      '<div class="rate-upload-area" onclick="document.getElementById(\'wwefFile_' + k + '\').click()">' +
+        '<input type="file" id="wwefFile_' + k + '" accept="image/*" style="display:none" onchange="wwefHandleFile(event,\'' + k + '\')">' +
+        '<div class="rate-upload-text" style="color:#fbbf24;">📎 클릭하여 파일 선택<br><span style="font-size:.62rem;color:var(--text-dim)">JPG · PNG 지원</span></div>' +
+        '<div id="wwefFilePreview_' + k + '" style="display:none;margin-top:8px;"></div>' +
+      '</div>' +
+      '<button class="rate-scan-btn wwef-color" id="wwefScanBtn_' + k + '" onclick="event.stopPropagation();wwefRunScan(\'' + k + '\')">🔍 AI 분석</button>' +
+    '</div>' +
+    '<div class="rate-tab-content" id="rateTabPaste_wwef_' + k + '">' +
+      '<div style="font-size:.71rem;color:var(--text-sec);margin-bottom:6px;">스크린샷을 클립보드에 복사 후 아래 버튼 클릭</div>' +
+      '<button class="rate-paste-btn wwef-color" onclick="event.stopPropagation();wwefPasteFromClipboard(\'' + k + '\')">📋 클립보드에서 이미지 붙여넣기</button>' +
+      '<div id="wwefPastePreview_' + k + '" style="display:none;margin-top:8px;"></div>' +
+      '<button class="rate-scan-btn wwef-color" id="wwefPasteBtn_' + k + '" style="display:none;margin-top:6px;" onclick="event.stopPropagation();wwefRunPaste(\'' + k + '\')">🔍 AI 분석</button>' +
+    '</div>' +
+    '<div class="rate-tab-content" id="rateTabText_wwef_' + k + '">' +
+      '<textarea class="rate-textarea wwef-color" id="wwefTxtPaste_' + k + '" rows="4" placeholder="예시)\n기본 요금 ₩914,700\n유류할증료 ₩304,138\n견적 총액 ₩1,218,838" onclick="event.stopPropagation()" oninput="event.stopPropagation()"></textarea>' +
+      '<button class="rate-ai-btn wwef-color" onclick="event.stopPropagation();wwefTxtAiParse(\'' + k + '\')">🤖 AI 분석 후 적용</button>' +
+    '</div>' +
+    '<div class="wwef-result-box" id="wwefResult_' + k + '"></div>';
+  return div.outerHTML;
+}
+
+
+// ── 공통 3탭 전환 ──
+function rateTabSwitch(type, key, tab) {
+  var panelId = (type === 'lmr' ? 'lmrPanel_' : 'wwefPanel_') + key;
+  var panel = document.getElementById(panelId);
+  if (!panel) return;
+  panel.querySelectorAll('.rate-tab').forEach(function(b){ b.classList.remove('act'); });
+  panel.querySelectorAll('.rate-tab-content').forEach(function(d){ d.classList.remove('act'); });
+  var tabMap = { file:'File', paste:'Paste', text:'Text' };
+  var btnId = (type === 'lmr' ? 'lmrTab' : 'wwefTab') + '_' + tab + '_' + key;
+  var contId = 'rateTab' + tabMap[tab] + '_' + type + '_' + key;
+  var btn = document.getElementById(btnId);
+  var cont = document.getElementById(contId);
+  if (btn) btn.classList.add('act');
+  if (cont) cont.classList.add('act');
+}
+
+function lmrHandleFile(e, key) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const prev = document.getElementById(`lmrFilePreview_${key}`);
+    prev.innerHTML = `<img src="${ev.target.result}" style="max-width:100%;border-radius:5px;max-height:100px;object-fit:contain;">`;
+    prev.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function lmrPasteFromClipboard(key) {
+  try {
+    const items = await navigator.clipboard.read();
+    for (const item of items) {
+      const imgType = item.types.find(t => t.startsWith('image/'));
+      if (imgType) {
+        const blob = await item.getType(imgType);
+        state.lmrPasteBlob[key] = blob;
+        const url = URL.createObjectURL(blob);
+        const prev = document.getElementById(`lmrPastePreview_${key}`);
+        prev.innerHTML = `<img src="${url}" style="max-width:100%;border-radius:5px;max-height:100px;object-fit:contain;">`;
+        prev.style.display = 'block';
+        document.getElementById(`lmrPasteBtn_${key}`).style.display = 'block';
+        showToast('✅ 캡처 붙여넣기 완료 — AI 분석 버튼을 누르세요');
+        return;
+      }
+    }
+    showToast('⚠️ 클립보드에 이미지 없음. 캡처 후 다시 시도');
+  } catch(e) { showToast('❌ 클립보드 접근 불가: ' + e.message); }
+}
+
+async function lmrRunScan(key) {
+  const fileInput = document.getElementById(`lmrFile_${key}`);
+  if (!fileInput.files[0]) { showToast('파일을 선택하세요'); return; }
+  const btn = document.getElementById(`lmrScanBtn_${key}`);
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>AI 분석 중...';
+  const fd = new FormData();
+  fd.append('file', fileInput.files[0]); fd.append('mode', 'lmr');
+  try {
+    await _lmrCallAI(key, fd);
+  } finally { btn.disabled = false; btn.innerHTML = '🔍 AI 분석 (파일)'; }
+}
+
+async function lmrRunPaste(key) {
+  const blob = state.lmrPasteBlob[key];
+  if (!blob) { showToast('이미지를 먼저 붙여넣으세요'); return; }
+  const btn = document.getElementById(`lmrPasteBtn_${key}`);
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>AI 분석 중...';
+  const fd = new FormData();
+  fd.append('file', blob, 'lmr_paste.png'); fd.append('mode', 'lmr');
+  try {
+    await _lmrCallAI(key, fd);
+  } finally { btn.disabled = false; btn.innerHTML = '🔍 AI 분석 (붙여넣기)'; }
+}
+
+async function _lmrCallAI(key, fd) {
+  try {
+    const r = await fetch('/api/ai-lmr', { method:'POST', body:fd });
+    const data = await safeJson(r);
+    if (!data.ok) throw new Error(data.error || 'AI 분석 실패');
+    lmrShowResult(key, data.items, data.total);
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
+function lmrShowResult(key, items, total) {
+  const box = document.getElementById(`lmrResult_${key}`);
+  if (!box) return;
+  const rows = items.map(it =>
+    `<div class="lmr-result-row">
+      <span>${it.name}</span>
+      <span class="lmr-result-val">₩${Math.round(it.amount).toLocaleString('ko-KR')}</span>
+    </div>`
+  ).join('');
+  box.innerHTML = `
+    ${rows}
+    <div class="lmr-result-row total">
+      <span>LMR 총 원가</span>
+      <span class="lmr-result-val">₩${Math.round(total).toLocaleString('ko-KR')}</span>
+    </div>
+    <button class="lmr-apply-btn" onclick="event.stopPropagation();lmrApply('${key}',${JSON.stringify(items).replace(/"/g,'&quot;')},${total})">
+      ✅ 이 금액으로 원가 적용
+    </button>`;
+  box.classList.add('visible');
+}
+
+function lmrApply(key, items, totalCost) {
+  if (!state.lastResult) return;
+  const c         = state.lastResult.carriers[key];
+  const tgtMargin = state.tgtMargin || 30;
+
+  // ── 청구가는 기존 계산기 결과 그대로 유지 ──
+  const totalQuote = Math.round(c.total_quote || 0);
+
+  // ── 마진율: LMR 원가 vs 기존 청구가 ──
+  const marginRate = totalQuote > 0 ? (totalQuote - totalCost) / totalQuote * 100 : 0;
+
+  // ── 할인율: LMR 원가 기준으로 역산 ──
+  const discPct = c.pub_base > 0
+    ? Math.max(0, (1 - totalCost / c.pub_base) * 100)
+    : 0;
+
+  // 원가 줄별 HTML (LMR 추출 항목)
+  const cost_rows = items.map((it, i) =>
+    `<div class="bd-row${i===0?'':' sub-item'}"><span>${it.name}</span><span class="bd-val">₩${Math.round(it.amount).toLocaleString('ko-KR')}</span></div>`
+  ).join('');
+
+  // 청구가 줄별 HTML — 기존 carrier 데이터 그대로
+  const surRowsQuote = (c.surs||[])
+    .filter(s => s.name !== '__freight__')
+    .map(s => `<div class="bd-row sub-item"><span>${s.name}</span><span class="bd-val">₩${Math.round(s.amount).toLocaleString('ko-KR')}</span></div>`)
+    .join('');
+  const quote_rows =
+    `<div class="bd-row"><span>항공운임 (견적)${c.disc_rpk ? ` <span style="font-size:.62rem;color:#60a5fa;">(₩${Math.round(c.disc_rpk).toLocaleString()}/kg)</span>` : ''}</span><span class="bd-val">₩${Math.round(c.pub_disc||0).toLocaleString('ko-KR')}</span></div>` +
+    surRowsQuote +
+    `<div class="bd-row sub-item"><span>유류할증료</span><span class="bd-val">₩${Math.round((c.pub_fuel||0)+(c.sur_fuel_pub||0)).toLocaleString('ko-KR')}</span></div>`;
+
+  state.lmr[key] = {
+    totalCost, totalQuote, discPct, marginRate,
+    cost_rows, quote_rows,
+    total_cost: totalCost, total_quote: totalQuote, disc_pct: discPct
+  };
+
+  renderResults(state.lastResult);
+  showToast(`✅ ${key==='fedex'?'FedEx IP':'FedEx Economy'} LMR 원가 적용 완료 (청구가 기존 유지)`);
+}
+
+function lmrRelease(key) {
+  const name = key === 'fedex' ? 'FedEx IP' : 'FedEx Economy';
+  if (!confirm(`${name} LMR을 해제하고 일반 운임으로 복구할까요?`)) return;
+  state.lmr[key] = null;
+  state.lmrPasteBlob[key] = null;
+  renderResults(state.lastResult);
+  showToast(`↩️ ${name} LMR 해제 — 일반 운임으로 복구됨`);
+}
+
+// ═══════════════════════════════════════════════
+// WWEF (UPS Freight 특가) — LMR과 동일 구조
+// ═══════════════════════════════════════════════
+function _wwefBadgeHtml(key, freightFlag) {
+  if (!freightFlag) return '';
+  if (state.wwef[key]) {
+    return '<span class="wwef-badge">🟠 WWEF</span>'
+      + '<button class="wwef-release-btn" onclick="event.stopPropagation();wwefRelease(\'' + key + '\')">✕ 해제</button>';
+  }
+  return '<button class="wwef-btn" onclick="event.stopPropagation();wwefTogglePanel(\'' + key + '\')">📦 WWEF 원가 입력</button>';
+}
+
+// wwefTabSwitch → rateTabSwitch 로 통합
+
+function wwefHandleFile(e, key) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const prev = document.getElementById(`wwefFilePreview_${key}`);
+    if (prev) { prev.innerHTML = `<img src="${ev.target.result}" style="max-width:100%;border-radius:5px;max-height:100px;object-fit:contain;">`; prev.style.display = 'block'; }
+  };
+  reader.readAsDataURL(file);
+}
+
+async function wwefPasteFromClipboard(key) {
+  try {
+    const items = await navigator.clipboard.read();
+    for (const item of items) {
+      const imgType = item.types.find(t => t.startsWith('image/'));
+      if (imgType) {
+        const blob = await item.getType(imgType);
+        state.wwefPasteBlob[key] = blob;
+        const url = URL.createObjectURL(blob);
+        const prev = document.getElementById(`wwefPastePreview_${key}`);
+        if (prev) { prev.innerHTML = `<img src="${url}" style="max-width:100%;border-radius:5px;max-height:100px;object-fit:contain;">`; prev.style.display = 'block'; }
+        const btn = document.getElementById(`wwefPasteBtn_${key}`);
+        if (btn) btn.style.display = 'block';
+        showToast('✅ 캡처 붙여넣기 완료 — AI 분석 버튼을 누르세요');
+        return;
+      }
+    }
+    showToast('⚠️ 클립보드에 이미지가 없습니다');
+  } catch(e) { showToast('❌ 클립보드 접근 실패: ' + e.message); }
+}
+
+async function wwefRunScan(key) {
+  const fileInput = document.getElementById(`wwefFile_${key}`);
+  if (!fileInput?.files[0]) { showToast('⚠️ 파일을 먼저 선택하세요'); return; }
+  const btn = document.getElementById(`wwefScanBtn_${key}`);
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>AI 분석 중...';
+  const fd = new FormData();
+  fd.append('file', fileInput.files[0]);
+  await _wwefCallAI(key, fd);
+  btn.disabled = false; btn.innerHTML = '🔍 AI 분석 (파일)';
+}
+
+async function wwefRunPaste(key) {
+  if (!state.wwefPasteBlob[key]) { showToast('⚠️ 먼저 캡처를 붙여넣으세요'); return; }
+  const btn = document.getElementById(`wwefPasteBtn_${key}`);
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>AI 분석 중...';
+  const fd = new FormData();
+  fd.append('file', state.wwefPasteBlob[key], 'paste.png');
+  await _wwefCallAI(key, fd);
+  btn.disabled = false; btn.innerHTML = '🔍 AI 분석 (붙여넣기)';
+}
+
+async function _wwefCallAI(key, fd) {
+  try {
+    const r = await fetch('/api/ai-lmr', { method:'POST', body:fd });
+    const data = await safeJson(r);
+    if (!data.ok) throw new Error(data.error || 'AI 분석 실패');
+    wwefShowResult(key, data.items, data.total);
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
+function wwefShowResult(key, items, total) {
+  const box = document.getElementById(`wwefResult_${key}`);
+  if (!box) return;
+  const rows = items.map(it =>
+    `<div class="wwef-result-row"><span>${it.name}</span><span class="wwef-result-val">₩${Math.round(it.amount).toLocaleString('ko-KR')}</span></div>`
+  ).join('');
+  box.innerHTML = `
+    ${rows}
+    <div class="wwef-result-row total"><span>WWEF 총 원가</span><span class="wwef-result-val">₩${Math.round(total).toLocaleString('ko-KR')}</span></div>
+    <button class="wwef-apply-btn" onclick="event.stopPropagation();wwefApply('${key}',${JSON.stringify(items).replace(/"/g,'&quot;')},${total})">
+      ✅ 이 금액으로 WWEF 원가 적용
+    </button>`;
+  box.classList.add('visible');
+}
+
+function wwefApply(key, items, totalCost) {
+  if (!state.lastResult) return;
+  const c = state.lastResult.carriers[key];
+  const totalQuote = Math.round(c.total_quote || 0);
+  const marginRate = totalQuote > 0 ? (totalQuote - totalCost) / totalQuote * 100 : 0;
+  const discPct    = c.pub_base > 0 ? Math.max(0, (1 - totalCost / c.pub_base) * 100) : 0;
+  const cost_rows  = items.map((it, i) =>
+    `<div class="bd-row${i===0?'':' sub-item'}"><span>${it.name}</span><span class="bd-val">₩${Math.round(it.amount).toLocaleString('ko-KR')}</span></div>`
+  ).join('');
+  state.wwef[key] = { totalCost, totalQuote, marginRate, discPct, cost_rows,
+                      total_cost: totalCost, total_quote: totalQuote, disc_pct: discPct };
+  // WWEF 적용 시 카드 선택 가능하게
+  state.selectedCards.add(key);
+  renderResults(state.lastResult);
+  showToast(`✅ UPS WWEF 원가 적용 완료 — 카드 선택 가능`);
+}
+
+function wwefRelease(key) {
+  if (!confirm(`UPS WWEF를 해제하고 일반 운임으로 복구할까요?`)) return;
+  state.wwef[key] = null;
+  state.wwefPasteBlob[key] = null;
+  state.selectedCards.delete(key);
+  renderResults(state.lastResult);
+  showToast(`↩️ UPS WWEF 해제`);
+}
+
+function wwefTxtManual(key) {
+  const el = document.getElementById('wwefTxtManualRows_' + key);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function wwefTxtAiParse(key) {
+  const ta = document.getElementById('wwefTxtPaste_' + key);
+  if (!ta) return;
+  const text = ta.value.trim();
+  if (!text) { showToast('⚠️ 텍스트를 먼저 붙여넣으세요'); return; }
+  const resultBox = document.getElementById('wwefResult_' + key);
+  if (resultBox) resultBox.innerHTML = '<div style="color:#fbbf24;font-size:.7rem;padding:6px 0;">🤖 AI 분석 중...</div>';
+  try {
+    const resp = await fetch('/api/ai-lmr-text', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ text })
+    });
+    const data = await safeJson(resp);
+    if (!data.ok) throw new Error(data.error || 'AI 분석 실패');
+    wwefShowResult(key, data.items, data.total);
+  } catch(e) {
+    if (resultBox) resultBox.innerHTML = `<div style="color:#f87171;font-size:.7rem;">${e.message}</div>`;
+    showToast('❌ ' + e.message);
+  }
+}
+
+function wwefTxtAddRow(key) {
+  const container = document.getElementById('wwefTxtRows_' + key);
+  if (!container) return;
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:4px;margin-bottom:4px;';
+  row.innerHTML = `
+    <input class="wwef-txt-name" placeholder="항목명" style="flex:1.5;background:rgba(0,0,0,.3);border:1px solid rgba(217,119,6,.25);border-radius:4px;padding:4px 6px;color:#fff;font-size:.7rem;" onclick="event.stopPropagation()">
+    <input class="wwef-txt-amt" placeholder="금액" type="number" style="flex:1;background:rgba(0,0,0,.3);border:1px solid rgba(217,119,6,.25);border-radius:4px;padding:4px 6px;color:#fbbf24;font-size:.7rem;font-family:var(--mono);" onclick="event.stopPropagation()">
+    <button style="padding:2px 6px;background:rgba(217,119,6,.2);border:1px solid rgba(217,119,6,.3);border-radius:4px;color:#fbbf24;font-size:.7rem;cursor:pointer;" onclick="event.stopPropagation();this.parentElement.remove()">✕</button>`;
+  container.appendChild(row);
+}
+
+function wwefTxtApply(key) {
+  const container = document.getElementById('wwefTxtRows_' + key);
+  if (!container) return;
+  const items = [];
+  container.querySelectorAll('div').forEach(row => {
+    const name = row.querySelector('.wwef-txt-name')?.value?.trim();
+    const amt  = parseFloat(row.querySelector('.wwef-txt-amt')?.value || '0');
+    if (name && amt > 0) items.push({ name, amount: amt });
+  });
+  if (items.length === 0) { showToast('⚠️ 항목명과 금액을 1개 이상 입력하세요'); return; }
+  wwefApply(key, items, items.reduce((s,it) => s+it.amount, 0));
+}
+
+// ── LMR 탭 전환 (이미지 / 직접입력) ──
+// lmrTabSwitch → rateTabSwitch 로 통합
+
+// ── LMR 텍스트 수동입력 섹션 토글 ──
+function lmrTxtManual(key) {
+  const el = document.getElementById('lmrTxtManualRows_' + key);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+// ── LMR 텍스트 붙여넣기 → AI 파싱 ──
+async function lmrTxtAiParse(key) {
+  const ta = document.getElementById('lmrTxtPaste_' + key);
+  if (!ta) return;
+  const text = ta.value.trim();
+  if (!text) { showToast('⚠️ 텍스트를 먼저 붙여넣으세요'); return; }
+
+  const resultBox = document.getElementById('lmrResult_' + key);
+  if (resultBox) resultBox.innerHTML = '<div style="color:#fca5a5;font-size:.7rem;padding:6px 0;">🤖 AI 분석 중...</div>';
+
+  try {
+    const resp = await fetch('/api/ai-lmr-text', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    const data = await safeJson(resp);
+    if (!data.ok) throw new Error(data.error || 'AI 분석 실패');
+    lmrShowResult(key, data.items, data.total);
+  } catch(e) {
+    if (resultBox) resultBox.innerHTML = `<div style="color:#f87171;font-size:.7rem;">${e.message}</div>`;
+    showToast('❌ ' + e.message);
+  }
+}
+
+// ── LMR 직접입력: 항목 행 추가 ──
+function lmrTxtAddRow(key) {
+  const container = document.getElementById('lmrTxtRows_' + key);
+  if (!container) return;
+  const row = document.createElement('div');
+  row.className = 'lmr-txt-row';
+  row.style.cssText = 'display:flex;gap:4px;margin-bottom:4px;';
+  row.innerHTML = `
+    <input class="lmr-txt-name" placeholder="항목명" style="flex:1.5;background:rgba(0,0,0,.3);border:1px solid rgba(239,68,68,.25);border-radius:4px;padding:4px 6px;color:#fff;font-size:.7rem;" onclick="event.stopPropagation()">
+    <input class="lmr-txt-amt" placeholder="금액 (숫자만)" type="number" style="flex:1;background:rgba(0,0,0,.3);border:1px solid rgba(239,68,68,.25);border-radius:4px;padding:4px 6px;color:#fca5a5;font-size:.7rem;font-family:var(--mono);" onclick="event.stopPropagation()">
+    <button style="padding:2px 6px;background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.3);border-radius:4px;color:#fca5a5;font-size:.7rem;cursor:pointer;" onclick="event.stopPropagation();this.parentElement.remove()">✕</button>
+  `;
+  container.appendChild(row);
+}
+
+// ── LMR 직접입력: 원가 적용 ──
+function lmrTxtApply(key) {
+  const container = document.getElementById('lmrTxtRows_' + key);
+  if (!container) return;
+  const rows = container.querySelectorAll('.lmr-txt-row');
+  const items = [];
+  rows.forEach(row => {
+    const name = row.querySelector('.lmr-txt-name')?.value?.trim();
+    const amt  = parseFloat(row.querySelector('.lmr-txt-amt')?.value || '0');
+    if (name && amt > 0) items.push({ name, amount: amt });
+  });
+  if (items.length === 0) {
+    showToast('⚠️ 항목명과 금액을 1개 이상 입력하세요'); return;
+  }
+  const total = items.reduce((s, it) => s + it.amount, 0);
+  lmrApply(key, items, total);
 }
 
 window.onload = () => {
@@ -1748,7 +2528,7 @@ function onCustomerChange() {
     fetch('/api/customer-disc', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({company:v, mode:state.mode})
-    }).then(r=>r.json()).then(data => {
+    }).then(r=>safeJson(r)).then(data => {
       if (data.ok) {
         const d = data.disc;
         document.getElementById('discDhl').value    = d.dhl.toFixed(2);
@@ -1819,11 +2599,30 @@ function updateCT(i, field, val) {
 // Calculate
 // ─────────────────────────────────────────────
 async function calculate() {
+  // 견적번호 자동 갱신 (날짜 + 3자리 순번)
+  const today = new Date();
+  const dateStr = today.getFullYear().toString() +
+    String(today.getMonth()+1).padStart(2,'0') +
+    String(today.getDate()).padStart(2,'0');
+  const seqKey = `ab_quote_seq_${dateStr}`;
+  let seq = parseInt(sessionStorage.getItem(seqKey) || '0') + 1;
+  sessionStorage.setItem(seqKey, seq);
+  const newQuoteNum = `AB-${dateStr}-${String(seq).padStart(3,'0')}`;
+  document.getElementById('quoteNum').value = newQuoteNum;
+  const mq = document.getElementById('quoteNumMobile');
+  if (mq) mq.value = newQuoteNum;
+
   const payload = {
     dest_country:  getDestCountry(),
     mode:          state.mode,
     is_doc:        state.isDoc,
-    ct_data:       state.ctData,
+    ct_data:       state.ctData.map(ct => ({
+      wt:  parseFloat(ct.wt)  || 1.0,
+      L:   parseInt(ct.L)     || 10,
+      W:   parseInt(ct.W)     || 10,
+      H:   parseInt(ct.H)     || 10,
+      qty: parseInt(ct.qty)   || 1,
+    })),
     fuel_dhl:      parseFloat(document.getElementById('fuelDhl').value)    || 28.75,
     fuel_fedex:    parseFloat(document.getElementById('fuelFedex').value)  || 29.75,
     fuel_ups:      parseFloat(document.getElementById('fuelUps').value)    || 29.50,
@@ -1841,10 +2640,11 @@ async function calculate() {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify(payload)
     });
-    const data = await resp.json();
+    const data = await safeJson(resp);
     if (!data.ok) throw new Error(data.error);
     state.lastResult = data.data;
     renderResults(data.data);
+    showPlaneBanner('운임 계산 완료 !');
     // Enable mobile action buttons
     const mbEmail = document.getElementById('mbEmailBtn');
     const mbPdf   = document.getElementById('mbPdfBtn');
@@ -1932,9 +2732,13 @@ function renderResults(res) {
     const zoneBadge   = zoneNum ? `<span class="card-zone-badge">ZONE ${zoneNum}</span>` : '';
 
     const card = document.createElement('div');
-    card.className = `carrier-card ${cls}` + (state.selectedCards.has(key) ? ' selected' : '') + (noService ? ' no-service' : '');
+    const isFreightLock = freightFlag && !state.wwef[key]; // Freight이면서 WWEF 미적용
+    card.className = `carrier-card ${cls}`
+      + (state.selectedCards.has(key) ? ' selected' : '')
+      + (noService ? ' no-service' : '')
+      + (isFreightLock ? ' freight-lock' : '');
     card.dataset.key = key;
-    if (!noService) card.onclick = () => toggleCard(key);
+    if (!noService && !isFreightLock) card.onclick = () => toggleCard(key);
 
     if (noService) {
       card.innerHTML = `
@@ -1948,20 +2752,48 @@ function renderResults(res) {
         .join('');
       const hasSur = (c.surs||[]).filter(s=>s.name!=='__freight__').length > 0;
 
+      // FedEx 미국 수입 처리 수수료 (한국→미국 수출, 건당 3,900원, 유류 제외)
+      const isUsRoute   = (res.dest_country === 'United States of America' || res.dest_country === 'United States');
+      const isFedexCard = (key === 'fedex' || key === 'fedex_e');
+      const isExport    = (res.mode === '수출');
+      const usClearFee  = (isUsRoute && isFedexCard && isExport) ? 3900 : 0;
+      const usClearRow  = usClearFee > 0
+        ? `<div class="bd-row sub-item"><span>  미국 수입 처리 수수료</span><span class="bd-val">${fmtWon(usClearFee)}</span></div>`
+        : '';
+
+      // WWEF 적용 여부
+      const isWwef = freightFlag && state.wwef[key];
+      const adjCostBase   = isWwef ? state.wwef[key].total_cost
+                          : (state.lmr[key] ? state.lmr[key].total_cost : c.total_cost) + usClearFee;
+      const adjQuoteBase  = c.total_quote + usClearFee;  // 항상 최신값
+
+      // LMR 적용 시 quote_rows도 최신 c 데이터로 동적 생성
+      const lmrQuoteRowsDynamic = state.lmr[key] ? (() => {
+        const surRowsQ = (c.surs||[])
+          .filter(s => s.name !== '__freight__')
+          .map(s => `<div class="bd-row sub-item"><span>${s.name}</span><span class="bd-val">₩${Math.round(s.amount).toLocaleString('ko-KR')}</span></div>`)
+          .join('');
+        return `<div class="bd-row"><span>항공운임 (견적)${c.disc_rpk ? ` <span style="font-size:.62rem;color:#60a5fa;">(₩${Math.round(c.disc_rpk).toLocaleString()}/kg)</span>` : ''}</span><span class="bd-val">₩${Math.round(c.pub_disc||0).toLocaleString('ko-KR')}</span></div>`
+          + surRowsQ
+          + `<div class="bd-row sub-item"><span>유류할증료</span><span class="bd-val">₩${Math.round((c.pub_fuel||0)+(c.sur_fuel_pub||0)).toLocaleString('ko-KR')}</span></div>`;
+      })() : null;
+
       card.innerHTML = `
         <div class="card-check">✓</div>
-        <div class="card-badge ${badge}">${label}${zoneBadge}${isBest ? '<span class="card-best-badge">🏆 최저</span>' : ''}${(key==='dhl' && c.surcharge_5pct) ? '<span style="background:#f59e0b;color:#1a1a00;font-size:.6rem;font-weight:900;padding:1px 5px;border-radius:3px;margin-left:5px;">⚡+5%</span>' : ''}</div>
+        <div class="card-badge ${badge}">${label}${zoneBadge}${isBest ? '<span class="card-best-badge">🏆 최저</span>' : ''}${(key==='dhl' && c.surcharge_5pct) ? '<span style="background:#f59e0b;color:#1a1a00;font-size:.6rem;font-weight:900;padding:1px 5px;border-radius:3px;margin-left:5px;">⚡+5%</span>' : ''}${_lmrBadgeHtml(key)}${_wwefBadgeHtml(key, freightFlag)}</div>
         <div class="card-meta">
           <span class="meta-tag meta-tt">⏱ ${tt}</span>
           ${c.disc_rpk ? `<span class="meta-tag" style="background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3);">₩${Math.round(c.disc_rpk).toLocaleString()}/kg</span>` : ''}
           ${freightFlag ? '<span style="color:#f87171;font-size:.65rem;font-weight:700;">⚡Freight전환</span>' : ''}
         </div>
+        ${freightFlag && !state.wwef[key] ? _wwefPanelHtml(key) : ''}
+        ${(key==='fedex'||key==='fedex_e') && !state.lmr[key] ? _lmrPanelHtml(key) : ''}
         <div class="card-top-row">
           <div class="card-top-left">
-            <div class="card-quote" style="color:var(--acc-bright);">${fmtWon(c.total_quote)}</div>
+            <div class="card-quote" style="color:var(--acc-bright);">${fmtWon(adjQuoteBase)}</div>
             <div class="card-cost-bar">
               <span class="cost-bar-label">원가</span>
-              <span class="cost-bar-val">${fmtWon(c.total_cost)}</span>
+              <span class="cost-bar-val">${fmtWon(adjCostBase)}</span>
               ${c.net_fee > 0 ? `<span class="cost-bar-fee">+수수료 ${fmtWon(c.net_fee)}</span>` : ''}
             </div>
           </div>
@@ -1975,29 +2807,35 @@ function renderResults(res) {
               <div class="dc-num">${(c.disc_pct||0).toFixed(0)}%</div>
               <div class="dc-lbl">${res.mode === '수입' ? '매입할인' : '고객할인'}</div>
             </div>
-            <div class="margin-circle ${marginRate >= tgt ? 'mc-ok' : marginRate >= tgt*0.5 ? 'mc-warn' : 'mc-bad'}">
-              <div class="mc-num">${fmtPct(marginRate)}</div>
+            <div class="margin-circle ${(adjQuoteBase>0?(adjQuoteBase-adjCostBase)/adjQuoteBase*100:0) >= tgt ? 'mc-ok' : (adjQuoteBase>0?(adjQuoteBase-adjCostBase)/adjQuoteBase*100:0) >= tgt*0.5 ? 'mc-warn' : 'mc-bad'}">
+              <div class="mc-num">${adjQuoteBase>0?fmtPct((adjQuoteBase-adjCostBase)/adjQuoteBase*100):'0%'}</div>
               <div class="mc-lbl">마진 (목표${state.tgtMargin}%)</div>
             </div>
           </div>
         </div>
-        <div class="section-cost">
+        <div class="section-cost${isWwef ? ' wwef-mode' : state.lmr[key] ? ' lmr-mode' : ''}">
           <div class="detail-header-cost" style="display:flex;justify-content:space-between;align-items:center;">
-            <span>💰 원가 상세</span>
-            <span style="font-size:.68rem;font-weight:800;color:${marginRate>=tgt?'#4ade80':marginRate>=tgt*0.5?'#fbbf24':'#f87171'};">마진 ${fmtWon(c.total_quote - c.total_cost)}</span>
+            <span>💰 원가 상세${state.lmr[key] ? ' <span style="font-size:.6rem;background:#dc2626;color:#fff;padding:1px 5px;border-radius:3px;">LMR</span>' : ''}</span>
+            <span style="font-size:.68rem;font-weight:800;color:${(adjQuoteBase>0?(adjQuoteBase-adjCostBase)/adjQuoteBase*100:0)>=tgt?'#4ade80':(adjQuoteBase>0?(adjQuoteBase-adjCostBase)/adjQuoteBase*100:0)>=tgt*0.5?'#fbbf24':'#f87171'};">마진 ${fmtWon(adjQuoteBase - adjCostBase)}</span>
           </div>
+          ${isWwef ? state.wwef[key].cost_rows
+            : freightFlag ? `<div class="freight-notice">⚠️ Freight 진행불가<br>WWEF로만 진행</div>`
+            : `
           <div class="bd-row"><span>항공운임 (원가)</span><span class="bd-val">${fmtWon(c.net_base)}</span></div>
           ${c.net_fee > 0 ? `<div class="bd-row sub-item"><span>계정수수료 3%</span><span class="bd-val">${fmtWon(c.net_fee)}</span></div>` : ''}
           ${surRows}
-          <div class="bd-row sub-item"><span>유류할증료 (원가)</span><span class="bd-val">${fmtWon((c.net_fuel||0)+(c.sur_fuel||0))}</span></div>
-          <div class="bd-row total-row"><span>▶ 원가 합계</span><span class="bd-val">${fmtWon(c.total_cost)}</span></div>
+          <div class="bd-row sub-item"><span>유류할증료 (원가)</span><span class="bd-val">${fmtWon((c.net_fuel||0)+(c.sur_fuel||0))}</span></div>`}
+          ${usClearRow}
+          <div class="bd-row total-row"><span>▶ 원가 합계</span><span class="bd-val">${fmtWon(adjCostBase)}</span></div>
         </div>
         <div class="section-quote">
           <div class="detail-header-quote">📋 청구가 상세</div>
+          ${state.lmr[key] ? lmrQuoteRowsDynamic : `
           <div class="bd-row"><span>항공운임 (견적)${c.disc_rpk ? `<span style="font-size:.62rem;color:#60a5fa;margin-left:5px;">(₩${Math.round(c.disc_rpk).toLocaleString()}/kg)</span>` : ''}</span><span class="bd-val">${fmtWon(c.pub_disc)}</span></div>
           ${hasSur ? surRows : ''}
-          <div class="bd-row sub-item"><span>유류할증료</span><span class="bd-val">${fmtWon((c.pub_fuel||0)+(c.sur_fuel_pub||0))}</span></div>
-          <div class="bd-row total-row"><span>▶ 견적가 (고객)</span><span class="bd-val" style="color:var(--acc-bright);font-size:.88rem;">${fmtWon(c.total_quote)}</span></div>
+          <div class="bd-row sub-item"><span>유류할증료</span><span class="bd-val">${fmtWon((c.pub_fuel||0)+(c.sur_fuel_pub||0))}</span></div>`}
+          ${usClearRow}
+          <div class="bd-row total-row"><span>▶ 견적가 (고객)</span><span class="bd-val" style="color:var(--acc-bright);font-size:.88rem;">${fmtWon(adjQuoteBase)}</span></div>
         </div>`;
     }
 
@@ -2050,21 +2888,40 @@ function buildEmailHtml(res) {
   selectedArr.forEach(key => {
     const c      = res.carriers[key];
     const name   = CNAME[key] || key.toUpperCase();
+    const lmrTag = (key==='fedex'||key==='fedex_e') && state.lmr[key] ? ' [이번주 중량화물 특가적용]'
+                 : key.startsWith('ups') && state.wwef[key] ? ' [UPS 중량화물 특가적용]' : '';
     const tt     = TTMAP[key] || '—';
     const expiry = FEXPIRY[key] || '';
     const fuelPct = (c.fuel_pct||0).toFixed(2);
     const base    = Math.round(c.pub_disc || c.pub_base || 0);
     const fuelAmt = Math.round((c.pub_fuel||0)+(c.sur_fuel_pub||0));
-    const total   = Math.round(c.total_quote||0);
+    const isUsEmail   = (res.dest_country === 'United States of America' || res.dest_country === 'United States');
+    const isFedexEmail = (key === 'fedex' || key === 'fedex_e');
+    const emailUsClearFee = (isUsEmail && isFedexEmail && res.mode === '수출') ? 3900 : 0;
+    const total   = Math.round((c.total_quote||0) + emailUsClearFee);
     const rpk     = c.disc_rpk ? ` (${Math.round(c.disc_rpk).toLocaleString('ko-KR')}원/kg)` : '';
     const surs    = (c.surs||[]);
-    lines.push(''); lines.push(name); lines.push('');
-    lines.push(`유류할증료 : ${fuelPct}% (${expiry})`);
-    lines.push('');
-    lines.push(`운임${rpk} : ${base.toLocaleString('ko-KR')}원`);
-    lines.push(`유류할증료 : ${fuelAmt.toLocaleString('ko-KR')}원`);
-    surs.forEach(s => lines.push(`${s.name} : ${Math.round(s.amount).toLocaleString('ko-KR')}원`));
-    lines.push(''); lines.push(`TOTAL : ${total.toLocaleString('ko-KR')}원`);
+    lines.push(''); lines.push(name + lmrTag); lines.push('');
+    if (state.lmr[key]) {
+      // LMR 적용 시 — 청구가는 최신 c 데이터(할인율 반영) 사용
+      lines.push(`유류할증료 : ${fuelPct}% (${expiry})`);
+      lines.push('');
+      lines.push(`운임${rpk} : ${base.toLocaleString('ko-KR')}원`);
+      lines.push(`유류할증료 : ${fuelAmt.toLocaleString('ko-KR')}원`);
+      surs.filter(s=>s.name!=='__freight__').forEach(s =>
+        lines.push(`${s.name} : ${Math.round(s.amount).toLocaleString('ko-KR')}원`)
+      );
+      if (emailUsClearFee > 0) lines.push(`미국 수입 처리 수수료 : ${emailUsClearFee.toLocaleString('ko-KR')}원`);
+      lines.push(''); lines.push(`TOTAL : ${total.toLocaleString('ko-KR')}원`);
+    } else {
+      lines.push(`유류할증료 : ${fuelPct}% (${expiry})`);
+      lines.push('');
+      lines.push(`운임${rpk} : ${base.toLocaleString('ko-KR')}원`);
+      lines.push(`유류할증료 : ${fuelAmt.toLocaleString('ko-KR')}원`);
+      surs.forEach(s => lines.push(`${s.name} : ${Math.round(s.amount).toLocaleString('ko-KR')}원`));
+      if (emailUsClearFee > 0) lines.push(`미국 수입 처리 수수료 : ${emailUsClearFee.toLocaleString('ko-KR')}원`);
+      lines.push(''); lines.push(`TOTAL : ${total.toLocaleString('ko-KR')}원`);
+    }
     lines.push('');
     lines.push(`T/TIME : 항공사 사정 및 통관상 지연이 없을 시 영업일 기준으로 대략 ${tt} 소요 예상됩니다.`);
   });
@@ -2104,7 +2961,7 @@ function generatePdf() {
   if (!state.lastResult) return;
   const res         = state.lastResult;
   const quoteNum    = document.getElementById('quoteNum').value;
-  const customer    = (document.getElementById('customerInput').value || '—').replace(/\s+\(.*/, '').trim() || '—';
+  const customer    = cleanCustomerName(document.getElementById('customerInput').value) || '—';
   const custContact = document.getElementById('custContactInput')?.value || '—';
   const staffName   = document.getElementById('staffSelect').value || '—';
   const notes       = document.getElementById('notesInput')?.value || '';
@@ -2149,26 +3006,54 @@ function generatePdf() {
     const c       = res.carriers[key];
     const name    = PDF_NAME[key] || key.toUpperCase();
     const tt      = TT_MAP[key] || '—';
-    const base    = Math.round(c.pub_disc || c.pub_base || 0);
-    const fuelPct = (c.fuel_pct||0).toFixed(2);
-    const fuelAmt = Math.round((c.pub_fuel||0)+(c.sur_fuel_pub||0));
-    const surs    = (c.surs||[]);
+    const lmr     = state.lmr[key];
+    const wwef    = state.wwef[key];
+    const lmrTag  = lmr  ? `<div style="text-align:center;font-size:8px;font-weight:900;color:#dc2626;letter-spacing:.04em;padding:2px 0;background:#fff5f5;">🔴 이번주 중량화물 특가적용</div>`
+                  : wwef ? `<div style="text-align:center;font-size:8px;font-weight:900;color:#d97706;letter-spacing:.04em;padding:2px 0;background:#fffbeb;">🟠 UPS 중량화물 특가적용</div>` : '';
+    // 청구가는 항상 최신 c.total_quote 사용 (할인율 변경 반영)
     const total   = Math.round(c.total_quote||0);
-    const surLines = surs.map(s =>
-      `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:10px;">
-        <span style="color:#555;">${s.name}</span>
-        <span>₩${Math.round(s.amount).toLocaleString('ko-KR')}</span>
-      </div>`).join('');
-    return `<div class="rate-card" style="border:1px solid #dee2e6;border-radius:4px;overflow:hidden;">
-      <div style="background:#003366;color:#fff;font-weight:800;font-size:11px;padding:6px 10px;text-align:center;letter-spacing:.5px;">${name}</div>
-      <div style="padding:8px 10px;">
+    const fuelPct = (c.fuel_pct||0).toFixed(2);
+    const surs    = (c.surs||[]);
+    const base    = Math.round(c.pub_disc || c.pub_base || 0);
+    const fuelAmt = Math.round((c.pub_fuel||0)+(c.sur_fuel_pub||0));
+
+    let itemLines = '';
+    if (lmr) {
+      // LMR: 청구가 줄은 최신 c 데이터로 직접 생성
+      const surLinesPdf = surs.filter(s=>s.name!=='__freight__').map(s =>
+        `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:10px;">
+          <span style="color:#555;">${s.name}</span>
+          <span>₩${Math.round(s.amount).toLocaleString('ko-KR')}</span>
+        </div>`).join('');
+      itemLines = `
         <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0;font-size:11px;">
           <span style="color:#666;">기본운임</span><span>₩${base.toLocaleString('ko-KR')}</span>
         </div>
         <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0;font-size:11px;">
           <span style="color:#666;">유류할증료 (${fuelPct}%)</span><span>₩${fuelAmt.toLocaleString('ko-KR')}</span>
         </div>
-        ${surLines ? `<div style="border-bottom:1px solid #f0f0f0;padding:2px 0;">${surLines}</div>` : ''}
+        ${surLinesPdf ? `<div style="border-bottom:1px solid #f0f0f0;padding:2px 0;">${surLinesPdf}</div>` : ''}`;
+    } else {
+      const surLines = surs.map(s =>
+        `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:10px;">
+          <span style="color:#555;">${s.name}</span>
+          <span>₩${Math.round(s.amount).toLocaleString('ko-KR')}</span>
+        </div>`).join('');
+      itemLines = `
+        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0;font-size:11px;">
+          <span style="color:#666;">기본운임</span><span>₩${base.toLocaleString('ko-KR')}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0;font-size:11px;">
+          <span style="color:#666;">유류할증료 (${fuelPct}%)</span><span>₩${fuelAmt.toLocaleString('ko-KR')}</span>
+        </div>
+        ${surLines ? `<div style="border-bottom:1px solid #f0f0f0;padding:2px 0;">${surLines}</div>` : ''}`;
+    }
+
+    return `<div class="rate-card" style="border:1px solid #dee2e6;border-radius:4px;overflow:hidden;">
+      <div style="background:#003366;color:#fff;font-weight:800;font-size:11px;padding:6px 10px;text-align:center;letter-spacing:.5px;">${name}</div>
+      ${lmrTag}
+      <div style="padding:8px 10px;">
+        ${itemLines}
         <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11px;">
           <span style="color:#666;">소요시간</span><span>${tt}</span>
         </div>
@@ -2360,7 +3245,7 @@ async function runAiScan() {
   fd.append('file', fileInput.files[0]); fd.append('mode','image');
   try {
     const r = await fetch('/api/ai-ocr',{method:'POST',body:fd});
-    const data = await r.json();
+    const data = await safeJson(r);
     if (!data.ok) throw new Error(data.error);
     state.aiResult = data.data; showAiResult(data.data);
   } catch(e) { showToast('❌ '+e.message); }
@@ -2396,7 +3281,7 @@ async function runAiPaste() {
   fd.append('file', state.pasteImageBlob, 'paste.png'); fd.append('mode','image');
   try {
     const r = await fetch('/api/ai-ocr',{method:'POST',body:fd});
-    const data = await r.json();
+    const data = await safeJson(r);
     if (!data.ok) throw new Error(data.error);
     state.aiResult = data.data; showAiResult(data.data);
   } catch(e) { showToast('❌ '+e.message); }
@@ -2410,7 +3295,7 @@ async function runAiText() {
   fd.append('mode','text'); fd.append('text',text);
   try {
     const r = await fetch('/api/ai-ocr',{method:'POST',body:fd});
-    const data = await r.json();
+    const data = await safeJson(r);
     if (!data.ok) throw new Error(data.error);
     state.aiResult = data.data; showAiResult(data.data);
   } catch(e) { showToast('❌ '+e.message); }
@@ -2469,12 +3354,43 @@ function applyAiResult() {
 // ─────────────────────────────────────────────
 // Toast
 // ─────────────────────────────────────────────
+// ── 안전한 JSON 파싱 헬퍼 ─────────────────────────
+// 서버가 HTML 에러 페이지를 반환할 때 "<!doctype..." 파싱 오류 방지
+async function safeJson(response) {
+  const ct = response.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) {
+    const txt = await response.text();
+    throw new Error(`서버 오류 (HTTP ${response.status}) — JSON이 아닌 응답: ${txt.slice(0,120)}`);
+  }
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `서버 오류 (HTTP ${response.status})`);
+  }
+  return response.json();
+}
+
 let _toastTimer;
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+function showPlaneBanner(msg) {
+  const existing = document.getElementById('planeBannerWrap');
+  if (existing) existing.remove();
+  const wrap = document.createElement('div');
+  wrap.id = 'planeBannerWrap';
+  wrap.className = 'plane-banner-wrap';
+  wrap.innerHTML = `
+    <div class="plane-banner-inner">
+      <span class="plane-icon">✈️</span>
+      <span class="plane-rope"></span>
+      <span class="plane-flag">🎉 ${msg}</span>
+    </div>`;
+  document.body.appendChild(wrap);
+  setTimeout(() => { if (wrap.parentNode) wrap.remove(); }, 3000);
 }
 </script>
 </body>
