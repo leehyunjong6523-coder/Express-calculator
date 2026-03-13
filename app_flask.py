@@ -112,15 +112,22 @@ def api_calculate():
     remote_city   = str(d.get("remote_city",   ""))
     customer      = str(d.get("customer",      ""))
 
-    # C/T 데이터 정규화
+    # C/T 데이터 정규화 — 빈 문자열/None 안전 처리
+    def _int(v, default=1):
+        try: return int(float(str(v))) if str(v).strip() != '' else default
+        except: return default
+    def _float(v, default=1.0):
+        try: return float(str(v)) if str(v).strip() != '' else default
+        except: return default
+
     ct_norm = []
     for ct in ct_data:
         ct_norm.append({
-            "wt":  max(0.1, float(ct.get("wt", 1.0))),
-            "L":   max(1,   int(ct.get("L",  10))),
-            "W":   max(1,   int(ct.get("W",  10))),
-            "H":   max(1,   int(ct.get("H",  10))),
-            "qty": max(1,   int(ct.get("qty", 1))),
+            "wt":  max(0.1, _float(ct.get("wt",  1.0))),
+            "L":   max(1,   _int(ct.get("L",   10))),
+            "W":   max(1,   _int(ct.get("W",   10))),
+            "H":   max(1,   _int(ct.get("H",   10))),
+            "qty": max(1,   _int(ct.get("qty",  1))),
         })
 
     try:
@@ -240,7 +247,7 @@ def api_reload_customers():
     try:
         df = load_customer_db()
         names = df["회사명"].tolist() if not df.empty else []
-        return jsonify({"ok": True, "count": len(names), "customers": names[:30]})
+        return jsonify({"ok": True, "count": len(names), "customers": names})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
 def api_customers():
@@ -270,6 +277,46 @@ def api_ai_ocr():
     return jsonify({"ok": True, "data": result})
 
 
+
+@app.route("/api/ai-lmr-text", methods=["POST"])
+def api_ai_lmr_text():
+    """텍스트 붙여넣기 → AI가 항목/금액 파싱"""
+    import anthropic
+    d = request.json or {}
+    text = d.get("text", "").strip()
+    if not text:
+        return jsonify({"ok": False, "error": "텍스트 없음"})
+    try:
+        client = anthropic.Anthropic()
+        msg = client.messages.create(
+            model="claude-opus-4-5",
+            max_tokens=512,
+            messages=[{
+                "role": "user",
+                "content": f"""아래 운임 텍스트에서 항목별 금액을 추출해줘.
+반드시 JSON만 반환하고 다른 설명 없이:
+{{"items":[{{"name":"항목명","amount":숫자}},...],"total":합계숫자}}
+
+규칙:
+- amount는 원화 정수 (₩, 쉼표 제거)
+- 합계/총액/TOTAL 항목은 items에서 제외하고 total에만 사용
+- items에 최소 1개 이상
+
+텍스트:
+{text}"""
+            }]
+        )
+        import json, re
+        raw = msg.content[0].text.strip()
+        raw = re.sub(r"```[a-z]*", "", raw).replace("```", "").strip()
+        parsed = json.loads(raw)
+        items = parsed.get("items", [])
+        total = parsed.get("total") or sum(i["amount"] for i in items)
+        return jsonify({"ok": True, "items": items, "total": total})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
 @app.route("/api/pdf", methods=["POST"])
 def api_pdf():
     if not PDF_AVAILABLE:
@@ -295,6 +342,22 @@ def api_settings():
         if k in d:
             session[k] = d[k]
     return jsonify({"ok": True})
+
+
+
+
+# ── 글로벌 에러 핸들러: HTML 대신 JSON 반환 ──────────────────
+@app.errorhandler(404)
+def err_404(e):
+    return jsonify({"ok": False, "error": f"404 Not Found: {request.path}"}), 404
+
+@app.errorhandler(500)
+def err_500(e):
+    return jsonify({"ok": False, "error": f"500 Internal Server Error: {str(e)}"}), 500
+
+@app.errorhandler(Exception)
+def err_any(e):
+    return jsonify({"ok": False, "error": str(e)}), 500
 
 
 if __name__ == "__main__":
