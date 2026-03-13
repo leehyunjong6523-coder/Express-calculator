@@ -2819,6 +2819,7 @@ function renderResults(res) {
             <span style="font-size:.68rem;font-weight:800;color:${(adjQuoteBase>0?(adjQuoteBase-adjCostBase)/adjQuoteBase*100:0)>=tgt?'#4ade80':(adjQuoteBase>0?(adjQuoteBase-adjCostBase)/adjQuoteBase*100:0)>=tgt*0.5?'#fbbf24':'#f87171'};">마진 ${fmtWon(adjQuoteBase - adjCostBase)}</span>
           </div>
           ${isWwef ? state.wwef[key].cost_rows
+            : state.lmr[key] ? state.lmr[key].cost_rows
             : freightFlag ? `<div class="freight-notice">⚠️ Freight 진행불가<br>WWEF로만 진행</div>`
             : `
           <div class="bd-row"><span>항공운임 (원가)</span><span class="bd-val">${fmtWon(c.net_base)}</span></div>
