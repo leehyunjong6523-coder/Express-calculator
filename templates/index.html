@@ -1382,14 +1382,8 @@ body.mode-imp .tb-calc-btn { background: linear-gradient(135deg, #9d174d, #be185
     <!-- Weight info panel -->
     <div class="wt-panel" id="wtPanel" style="display:none;">
       <div style="display:flex;align-items:stretch;gap:20px;">
-        <!-- 운임계산 버튼 -->
-        <div style="display:flex;flex-direction:column;justify-content:center;flex-shrink:0;">
-          <button class="calc-btn" onclick="mobileCalculate()" id="calcBtn"
-            style="height:56px;min-width:130px;font-size:.95rem;white-space:nowrap;letter-spacing:.02em;">⚡ 운임 계산</button>
-        </div>
-        <div style="width:1px;background:var(--border);flex-shrink:0;"></div>
-        <!-- 화물정보 (오른쪽으로) -->
-        <div id="wtCtDetail" style="flex:1;min-width:0;padding-left:8px;"></div>
+        <!-- 화물정보 -->
+        <div id="wtCtDetail" style="flex:1;min-width:0;"></div>
         <div style="display:flex;flex-direction:column;justify-content:center;gap:6px;min-width:240px;border-left:1px solid var(--border);padding-left:16px;">
           <div style="font-size:11px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">📏 중량 요약</div>
           <div style="display:flex;gap:12px;">
@@ -1403,7 +1397,12 @@ body.mode-imp .tb-calc-btn { background: linear-gradient(135deg, #9d174d, #be185
             </div>
             <div style="text-align:center;flex:1;">
               <div class="wt-num" id="wtCharge" style="color:#4ade80;">—</div>
-              <div class="wt-lbl">청구중량 (kg)</div>
+              <div class="wt-lbl">청구중량 (기준)</div>
+              <div style="margin-top:4px;font-size:.62rem;line-height:1.6;color:var(--text-dim);text-align:left;">
+                <span style="color:#D40511;font-weight:700;">DHL</span> <span id="wtChargeDhl" style="font-family:var(--mono);color:#f87171;">—</span> kg<br>
+                <span style="color:#4D148C;font-weight:700;">FedEx</span> <span id="wtChargeFedex" style="font-family:var(--mono);color:#a78bfa;">—</span> kg<br>
+                <span style="color:#92400e;font-weight:700;">UPS</span> <span id="wtChargeUps" style="font-family:var(--mono);color:#fbbf24;">—</span> kg
+              </div>
             </div>
           </div>
         </div>
@@ -2667,6 +2666,24 @@ function renderResults(res) {
   document.getElementById('wtActual').textContent  = res.total_actual_wt.toFixed(1);
   document.getElementById('wtVol').textContent     = res.total_vol_wt.toFixed(1);
   document.getElementById('wtCharge').textContent  = res.total_chargeable.toFixed(1);
+  // 캐리어별 청구중량
+  const _wdhl = res.wt_dhl   != null ? res.wt_dhl   : res.total_chargeable;
+  const _wfx  = res.wt_fedex != null ? res.wt_fedex : res.total_chargeable;
+  const _wups = res.wt_ups   != null ? res.wt_ups   : res.total_chargeable;
+  const _allSame = (_wdhl === _wfx && _wfx === _wups);
+  // 청구중량 기준 표시: 모두 같으면 그 값, 다르면 raw값(소수점 표시)
+  document.getElementById('wtCharge').textContent = _allSame
+    ? Number(_wdhl).toFixed(1)
+    : res.total_chargeable.toFixed(1);
+  const _cwtDetail = document.getElementById('wtChargeDhl').parentElement;
+  if (_allSame) {
+    _cwtDetail.style.display = 'none';
+  } else {
+    _cwtDetail.style.display = '';
+    document.getElementById('wtChargeDhl').textContent   = Number(_wdhl).toFixed(1);
+    document.getElementById('wtChargeFedex').textContent = Number(_wfx).toFixed(1);
+    document.getElementById('wtChargeUps').textContent   = Number(_wups).toFixed(1);
+  }
 
 
   const ctDiv = document.getElementById('wtCtDetail');
@@ -2730,6 +2747,7 @@ function renderResults(res) {
     const tgt         = state.tgtMargin || 30;
     const zoneNum     = res[zoneKey];
     const zoneBadge   = zoneNum ? `<span class="card-zone-badge">ZONE ${zoneNum}</span>` : '';
+    const cardCwt     = c.chargeable_wt != null ? c.chargeable_wt : res.total_chargeable;
 
     const card = document.createElement('div');
     const isFreightLock = freightFlag && !state.wwef[key]; // Freight이면서 WWEF 미적용
@@ -2822,7 +2840,7 @@ function renderResults(res) {
             : state.lmr[key] ? state.lmr[key].cost_rows
             : freightFlag ? `<div class="freight-notice">⚠️ Freight 진행불가<br>WWEF로만 진행</div>`
             : `
-          <div class="bd-row"><span>항공운임 (원가)</span><span class="bd-val">${fmtWon(c.net_base)}</span></div>
+          <div class="bd-row"><span>항공운임 (원가) <span style="font-size:.62rem;color:#f0a060;opacity:.7;">${cardCwt}kg</span></span><span class="bd-val">${fmtWon(c.net_base)}</span></div>
           ${c.net_fee > 0 ? `<div class="bd-row sub-item"><span>계정수수료 3%</span><span class="bd-val">${fmtWon(c.net_fee)}</span></div>` : ''}
           ${surRows}
           <div class="bd-row sub-item"><span>유류할증료 (원가)</span><span class="bd-val">${fmtWon((c.net_fuel||0)+(c.sur_fuel||0))}</span></div>`}
@@ -2832,7 +2850,7 @@ function renderResults(res) {
         <div class="section-quote">
           <div class="detail-header-quote">📋 청구가 상세</div>
           ${state.lmr[key] ? lmrQuoteRowsDynamic : `
-          <div class="bd-row"><span>항공운임 (견적)${c.disc_rpk ? `<span style="font-size:.62rem;color:#60a5fa;margin-left:5px;">(₩${Math.round(c.disc_rpk).toLocaleString()}/kg)</span>` : ''}</span><span class="bd-val">${fmtWon(c.pub_disc)}</span></div>
+          <div class="bd-row"><span>항공운임 (견적) <span style="font-size:.62rem;color:#60a5fa;opacity:.7;">${cardCwt}kg</span>${c.disc_rpk ? `<span style="font-size:.62rem;color:#60a5fa;margin-left:5px;">(₩${Math.round(c.disc_rpk).toLocaleString()}/kg)</span>` : ''}</span><span class="bd-val">${fmtWon(c.pub_disc)}</span></div>
           ${hasSur ? surRows : ''}
           <div class="bd-row sub-item"><span>유류할증료</span><span class="bd-val">${fmtWon((c.pub_fuel||0)+(c.sur_fuel_pub||0))}</span></div>`}
           ${usClearRow}
@@ -2880,11 +2898,27 @@ function buildEmailHtml(res) {
     ? `${state.ctData[0].L}X${state.ctData[0].W}X${state.ctData[0].H}cm`
     : `${state.ctData.length}종`;
 
+  // 선택된 캐리어 기준 청구중량 (복수 선택 시 각각 표시)
+  function _getCwt(key) {
+    const cw = res.carriers[key]?.chargeable_wt;
+    return cw != null ? cw : res.total_chargeable;
+  }
+
+  // 청구중량 헤더: 모두 같으면 단일 표시
+  const _eWd = res.wt_dhl   || res.total_chargeable;
+  const _eWf = res.wt_fedex || res.total_chargeable;
+  const _eWu = res.wt_ups   || res.total_chargeable;
+  const _eAllSame = (_eWd === _eWf && _eWf === _eWu);
+
   let lines = [];
   lines.push(`C/T : ${totalPkg} PKG`);
   lines.push(`W/T : ${totalWt}kg`);
   lines.push(`SIZE : ${sizeStr}`);
-  lines.push(`CHARGEABLE WEIGHT : ${chgWt}kg`);
+  if (_eAllSame) {
+    lines.push(`CHARGEABLE WEIGHT : ${Number(_eWd).toFixed(1)}kg`);
+  } else {
+    lines.push(`CHARGEABLE WEIGHT : DHL ${Number(_eWd).toFixed(1)}kg / FedEx ${Number(_eWf).toFixed(1)}kg / UPS ${Number(_eWu).toFixed(1)}kg`);
+  }
 
   selectedArr.forEach(key => {
     const c      = res.carriers[key];
@@ -2903,6 +2937,9 @@ function buildEmailHtml(res) {
     const rpk     = c.disc_rpk ? ` (${Math.round(c.disc_rpk).toLocaleString('ko-KR')}원/kg)` : '';
     const surs    = (c.surs||[]);
     lines.push(''); lines.push(name + lmrTag); lines.push('');
+    const cwt = _getCwt(key);
+    // 상단 공통 청구중량과 다를 때만 캐리어별 청구중량 출력
+    if (!_eAllSame) lines.push(`청구중량 : ${cwt}kg`);
     if (state.lmr[key]) {
       // LMR 적용 시 — 청구가는 최신 c 데이터(할인율 반영) 사용
       lines.push(`유류할증료 : ${fuelPct}% (${expiry})`);
@@ -3147,7 +3184,13 @@ function generatePdf() {
       <div class="info-row"><span class="info-label">부피 중량 (Vol. Weight)</span><span>${res.total_vol_wt.toFixed(1)} kg</span></div>
       <div class="info-row" style="color:#003366;">
         <span class="info-label" style="color:#003366;font-weight:700;">청구 중량 (Chg. Weight)</span>
-        <span style="font-weight:800;">${res.total_chargeable.toFixed(1)} kg</span>
+        <span style="font-weight:800;">${(() => {
+          const d = res.wt_dhl||res.total_chargeable;
+          const f = res.wt_fedex||res.total_chargeable;
+          const u = res.wt_ups||res.total_chargeable;
+          if (d === f && f === u) return d.toFixed(1) + ' kg';
+          return `DHL ${d.toFixed(1)}kg / FedEx ${f.toFixed(1)}kg / UPS ${u.toFixed(1)}kg`;
+        })()}</span>
       </div>
       <div class="info-row"><span class="info-label">청구 기준</span>
         <span>${res.total_vol_wt > res.total_actual_wt ? '부피중량 (Vol.Weight)' : '실중량 (Act.Weight)'}</span>
