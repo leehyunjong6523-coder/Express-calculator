@@ -979,6 +979,21 @@ def ceil10(x):
     """10원 단위 올림 (1의 자리 항상 0)"""
     return math.ceil(x / 10) * 10
 
+def round_wt_dhl(w):
+    """DHL 청구중량: 30kg 이하 0.5kg 단위, 초과 시 1kg 올림"""
+    if w <= 30: return math.ceil(w * 2) / 2
+    return math.ceil(w)
+
+def round_wt_fedex(w):
+    """FedEx 청구중량: 20.5kg 이하 0.5kg 단위, 초과 시 1kg 올림"""
+    if w <= 20.5: return math.ceil(w * 2) / 2
+    return math.ceil(w)
+
+def round_wt_ups(w):
+    """UPS 청구중량: 20kg 이하 0.5kg 단위, 초과 시 1kg 올림"""
+    if w <= 20: return math.ceil(w * 2) / 2
+    return math.ceil(w)
+
 def dhl_lookup(w, zi, is_doc):
     pt = DHL_PUB_DOC if (is_doc and w <= 2.0) else DHL_PUB_NDC
     nt = DHL_NET_DOC if (is_doc and w <= 2.0) else DHL_NET_NDC
@@ -1934,6 +1949,11 @@ def run_calculation(
 
     _total_w = total_chargeable   # ← 루프 종료 후 즉시 확정
 
+    # ── 캐리어별 청구중량 (반올림 기준 상이) ──
+    _wt_dhl   = round_wt_dhl(_total_w)
+    _wt_fedex = round_wt_fedex(_total_w)
+    _wt_ups   = round_wt_ups(_total_w)
+
     total_sur_dhl   = sum(v for k, v in sur_dhl_ct.items() if k != "__freight__")
 
     # 외곽지역 수수료 중량 확정 후 재계산 (max(35,000, 750×청구중량))
@@ -2045,12 +2065,15 @@ def run_calculation(
         "total_actual_wt":   round(total_actual_wt, 1),
         "total_vol_wt":      round(total_vol_wt, 1),
         "total_chargeable":  round(total_chargeable, 1),
+        "wt_dhl":            _wt_dhl,
+        "wt_fedex":          _wt_fedex,
+        "wt_ups":            _wt_ups,
         "carriers": {
             # disc_rpk = 실제 청구 항공운임 ÷ 청구중량 → 10원 단위 올림
-            "dhl":     {**res_dhl,     "surs": _sur_list(sur_dhl_ct),   "fuel_pct": fuel_dhl,   "disc_pct": disc_dhl,    "surcharge_5pct": _dhl_5pct, "rpk": dhl_rpk,   "disc_rpk": ceil10(res_dhl.get("pub_disc",0)   / total_chargeable) if dhl_rpk   and total_chargeable else None},
-            "fedex":   {**res_fedex,   "surs": _sur_list(sur_fedex_ct), "fuel_pct": fuel_fedex, "disc_pct": disc_fedex,  "rpk": fx_rpk,    "disc_rpk": ceil10(res_fedex.get("pub_disc",0)  / total_chargeable) if fx_rpk    and total_chargeable else None},
-            "fedex_e": {**res_fedex_e, "surs": _sur_list(sur_fedex_ct), "fuel_pct": fuel_fedex, "disc_pct": disc_fedex_e,"rpk": fx_ec_rpk, "disc_rpk": ceil10(res_fedex_e.get("pub_disc",0)/ total_chargeable) if fx_ec_rpk and total_chargeable else None},
-            "ups2f":   {**res_ups2f,   "surs": _sur_list(sur_ups_ct),   "fuel_pct": fuel_ups,   "disc_pct": disc_ups,    "rpk": ups_rpk,   "disc_rpk": ceil10(res_ups2f.get("pub_disc",0)  / total_chargeable) if ups_rpk   and total_chargeable else None},
-            "upsb8":   {**res_upsb8,   "surs": _sur_list(sur_ups_ct),   "fuel_pct": fuel_ups,   "disc_pct": disc_ups_b8, "rpk": ups_rpk,   "disc_rpk": ceil10(res_upsb8.get("pub_disc",0)  / total_chargeable) if ups_rpk   and total_chargeable else None},
+            "dhl":     {**res_dhl,     "surs": _sur_list(sur_dhl_ct),   "fuel_pct": fuel_dhl,   "disc_pct": disc_dhl,    "surcharge_5pct": _dhl_5pct, "rpk": dhl_rpk,   "disc_rpk": ceil10(res_dhl.get("pub_disc",0)   / _wt_dhl)   if dhl_rpk   and _wt_dhl   else None, "chargeable_wt": _wt_dhl},
+            "fedex":   {**res_fedex,   "surs": _sur_list(sur_fedex_ct), "fuel_pct": fuel_fedex, "disc_pct": disc_fedex,  "rpk": fx_rpk,    "disc_rpk": ceil10(res_fedex.get("pub_disc",0)  / _wt_fedex) if fx_rpk    and _wt_fedex else None, "chargeable_wt": _wt_fedex},
+            "fedex_e": {**res_fedex_e, "surs": _sur_list(sur_fedex_ct), "fuel_pct": fuel_fedex, "disc_pct": disc_fedex_e,"rpk": fx_ec_rpk, "disc_rpk": ceil10(res_fedex_e.get("pub_disc",0)/ _wt_fedex) if fx_ec_rpk and _wt_fedex else None, "chargeable_wt": _wt_fedex},
+            "ups2f":   {**res_ups2f,   "surs": _sur_list(sur_ups_ct),   "fuel_pct": fuel_ups,   "disc_pct": disc_ups,    "rpk": ups_rpk,   "disc_rpk": ceil10(res_ups2f.get("pub_disc",0)  / _wt_ups)   if ups_rpk   and _wt_ups   else None, "chargeable_wt": _wt_ups},
+            "upsb8":   {**res_upsb8,   "surs": _sur_list(sur_ups_ct),   "fuel_pct": fuel_ups,   "disc_pct": disc_ups_b8, "rpk": ups_rpk,   "disc_rpk": ceil10(res_upsb8.get("pub_disc",0)  / _wt_ups)   if ups_rpk   and _wt_ups   else None, "chargeable_wt": _wt_ups},
         }
     }
