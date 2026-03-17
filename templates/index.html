@@ -1661,6 +1661,8 @@ function cleanCustomerName(raw) {
     .replace(/\s*\(할인[^)]*\)/g, '')
     .replace(/\s*\(특가[^)]*\)/g, '')
     .replace(/\s*\([^)]*%[^)]*\)/g, '')   // 퍼센트 포함 괄호 전체 제거
+    .replace(/\s*\(\s*구\s*[:：]?[^)]*\)/g, '') // (구 : ...) / (구: ...) 제거
+    .replace(/\s+[A-Z0-9]{2,}$/g, '')     // 후행 영문 약어 제거 (예: NXO, ABC)
     .trim();
 }
 
