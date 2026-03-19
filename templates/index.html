@@ -595,8 +595,7 @@ body.mode-imp .tb-calc-btn { background: linear-gradient(135deg, #9d174d, #be185
 }
 .loader-overlay {
   position: fixed; inset:0; z-index:99999;
-  background: rgba(10,12,18,.88);
-  backdrop-filter: blur(6px);
+  background: rgba(10,12,18,.72);
   display: flex; flex-direction:column;
   align-items:center; justify-content:center;
   animation: loaderFadeIn .2s ease;
@@ -2121,9 +2120,10 @@ async function lmrRunScan(key) {
   if (!fileInput.files[0]) { showToast('파일을 선택하세요'); return; }
   const btn = document.getElementById(`lmrScanBtn_${key}`);
   btn.disabled = true;
-  showLoader('AI 분석중', 'ANALYZING IMAGE...', '🔍');
+  showLoader('LMR AI 분석중', 'ANALYZING RATE...', '🔍');
+  const cmpLmrFile = await compressImage(fileInput.files[0]);
   const fd = new FormData();
-  fd.append('file', fileInput.files[0]); fd.append('mode', 'lmr');
+  fd.append('file', cmpLmrFile, 'image.jpg'); fd.append('mode', 'lmr');
   try {
     await _lmrCallAI(key, fd);
   } finally { btn.disabled = false; hideLoader(); }
@@ -2133,9 +2133,11 @@ async function lmrRunPaste(key) {
   const blob = state.lmrPasteBlob[key];
   if (!blob) { showToast('이미지를 먼저 붙여넣으세요'); return; }
   const btn = document.getElementById(`lmrPasteBtn_${key}`);
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>AI 분석 중...';
+  btn.disabled = true;
+  showLoader('LMR AI 분석중', 'ANALYZING IMAGE...', '🔍');
+  const cmpLmrPaste = await compressImage(blob);
   const fd = new FormData();
-  fd.append('file', blob, 'lmr_paste.png'); fd.append('mode', 'lmr');
+  fd.append('file', cmpLmrPaste, 'paste.jpg'); fd.append('mode', 'lmr');
   try {
     await _lmrCallAI(key, fd);
   } finally { btn.disabled = false; hideLoader(); }
@@ -2272,8 +2274,9 @@ async function wwefRunScan(key) {
   const btn = document.getElementById(`wwefScanBtn_${key}`);
   btn.disabled = true;
   showLoader('WWEF AI 분석중', 'ANALYZING RATE...', '🔍');
+  const cmpWwefFile = await compressImage(fileInput.files[0]);
   const fd = new FormData();
-  fd.append('file', fileInput.files[0]);
+  fd.append('file', cmpWwefFile, 'image.jpg');
   await _wwefCallAI(key, fd);
   btn.disabled = false; hideLoader();
 }
@@ -2283,8 +2286,9 @@ async function wwefRunPaste(key) {
   const btn = document.getElementById(`wwefPasteBtn_${key}`);
   btn.disabled = true;
   showLoader('WWEF AI 분석중', 'ANALYZING IMAGE...', '🔍');
+  const cmpWwefPaste = await compressImage(state.wwefPasteBlob[key]);
   const fd = new FormData();
-  fd.append('file', state.wwefPasteBlob[key], 'paste.png');
+  fd.append('file', cmpWwefPaste, 'paste.jpg');
   await _wwefCallAI(key, fd);
   btn.disabled = false; hideLoader();
 }
@@ -3355,8 +3359,10 @@ async function runAiScan() {
   if (!fileInput.files[0]) { showToast('파일을 선택하세요'); return; }
   const btn = document.getElementById('aiScanBtn');
   btn.disabled=true; btn.innerHTML='<span class="spinner"></span>분석 중...';
+  const rawFile = fileInput.files[0];
+  const cmpFile = await compressImage(rawFile);
   const fd = new FormData();
-  fd.append('file', fileInput.files[0]); fd.append('mode','image');
+  fd.append('file', cmpFile, 'image.jpg'); fd.append('mode','image');
   try {
     const r = await fetch('/api/ai-ocr',{method:'POST',body:fd});
     const data = await safeJson(r);
@@ -3391,8 +3397,9 @@ async function runAiPaste() {
   if (!state.pasteImageBlob) { showToast('이미지를 먼저 붙여넣으세요'); return; }
   const btn = document.getElementById('aiPasteBtn');
   btn.disabled=true; btn.innerHTML='<span class="spinner"></span>분석 중...';
+  const cmpPaste = await compressImage(state.pasteImageBlob);
   const fd = new FormData();
-  fd.append('file', state.pasteImageBlob, 'paste.png'); fd.append('mode','image');
+  fd.append('file', cmpPaste, 'paste.jpg'); fd.append('mode','image');
   try {
     const r = await fetch('/api/ai-ocr',{method:'POST',body:fd});
     const data = await safeJson(r);
@@ -3490,6 +3497,31 @@ function showToast(msg) {
   t.textContent = msg; t.classList.add('show');
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ── 이미지 압축 (Canvas 리사이즈 + JPEG) ─────────────────────
+// 최대 1200px, quality 0.82 → 전송 크기 80~90% 감소
+async function compressImage(source, maxPx, quality) {
+  maxPx   = maxPx   || 1200;
+  quality = quality || 0.82;
+  return new Promise(function(resolve) {
+    var url = (source instanceof Blob) ? URL.createObjectURL(source) : null;
+    var img = new Image();
+    img.onload = function() {
+      var w = img.naturalWidth, h = img.naturalHeight;
+      if (w > maxPx || h > maxPx) {
+        if (w >= h) { h = Math.round(h * maxPx / w); w = maxPx; }
+        else        { w = Math.round(w * maxPx / h); h = maxPx; }
+      }
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      if (url) URL.revokeObjectURL(url);
+      canvas.toBlob(function(blob) { resolve(blob); }, 'image/jpeg', quality);
+    };
+    img.onerror = function() { resolve(source); }; // 실패 시 원본 사용
+    img.src = url || source;
+  });
 }
 
 // ── 로딩 오버레이 ──────────────────────────────
