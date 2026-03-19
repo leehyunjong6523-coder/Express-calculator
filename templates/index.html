@@ -851,7 +851,7 @@ body.mode-imp .tb-calc-btn { background: linear-gradient(135deg, #9d174d, #be185
 }
 .lmr-release-btn:hover { background: rgba(239,68,68,.2); color: #fca5a5; border-color: rgba(239,68,68,.4); }
 .lmr-panel {
-  display: none;
+  display: none; position: relative;
   background: rgba(30,10,10,.7);
   border: 1px solid rgba(239,68,68,.3);
   border-radius: 8px; padding: 10px 12px; margin-top: 8px;
@@ -927,6 +927,35 @@ body.mode-imp .tb-calc-btn { background: linear-gradient(135deg, #9d174d, #be185
 }
 .rate-upload-area:hover { background:rgba(255,255,255,.07); }
 .rate-upload-text { font-size:.71rem; }
+
+/* ── 패널 미니 로더 ── */
+.panel-loader {
+  position: absolute; inset: 0; z-index: 100;
+  background: rgba(0,0,0,.72);
+  border-radius: 7px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px;
+}
+.panel-loader-ring {
+  width: 52px; height: 52px;
+}
+.panel-loader-arc1 {
+  fill: none; stroke: #22d3ee; stroke-width: 4; stroke-linecap: round;
+  stroke-dasharray: 60 100; transform-origin: 26px 26px;
+  animation: loaderSpin 1.4s linear infinite;
+}
+.panel-loader-arc2 {
+  fill: none; stroke: #a78bfa; stroke-width: 4; stroke-linecap: round;
+  stroke-dasharray: 30 130; transform-origin: 26px 26px;
+  animation: loaderSpin 2s linear infinite reverse;
+}
+.panel-loader-icon { font-size: 1.3rem; line-height: 1; position: absolute; }
+.panel-loader-ring-wrap { position: relative; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; }
+.panel-loader-label {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: .72rem; font-weight: 800; color: #fff;
+  text-align: center; line-height: 1.4;
+}
 .rate-scan-btn {
   width:100%; margin-top:7px; padding:8px; border:none; border-radius:7px;
   font-family:'Noto Sans KR',sans-serif; font-size:.79rem; font-weight:800; cursor:pointer; transition:opacity .2s;
@@ -980,7 +1009,7 @@ body.mode-imp .tb-calc-btn { background: linear-gradient(135deg, #9d174d, #be185
 }
 .wwef-panel {
   background: rgba(20,10,0,.85); border: 1px solid rgba(217,119,6,.35);
-  border-radius: 8px; padding: 12px; margin-bottom: 10px; display: none;
+  border-radius: 8px; padding: 12px; margin-bottom: 10px; display: none; position: relative;
 }
 .wwef-panel.open { display: block; }
 .wwef-panel-title { font-size: .72rem; font-weight: 800; color: #fbbf24; margin-bottom: 8px; }
@@ -2119,26 +2148,26 @@ async function lmrRunScan(key) {
   const fileInput = document.getElementById(`lmrFile_${key}`);
   if (!fileInput.files[0]) { showToast('파일을 선택하세요'); return; }
   const btn = document.getElementById(`lmrScanBtn_${key}`);
-  btn.disabled = true; btn.textContent = '⏳ 분석중...';
+  btn.disabled = true; showPanelLoader('lmrPanel_' + key, 'LMR AI 분석중');
   const cmpLmrFile = await compressImage(fileInput.files[0]);
   const fd = new FormData();
   fd.append('file', cmpLmrFile, 'image.jpg'); fd.append('mode', 'lmr');
   try {
     await _lmrCallAI(key, fd);
-  } finally { btn.disabled = false; btn.textContent = '🔍 AI 분석'; }
+  } finally { btn.disabled = false; hidePanelLoader('lmrPanel_' + key); }
 }
 
 async function lmrRunPaste(key) {
   const blob = state.lmrPasteBlob[key];
   if (!blob) { showToast('이미지를 먼저 붙여넣으세요'); return; }
   const btn = document.getElementById(`lmrPasteBtn_${key}`);
-  btn.disabled = true; btn.textContent = '⏳ 분석중...';
+  btn.disabled = true; showPanelLoader('lmrPanel_' + key, 'LMR AI 분석중');
   const cmpLmrPaste = await compressImage(blob);
   const fd = new FormData();
   fd.append('file', cmpLmrPaste, 'paste.jpg'); fd.append('mode', 'lmr');
   try {
     await _lmrCallAI(key, fd);
-  } finally { btn.disabled = false; btn.textContent = '🔍 AI 분석'; }
+  } finally { btn.disabled = false; hidePanelLoader('lmrPanel_' + key); }
 }
 
 async function _lmrCallAI(key, fd) {
@@ -2270,25 +2299,25 @@ async function wwefRunScan(key) {
   const fileInput = document.getElementById(`wwefFile_${key}`);
   if (!fileInput?.files[0]) { showToast('⚠️ 파일을 먼저 선택하세요'); return; }
   const btn = document.getElementById(`wwefScanBtn_${key}`);
-  btn.disabled = true; btn.textContent = '⏳ 분석중...';
+  btn.disabled = true; showPanelLoader('wwefPanel_' + key, 'WWEF AI 분석중');
   const cmpWwefFile = await compressImage(fileInput.files[0]);
   const fd = new FormData();
   fd.append('file', cmpWwefFile, 'image.jpg');
   try {
     await _wwefCallAI(key, fd);
-  } finally { btn.disabled = false; btn.textContent = '🔍 AI 분석'; }
+  } finally { btn.disabled = false; hidePanelLoader('wwefPanel_' + key); }
 }
 
 async function wwefRunPaste(key) {
   if (!state.wwefPasteBlob[key]) { showToast('⚠️ 먼저 캡처를 붙여넣으세요'); return; }
   const btn = document.getElementById(`wwefPasteBtn_${key}`);
-  btn.disabled = true; btn.textContent = '⏳ 분석중...';
+  btn.disabled = true; showPanelLoader('wwefPanel_' + key, 'WWEF AI 분석중');
   const cmpWwefPaste = await compressImage(state.wwefPasteBlob[key]);
   const fd = new FormData();
   fd.append('file', cmpWwefPaste, 'paste.jpg');
   try {
     await _wwefCallAI(key, fd);
-  } finally { btn.disabled = false; btn.textContent = '🔍 AI 분석'; }
+  } finally { btn.disabled = false; hidePanelLoader('wwefPanel_' + key); }
 }
 
 async function _wwefCallAI(key, fd) {
@@ -2352,7 +2381,7 @@ async function wwefTxtAiParse(key) {
   const text = ta.value.trim();
   if (!text) { showToast('⚠️ 텍스트를 먼저 붙여넣으세요'); return; }
   const resultBox = document.getElementById('wwefResult_' + key);
-  if (resultBox) resultBox.innerHTML = '<div style="color:#fbbf24;font-size:.7rem;padding:6px 0;">⏳ AI 분석중...</div>';
+  showPanelLoader('wwefPanel_' + key, 'WWEF AI 분석중');
   try {
     const resp = await fetch('/api/ai-lmr-text', {
       method: 'POST', headers: {'Content-Type':'application/json'},
@@ -2361,7 +2390,9 @@ async function wwefTxtAiParse(key) {
     const data = await safeJson(resp);
     if (!data.ok) throw new Error(data.error || 'AI 분석 실패');
     wwefShowResult(key, data.items, data.total);
+    hidePanelLoader('wwefPanel_' + key);
   } catch(e) {
+    hidePanelLoader('wwefPanel_' + key);
     if (resultBox) resultBox.innerHTML = '<div style="color:#f87171;font-size:.7rem;">' + e.message + '</div>';
     showToast('❌ ' + e.message);
   }
@@ -2409,7 +2440,7 @@ async function lmrTxtAiParse(key) {
   if (!text) { showToast('⚠️ 텍스트를 먼저 붙여넣으세요'); return; }
 
   const resultBox = document.getElementById('lmrResult_' + key);
-  if (resultBox) resultBox.innerHTML = '<div style="color:#fca5a5;font-size:.7rem;padding:6px 0;">⏳ AI 분석중...</div>';
+  showPanelLoader('lmrPanel_' + key, 'LMR AI 분석중');
   try {
     const resp = await fetch('/api/ai-lmr-text', {
       method: 'POST',
@@ -2419,7 +2450,9 @@ async function lmrTxtAiParse(key) {
     const data = await safeJson(resp);
     if (!data.ok) throw new Error(data.error || 'AI 분석 실패');
     lmrShowResult(key, data.items, data.total);
+    hidePanelLoader('lmrPanel_' + key);
   } catch(e) {
+    hidePanelLoader('lmrPanel_' + key);
     if (resultBox) resultBox.innerHTML = '<div style="color:#f87171;font-size:.7rem;">' + e.message + '</div>';
     showToast('❌ ' + e.message);
   }
@@ -3490,6 +3523,31 @@ function showToast(msg) {
   t.textContent = msg; t.classList.add('show');
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+
+// ── 패널 미니 로더 ──────────────────────────────────────────
+function showPanelLoader(panelId, label) {
+  var panel = document.getElementById(panelId);
+  if (!panel) return;
+  hidePanelLoader(panelId); // 중복 방지
+  var el = document.createElement('div');
+  el.className = 'panel-loader';
+  el.id = 'panelLoader_' + panelId;
+  el.innerHTML =
+    '<div class="panel-loader-ring-wrap">' +
+      '<svg class="panel-loader-ring" viewBox="0 0 52 52">' +
+        '<circle class="panel-loader-arc1" cx="26" cy="26" r="20"/>' +
+        '<circle class="panel-loader-arc2" cx="26" cy="26" r="20"/>' +
+      '</svg>' +
+      '<div class="panel-loader-icon">🤖</div>' +
+    '</div>' +
+    '<div class="panel-loader-label">' + (label || 'AI 분석중...') + '</div>';
+  panel.appendChild(el);
+}
+function hidePanelLoader(panelId) {
+  var el = document.getElementById('panelLoader_' + panelId);
+  if (el) el.remove();
 }
 
 // ── 이미지 압축 (Canvas 리사이즈 + JPEG) ─────────────────────
