@@ -974,6 +974,7 @@ body.mode-imp .tb-calc-btn { background: linear-gradient(135deg, #9d174d, #be185
   font-size: .8rem; font-weight: 900; cursor: pointer; margin-top: 8px;
 }
 .lmr-apply-btn:hover { background: #b91c1c; }
+.bd-row.total-extra { border-top: 1px dashed rgba(74,222,128,.3); color: #4ade80; font-size: .72rem; }
 .lmr-special-tag {
   display: inline-block;
   background: rgba(239,68,68,.18); border: 1px solid rgba(239,68,68,.4);
@@ -982,6 +983,49 @@ body.mode-imp .tb-calc-btn { background: linear-gradient(135deg, #9d174d, #be185
 }
 /* LMR 적용된 카드 원가 상세 */
 .section-cost.lmr-mode { background: rgba(40,5,5,.75); border-color: rgba(239,68,68,.4); }
+/* ── 카드 추가비용 / 소요일 수정 ── */
+.card-extra-section {
+  background: rgba(0,0,0,.25); border-top: 1px solid rgba(255,255,255,.07);
+  padding: 8px 10px; display: flex; flex-direction: column; gap: 5px;
+}
+.extra-row {
+  display: flex; align-items: center; gap: 6px; font-size: .72rem;
+}
+.extra-label { color: var(--text-sec); flex-shrink: 0; min-width: 56px; }
+.extra-input {
+  flex: 1; background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 5px; color: var(--text-pri); font-family: var(--mono);
+  font-size: .72rem; padding: 3px 7px; outline: none;
+}
+.extra-input:focus { border-color: var(--acc); }
+.extra-cost-rows { display: flex; flex-direction: column; gap: 4px; }
+.extra-cost-item {
+  display: flex; align-items: center; gap: 5px; font-size: .72rem;
+}
+.extra-cost-name {
+  flex: 1.4; background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 5px; color: var(--text-pri); font-family: 'Noto Sans KR',sans-serif;
+  font-size: .7rem; padding: 3px 6px; outline: none;
+}
+.extra-cost-name:focus { border-color: var(--acc); }
+.extra-cost-amt {
+  flex: 1; background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 5px; color: #4ade80; font-family: var(--mono);
+  font-size: .7rem; padding: 3px 6px; outline: none; text-align: right;
+}
+.extra-cost-amt:focus { border-color: var(--acc); }
+.extra-cost-del {
+  background: none; border: none; color: #f87171; cursor: pointer; padding: 1px 4px;
+  font-size: .75rem; opacity: .7; flex-shrink: 0;
+}
+.extra-cost-del:hover { opacity: 1; }
+.extra-add-btn {
+  align-self: flex-start; background: rgba(74,222,128,.1);
+  border: 1px dashed rgba(74,222,128,.3); border-radius: 5px;
+  color: #4ade80; font-size: .68rem; font-weight: 700; padding: 3px 10px;
+  cursor: pointer; font-family: 'Noto Sans KR',sans-serif;
+}
+.extra-add-btn:hover { background: rgba(74,222,128,.2); }
 .section-cost.lmr-mode .detail-header-cost { color: #fca5a5; border-color: rgba(239,68,68,.4); }
 /* ── 공통 3탭 패널 (LMR/WWEF) ── */
 .rate-tabs { display:flex; gap:2px; background:rgba(0,0,0,.4); border-radius:8px; padding:3px; margin-bottom:10px; }
@@ -1713,6 +1757,8 @@ let state = {
   lmrPasteBlob: { fedex: null, fedex_e: null }, // LMR 붙여넣기 이미지
   wwef: { ups: null, ups2f: null, upsb8: null }, // WWEF 적용 데이터
   wwefPasteBlob: { ups: null, ups2f: null, upsb8: null },
+  ttOverride:  { dhl:'', fedex:'', fedex_e:'', ups2f:'', upsb8:'' }, // 소요일 수정
+  extraCosts:  { dhl:[], fedex:[], fedex_e:[], ups2f:[], upsb8:[] }, // 추가비용
 };
 
 // ─────────────────────────────────────────────
@@ -2979,9 +3025,10 @@ function renderResults(res) {
 
       // WWEF 적용 여부
       const isWwef = freightFlag && state.wwef[key];
-      const adjCostBase   = isWwef ? state.wwef[key].total_cost
-                          : (state.lmr[key] ? state.lmr[key].total_cost : c.total_cost) + usClearFee;
-      const adjQuoteBase  = c.total_quote + usClearFee;  // 항상 최신값
+      const extraCostSum  = (state.extraCosts[key]||[]).filter(e=>e.name&&e.amt>0).reduce((s,e)=>s+(parseFloat(e.amt)||0),0);
+      const adjCostBase   = (isWwef ? state.wwef[key].total_cost
+                          : (state.lmr[key] ? state.lmr[key].total_cost : c.total_cost) + usClearFee) + extraCostSum;
+      const adjQuoteBase  = c.total_quote + usClearFee + extraCostSum;  // 항상 최신값
 
       // LMR 적용 시 quote_rows도 최신 c 데이터로 동적 생성
       const lmrQuoteRowsDynamic = state.lmr[key] ? (() => {
@@ -3028,6 +3075,7 @@ function renderResults(res) {
               <div class="mc-lbl">마진 (목표${state.tgtMargin}%)</div>
             </div>
           </div>
+        ${extraCostSum > 0 ? `<div class="bd-row total-extra"><span>📌 추가비용 소계</span><span class="bd-val">${fmtWon(extraCostSum)}</span></div>` : ''}
         </div>
         <div class="section-cost${isWwef ? ' wwef-mode' : state.lmr[key] ? ' lmr-mode' : ''}">
           <div class="detail-header-cost" style="display:flex;justify-content:space-between;align-items:center;">
@@ -3042,7 +3090,8 @@ function renderResults(res) {
           ${surRows}
           <div class="bd-row sub-item"><span>유류할증료 (원가)</span><span class="bd-val">${fmtWon((c.net_fuel||0)+(c.sur_fuel||0))}</span></div>`}
           ${usClearRow}
-          <div class="bd-row total-row"><span>▶ 원가 합계</span><span class="bd-val">${fmtWon(adjCostBase)}</span></div>
+          ${(state.extraCosts[key]||[]).filter(e=>e.name&&e.amt>0).map(e=>`<div class="bd-row sub-item"><span>${e.name}</span><span class="bd-val">${fmtWon(e.amt)}</span></div>`).join('')}
+          <div class="bd-row total-row"><span>▶ 원가 합계</span><span class="bd-val">${fmtWon(adjCostBase + extraCostSum)}</span></div>
         </div>
         <div class="section-quote">
           <div class="detail-header-quote">📋 청구가 상세</div>
@@ -3051,7 +3100,41 @@ function renderResults(res) {
           ${hasSur ? surRows : ''}
           <div class="bd-row sub-item"><span>유류할증료</span><span class="bd-val">${fmtWon((c.pub_fuel||0)+(c.sur_fuel_pub||0))}</span></div>`}
           ${usClearRow}
+          ${(state.extraCosts[key]||[]).filter(e=>e.name&&e.amt>0).map(e=>`<div class="bd-row sub-item" style="color:#4ade80;"><span>${e.name}</span><span class="bd-val">${fmtWon(e.amt)}</span></div>`).join('')}
           <div class="bd-row total-row"><span>▶ 견적가 (고객)</span><span class="bd-val" style="color:var(--acc-bright);font-size:.88rem;">${fmtWon(adjQuoteBase)}</span></div>
+        </div>
+        <div class="card-extra-section">
+          <div class="extra-row">
+            <span class="extra-label">⏱ 소요일</span>
+            <input class="extra-input" placeholder="${tt.replace(' 영업일','')}" value="${state.ttOverride[key]||''}"
+              onclick="event.stopPropagation()"
+              onkeydown="event.stopPropagation()"
+              oninput="event.stopPropagation();state.ttOverride['${key}']=this.value.replace(/[^0-9~\-]/g,'')"
+              onblur="event.stopPropagation();"
+              style="max-width:70px;text-align:center;">
+            <span style="font-size:.72rem;color:var(--text-sec);flex-shrink:0;">영업일</span>
+          </div>
+          <div class="extra-row" style="align-items:flex-start;flex-direction:column;gap:4px;">
+            <span class="extra-label" style="color:#4ade80;">💰 추가비용</span>
+            <div class="extra-cost-rows" id="extraRows_${key}">
+              ${(state.extraCosts[key]||[]).map((e,i)=>`
+              <div class="extra-cost-item">
+                <input class="extra-cost-name" placeholder="항목명 (예: 픽업비)" value="${e.name||''}"
+                  onclick="event.stopPropagation()"
+                  onkeydown="event.stopPropagation()"
+                  oninput="event.stopPropagation();state.extraCosts['${key}'][${i}].name=this.value"
+                  onblur="event.stopPropagation();">
+                <input class="extra-cost-amt" placeholder="금액 입력" type="text"
+                  value="${e.amt ? Math.round(e.amt).toLocaleString('ko-KR') : ''}"
+                  onclick="event.stopPropagation()"
+                  onkeydown="event.stopPropagation()"
+                  oninput="event.stopPropagation();setExtraAmtOnly('${key}',${i},this)"
+                  onblur="event.stopPropagation();setExtraAmt('${key}',${i},this)">
+                <button class="extra-cost-del" onclick="event.stopPropagation();delExtraCost('${key}',${i})">✕</button>
+              </div>`).join('')}
+            </div>
+            <button class="extra-add-btn" onclick="event.stopPropagation();addExtraCost('${key}')">＋ 항목 추가</button>
+          </div>
         </div>`;
     }
 
@@ -3106,15 +3189,18 @@ function buildEmailHtml(res) {
     const name   = CNAME[key] || key.toUpperCase();
     const lmrTag = (key==='fedex'||key==='fedex_e') && state.lmr[key] ? ' [이번주 중량화물 특가적용]'
                  : key.startsWith('ups') && state.wwef[key] ? ' [UPS 중량화물 특가적용]' : '';
-    const tt     = TTMAP[key] || '—';
+    const _ettRaw = state.ttOverride[key];
+    const tt     = _ettRaw ? _ettRaw.replace(/영업일/g,'').trim() + ' 영업일' : TTMAP[key] || '—';
     const expiry = FEXPIRY[key] || '';
     const fuelPct = (c.fuel_pct||0).toFixed(2);
     const base    = Math.round(c.pub_disc || c.pub_base || 0);
     const fuelAmt = Math.round((c.pub_fuel||0)+(c.sur_fuel_pub||0));
+    const rpkStr  = c.disc_rpk ? ` <span style="font-size:9px;color:#888;">(₩${Math.round(c.disc_rpk).toLocaleString()}/kg)</span>` : '';
     const isUsEmail   = (res.dest_country === 'United States of America' || res.dest_country === 'United States');
     const isFedexEmail = (key === 'fedex' || key === 'fedex_e');
     const emailUsClearFee = (isUsEmail && isFedexEmail && res.mode === '수출') ? 3900 : 0;
-    const total   = Math.round((c.total_quote||0) + emailUsClearFee);
+    const emailExtraSum = (state.extraCosts[key]||[]).reduce((s,e)=>s+(parseFloat(e.amt)||0),0);
+    const total   = Math.round((c.total_quote||0) + emailUsClearFee + emailExtraSum);
     const rpk     = c.disc_rpk ? ` (${Math.round(c.disc_rpk).toLocaleString('ko-KR')}원/kg)` : '';
     const surs    = (c.surs||[]);
     lines.push(''); lines.push(name + lmrTag); lines.push('');
@@ -3221,7 +3307,10 @@ function generatePdf() {
   const rateCards = selectedArr.map((key) => {
     const c       = res.carriers[key];
     const name    = PDF_NAME[key] || key.toUpperCase();
-    const tt      = TT_MAP[key] || '—';
+    const _ttRaw  = state.ttOverride[key];
+    const tt      = _ttRaw ? _ttRaw.replace(/영업일/g,'').trim() + ' 영업일' : TT_MAP[key] || '—';
+    const pdfExtras = (state.extraCosts[key]||[]).filter(e=>e.name&&e.amt>0);
+    const pdfExtraSum = pdfExtras.reduce((s,e)=>s+(parseFloat(e.amt)||0),0);
     const lmr     = state.lmr[key];
     const wwef    = state.wwef[key];
     const lmrTag  = lmr  ? `<div style="text-align:center;font-size:8px;font-weight:900;color:#dc2626;letter-spacing:.04em;padding:2px 0;background:#fff5f5;">🔴 이번주 중량화물 특가적용</div>`
@@ -3231,11 +3320,12 @@ function generatePdf() {
     const pdfIsFedex  = (key === 'fedex' || key === 'fedex_e');
     const pdfIsExport = (res.mode === '수출');
     const pdfUsClear  = (pdfIsUs && pdfIsFedex && pdfIsExport) ? 3900 : 0;
-    const total   = Math.round((c.total_quote||0) + pdfUsClear);
+    const total   = Math.round((c.total_quote||0) + pdfUsClear + pdfExtraSum);
     const fuelPct = (c.fuel_pct||0).toFixed(2);
     const surs    = (c.surs||[]);
     const base    = Math.round(c.pub_disc || c.pub_base || 0);
     const fuelAmt = Math.round((c.pub_fuel||0)+(c.sur_fuel_pub||0));
+    const rpkStr  = c.disc_rpk ? ` <span style="font-size:9px;color:#888;">(₩${Math.round(c.disc_rpk).toLocaleString()}/kg)</span>` : '';
     const pdfUsClearRow = pdfUsClear > 0
       ? `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:10px;"><span style="color:#555;">미국 수입 처리 수수료</span><span>₩3,900</span></div>`
       : '';
@@ -3250,7 +3340,7 @@ function generatePdf() {
         </div>`).join('');
       itemLines = `
         <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0;font-size:11px;">
-          <span style="color:#666;">기본운임</span><span>₩${base.toLocaleString('ko-KR')}</span>
+          <span style="color:#666;">기본운임${rpkStr}</span><span>₩${base.toLocaleString('ko-KR')}</span>
         </div>
         <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0;font-size:11px;">
           <span style="color:#666;">유류할증료 (${fuelPct}%)</span><span>₩${fuelAmt.toLocaleString('ko-KR')}</span>
@@ -3265,7 +3355,7 @@ function generatePdf() {
         </div>`).join('');
       itemLines = `
         <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0;font-size:11px;">
-          <span style="color:#666;">기본운임</span><span>₩${base.toLocaleString('ko-KR')}</span>
+          <span style="color:#666;">기본운임${rpkStr}</span><span>₩${base.toLocaleString('ko-KR')}</span>
         </div>
         <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0;font-size:11px;">
           <span style="color:#666;">유류할증료 (${fuelPct}%)</span><span>₩${fuelAmt.toLocaleString('ko-KR')}</span>
@@ -3279,8 +3369,12 @@ function generatePdf() {
       ${lmrTag}
       <div style="padding:8px 10px;">
         ${itemLines}
-        <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11px;">
-          <span style="color:#666;">소요시간</span><span>${tt}</span>
+        ${pdfExtras.map(e=>`
+        <div style="display:flex;justify-content:space-between;padding:2px 0;font-size:10px;border-bottom:1px solid #f0f0f0;">
+          <span style="color:#555;">${e.name}</span><span>₩${Math.round(e.amt).toLocaleString('ko-KR')}</span>
+        </div>`).join('')}
+        <div style="padding:5px 0;font-size:10.5px;color:#555;margin-top:3px;border-top:1px dashed #e9ecef;line-height:1.5;">
+          소요일 : 항공사 사정 및 통관상 지연이 없을 시 영업일 기준으로 ${tt.replace(' 영업일','')}일 소요 예상됩니다.
         </div>
       </div>
       <div style="background:#f8f9ff;border-top:2px solid #003366;padding:7px 10px;text-align:right;">
@@ -3688,6 +3782,40 @@ function hideLoader() {
 function showLoaderAuto(title, sub, icon, ms) {
   showLoader(title, sub, icon);
   _loaderTimer = setTimeout(hideLoader, ms || 3000);
+}
+
+
+// ── 카드별 추가비용 관리 ─────────────────────────────────────
+function setExtraAmtOnly(key, idx, input) {
+  // 입력 중: 숫자 아닌 문자만 제거, 재렌더 없음
+  var pos = input.selectionStart;
+  var raw = input.value.replace(/[^0-9]/g, '');
+  input.value = raw; // 콤마 없이 숫자만
+  input.setSelectionRange(pos, pos);
+  var num = parseInt(raw, 10) || 0;
+  if (!state.extraCosts[key]) state.extraCosts[key] = [];
+  if (!state.extraCosts[key][idx]) return;
+  state.extraCosts[key][idx].amt = num;
+}
+function setExtraAmt(key, idx, input) {
+  // blur 시: 콤마 포맷 적용 + 재렌더
+  var raw = input.value.replace(/[^0-9]/g, '');
+  var num = parseInt(raw, 10) || 0;
+  if (!state.extraCosts[key]) state.extraCosts[key] = [];
+  if (!state.extraCosts[key][idx]) return;
+  state.extraCosts[key][idx].amt = num;
+  input.value = num > 0 ? num.toLocaleString('ko-KR') : '';
+  if (state.lastResult) renderResults(state.lastResult);
+}
+function addExtraCost(key) {
+  if (!state.extraCosts[key]) state.extraCosts[key] = [];
+  state.extraCosts[key].push({ name: '', amt: 0 });
+  renderResults(state.lastResult);
+}
+function delExtraCost(key, idx) {
+  if (!state.extraCosts[key]) return;
+  state.extraCosts[key].splice(idx, 1);
+  renderResults(state.lastResult);
 }
 
 // ── 추가 문구 관리 ──────────────────────────────────────────────
