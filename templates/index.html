@@ -581,42 +581,70 @@ body.mode-imp .tb-calc-btn { background: linear-gradient(135deg, #9d174d, #be185
 .toast.show { transform: translateY(0); opacity: 1; }
 
 /* ── 비행기 현수막 애니메이션 ── */
-@keyframes planeFly {
-  0%   { transform: translateX(-120%); opacity:0; }
-  8%   { opacity:1; }
-  85%  { opacity:1; }
-  100% { transform: translateX(110vw); opacity:0; }
+/* ── Loading Overlay ── */
+@keyframes loaderSpin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
-.plane-banner-wrap {
-  position: fixed;
-  top: calc(var(--topbar-h) + 18px);
-  left: 0;
-  z-index: 9999;
-  pointer-events: none;
-  display: flex;
-  align-items: center;
+@keyframes loaderPulse {
+  0%, 100% { opacity:.3; transform:scale(.85); }
+  50%       { opacity:1;  transform:scale(1.15); }
 }
-.plane-banner-inner {
-  display: inline-flex;
-  align-items: center;
-  gap: 0;
-  animation: planeFly 7.6s cubic-bezier(.18,.55,.30,1) forwards;
-  white-space: nowrap;
+@keyframes loaderFadeIn {
+  from { opacity:0; } to { opacity:1; }
 }
-.plane-icon { font-size: 2rem; flex-shrink:0; filter: drop-shadow(0 2px 8px rgba(96,165,250,.6)); }
-.plane-rope { width:44px; height:2px; background:linear-gradient(90deg,rgba(96,165,250,.8),rgba(96,165,250,.3)); flex-shrink:0; }
-.plane-flag {
-  background: linear-gradient(135deg, #1e3a5f, #1d4ed8);
-  border: 1px solid rgba(96,165,250,.5);
-  border-radius: 6px;
-  padding: 7px 20px;
-  font-size: .9rem;
-  font-weight: 900;
-  color: #fff;
-  letter-spacing: .05em;
-  box-shadow: 0 4px 20px rgba(29,78,216,.5);
-  flex-shrink:0;
+.loader-overlay {
+  position: fixed; inset:0; z-index:99999;
+  background: rgba(10,12,18,.88);
+  backdrop-filter: blur(6px);
+  display: flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  animation: loaderFadeIn .2s ease;
 }
+.loader-ring-wrap {
+  position:relative; width:120px; height:120px; margin-bottom:22px;
+}
+.loader-svg { width:120px; height:120px; }
+.loader-arc1 {
+  fill:none; stroke:#22d3ee; stroke-width:4; stroke-linecap:round;
+  stroke-dasharray:160 220;
+  transform-origin:60px 60px;
+  animation: loaderSpin 1.6s linear infinite;
+}
+.loader-arc2 {
+  fill:none; stroke:#a78bfa; stroke-width:4; stroke-linecap:round;
+  stroke-dasharray:80 300;
+  transform-origin:60px 60px;
+  animation: loaderSpin 2.2s linear infinite reverse;
+}
+.loader-arc3 {
+  fill:none; stroke:#fbbf24; stroke-width:3; stroke-linecap:round;
+  stroke-dasharray:40 340;
+  transform-origin:60px 60px;
+  animation: loaderSpin 3s linear infinite;
+}
+.loader-icon {
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  font-size:2.4rem; line-height:1;
+}
+.loader-title {
+  font-family:'Noto Sans KR',sans-serif;
+  font-size:1.2rem; font-weight:900; color:#fff;
+  letter-spacing:.04em; margin-bottom:6px; text-align:center;
+}
+.loader-sub {
+  font-family:'IBM Plex Mono','Courier New',monospace;
+  font-size:.72rem; color:#7a8fa8; letter-spacing:.12em;
+  text-transform:uppercase; margin-bottom:16px;
+}
+.loader-dots { display:flex; gap:8px; }
+.loader-dot {
+  width:8px; height:8px; border-radius:50%; background:#22d3ee;
+  animation: loaderPulse 1.2s ease-in-out infinite;
+}
+.loader-dot:nth-child(1) { animation-delay:0s;   background:#22d3ee; }
+.loader-dot:nth-child(2) { animation-delay:.2s;  background:#a78bfa; }
+.loader-dot:nth-child(3) { animation-delay:.4s;  background:#fbbf24; }
 
 /* ── Mobile Bottom Action Bar ── */
 .mobile-bottom-bar {
@@ -1093,6 +1121,7 @@ body.mode-imp .tb-calc-btn { background: linear-gradient(135deg, #9d174d, #be185
 .mob-selected-badge { margin-top:5px; background:rgba(37,99,235,.15); border:1px solid rgba(37,99,235,.3); border-radius:6px; padding:4px 10px; font-size:12px; color:var(--acc-bright); font-weight:700; display:none; }
 .mob-selected-badge.visible { display:block; }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body class="mode-exp" id="body">
 
@@ -1382,8 +1411,14 @@ body.mode-imp .tb-calc-btn { background: linear-gradient(135deg, #9d174d, #be185
     <!-- Weight info panel -->
     <div class="wt-panel" id="wtPanel" style="display:none;">
       <div style="display:flex;align-items:stretch;gap:20px;">
-        <!-- 화물정보 -->
-        <div id="wtCtDetail" style="flex:1;min-width:0;"></div>
+        <!-- 운임계산 버튼 -->
+        <div style="display:flex;flex-direction:column;justify-content:center;flex-shrink:0;">
+          <button class="calc-btn" onclick="mobileCalculate()" id="calcBtn"
+            style="height:56px;min-width:130px;font-size:.95rem;white-space:nowrap;letter-spacing:.02em;">⚡ 운임 계산</button>
+        </div>
+        <div style="width:1px;background:var(--border);flex-shrink:0;"></div>
+        <!-- 화물정보 (오른쪽으로) -->
+        <div id="wtCtDetail" style="flex:1;min-width:0;padding-left:8px;"></div>
         <div style="display:flex;flex-direction:column;justify-content:center;gap:6px;min-width:240px;border-left:1px solid var(--border);padding-left:16px;">
           <div style="font-size:11px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">📏 중량 요약</div>
           <div style="display:flex;gap:12px;">
@@ -1397,12 +1432,7 @@ body.mode-imp .tb-calc-btn { background: linear-gradient(135deg, #9d174d, #be185
             </div>
             <div style="text-align:center;flex:1;">
               <div class="wt-num" id="wtCharge" style="color:#4ade80;">—</div>
-              <div class="wt-lbl">청구중량 (기준)</div>
-              <div style="margin-top:4px;font-size:.62rem;line-height:1.6;color:var(--text-dim);text-align:left;">
-                <span style="color:#D40511;font-weight:700;">DHL</span> <span id="wtChargeDhl" style="font-family:var(--mono);color:#f87171;">—</span> kg<br>
-                <span style="color:#4D148C;font-weight:700;">FedEx</span> <span id="wtChargeFedex" style="font-family:var(--mono);color:#a78bfa;">—</span> kg<br>
-                <span style="color:#92400e;font-weight:700;">UPS</span> <span id="wtChargeUps" style="font-family:var(--mono);color:#fbbf24;">—</span> kg
-              </div>
+              <div class="wt-lbl">청구중량 (kg)</div>
             </div>
           </div>
         </div>
@@ -1597,13 +1627,15 @@ async function mobileCalculate() {
   const calcBtn  = document.getElementById('calcBtn');
   const tbCalcBtn = document.getElementById('tbCalcBtn');
   const mbBtn    = document.getElementById('mbCalcBtn');
-  if (calcBtn)   { calcBtn.disabled = true; calcBtn.innerHTML = '<span class="spinner"></span>계산 중...'; }
-  if (tbCalcBtn) { tbCalcBtn.disabled = true; tbCalcBtn.innerHTML = '<span class="spinner"></span>계산 중...'; }
-  if (mbBtn)     { mbBtn.disabled = true; mbBtn.querySelector('.mb-label').textContent = '계산 중...'; }
+  if (calcBtn)   { calcBtn.disabled = true; }
+  if (tbCalcBtn) { tbCalcBtn.disabled = true; }
+  if (mbBtn)     { mbBtn.disabled = true; }
+  showLoader('운임 계산중', 'CALCULATING RATES...', '✈️');
   await calculate();
-  if (calcBtn)   { calcBtn.disabled = false; calcBtn.innerHTML = '⚡ 운임 계산'; }
-  if (tbCalcBtn) { tbCalcBtn.disabled = false; tbCalcBtn.innerHTML = '⚡ 운임 계산'; }
-  if (mbBtn)     { mbBtn.disabled = false; mbBtn.querySelector('.mb-label').textContent = '운임 계산'; }
+  hideLoader();
+  if (calcBtn)   { calcBtn.disabled = false; }
+  if (tbCalcBtn) { tbCalcBtn.disabled = false; }
+  if (mbBtn)     { mbBtn.disabled = false; }
   // 계산 완료 후 사이드바 닫기
   if (isM) closeSidebar();
 }
@@ -1661,8 +1693,6 @@ function cleanCustomerName(raw) {
     .replace(/\s*\(할인[^)]*\)/g, '')
     .replace(/\s*\(특가[^)]*\)/g, '')
     .replace(/\s*\([^)]*%[^)]*\)/g, '')   // 퍼센트 포함 괄호 전체 제거
-    .replace(/\s*\(\s*구\s*[:：]?[^)]*\)/g, '') // (구 : ...) / (구: ...) 제거
-    .replace(/\s+[A-Z0-9]{2,}$/g, '')     // 후행 영문 약어 제거 (예: NXO, ABC)
     .trim();
 }
 
@@ -2090,12 +2120,13 @@ async function lmrRunScan(key) {
   const fileInput = document.getElementById(`lmrFile_${key}`);
   if (!fileInput.files[0]) { showToast('파일을 선택하세요'); return; }
   const btn = document.getElementById(`lmrScanBtn_${key}`);
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>AI 분석 중...';
+  btn.disabled = true;
+  showLoader('AI 분석중', 'ANALYZING IMAGE...', '🔍');
   const fd = new FormData();
   fd.append('file', fileInput.files[0]); fd.append('mode', 'lmr');
   try {
     await _lmrCallAI(key, fd);
-  } finally { btn.disabled = false; btn.innerHTML = '🔍 AI 분석 (파일)'; }
+  } finally { btn.disabled = false; hideLoader(); }
 }
 
 async function lmrRunPaste(key) {
@@ -2107,7 +2138,7 @@ async function lmrRunPaste(key) {
   fd.append('file', blob, 'lmr_paste.png'); fd.append('mode', 'lmr');
   try {
     await _lmrCallAI(key, fd);
-  } finally { btn.disabled = false; btn.innerHTML = '🔍 AI 분석 (붙여넣기)'; }
+  } finally { btn.disabled = false; hideLoader(); }
 }
 
 async function _lmrCallAI(key, fd) {
@@ -2239,21 +2270,23 @@ async function wwefRunScan(key) {
   const fileInput = document.getElementById(`wwefFile_${key}`);
   if (!fileInput?.files[0]) { showToast('⚠️ 파일을 먼저 선택하세요'); return; }
   const btn = document.getElementById(`wwefScanBtn_${key}`);
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>AI 분석 중...';
+  btn.disabled = true;
+  showLoader('WWEF AI 분석중', 'ANALYZING RATE...', '🔍');
   const fd = new FormData();
   fd.append('file', fileInput.files[0]);
   await _wwefCallAI(key, fd);
-  btn.disabled = false; btn.innerHTML = '🔍 AI 분석 (파일)';
+  btn.disabled = false; hideLoader();
 }
 
 async function wwefRunPaste(key) {
   if (!state.wwefPasteBlob[key]) { showToast('⚠️ 먼저 캡처를 붙여넣으세요'); return; }
   const btn = document.getElementById(`wwefPasteBtn_${key}`);
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>AI 분석 중...';
+  btn.disabled = true;
+  showLoader('WWEF AI 분석중', 'ANALYZING IMAGE...', '🔍');
   const fd = new FormData();
   fd.append('file', state.wwefPasteBlob[key], 'paste.png');
   await _wwefCallAI(key, fd);
-  btn.disabled = false; btn.innerHTML = '🔍 AI 분석 (붙여넣기)';
+  btn.disabled = false; hideLoader();
 }
 
 async function _wwefCallAI(key, fd) {
@@ -2317,7 +2350,8 @@ async function wwefTxtAiParse(key) {
   const text = ta.value.trim();
   if (!text) { showToast('⚠️ 텍스트를 먼저 붙여넣으세요'); return; }
   const resultBox = document.getElementById('wwefResult_' + key);
-  if (resultBox) resultBox.innerHTML = '<div style="color:#fbbf24;font-size:.7rem;padding:6px 0;">🤖 AI 분석 중...</div>';
+  if (resultBox) resultBox.innerHTML = '';
+  showLoader('WWEF 텍스트 AI 분석중', 'PARSING RATES...', '🤖');
   try {
     const resp = await fetch('/api/ai-lmr-text', {
       method: 'POST', headers: {'Content-Type':'application/json'},
@@ -2326,8 +2360,10 @@ async function wwefTxtAiParse(key) {
     const data = await safeJson(resp);
     if (!data.ok) throw new Error(data.error || 'AI 분석 실패');
     wwefShowResult(key, data.items, data.total);
+    hideLoader();
   } catch(e) {
-    if (resultBox) resultBox.innerHTML = `<div style="color:#f87171;font-size:.7rem;">${e.message}</div>`;
+    hideLoader();
+    if (resultBox) resultBox.innerHTML = '<div style="color:#f87171;font-size:.7rem;">' + e.message + '</div>';
     showToast('❌ ' + e.message);
   }
 }
@@ -2374,7 +2410,8 @@ async function lmrTxtAiParse(key) {
   if (!text) { showToast('⚠️ 텍스트를 먼저 붙여넣으세요'); return; }
 
   const resultBox = document.getElementById('lmrResult_' + key);
-  if (resultBox) resultBox.innerHTML = '<div style="color:#fca5a5;font-size:.7rem;padding:6px 0;">🤖 AI 분석 중...</div>';
+  if (resultBox) resultBox.innerHTML = '';
+  showLoader('LMR 텍스트 AI 분석중', 'PARSING RATES...', '🤖');
 
   try {
     const resp = await fetch('/api/ai-lmr-text', {
@@ -2645,7 +2682,7 @@ async function calculate() {
     if (!data.ok) throw new Error(data.error);
     state.lastResult = data.data;
     renderResults(data.data);
-    showPlaneBanner('운임 계산 완료 !');
+    // loader는 mobileCalculate에서 hideLoader() 처리
     // Enable mobile action buttons
     const mbEmail = document.getElementById('mbEmailBtn');
     const mbPdf   = document.getElementById('mbPdfBtn');
@@ -2662,30 +2699,62 @@ async function calculate() {
 function fmtWon(n) { if (n == null) return '—'; return '₩' + Math.round(n).toLocaleString('ko-KR'); }
 function fmtPct(n) { return (n||0).toFixed(1) + '%'; }
 
+
+// ── UPS 급증 수수료 (Surge Fee) 2026-03-15~ ─────────────────
+const UPS_SURGE_ISRAEL = new Set(['Israel']);
+const UPS_SURGE_MIDEAST = new Set([
+  'Afghanistan','Bahrain','Bangladesh','Egypt','Iraq','Jordan',
+  'Kuwait','Lebanon','Nepal','Oman','Pakistan','Qatar',
+  'Saudi Arabia','Sri Lanka','United Arab Emirates'
+]);
+// 한국 출발 수출 & 한국 도착 수입 모두 적용
+// 금액: 청구중량 × 단가 (유류할증료 추가 적용)
+function applyUpsSurgeFee(res) {
+  var dest = res.dest_country || '';
+  var mode = res.mode || '수출';
+  // 수출: 한국→도착지, 수입: 출발지→한국
+  // 두 경우 모두 dest_country 기준 (수입일 때 dest = 출발지)
+  var surgePerKg = 0;
+  var surgeName  = '';
+  if (UPS_SURGE_ISRAEL.has(dest)) {
+    surgePerKg = 4722;
+    surgeName  = 'UPS 급증수수료 (이스라엘)';
+  } else if (UPS_SURGE_MIDEAST.has(dest)) {
+    surgePerKg = 2004;
+    surgeName  = 'UPS 급증수수료 (중동)';
+  }
+  if (!surgePerKg) return; // 해당 없음
+
+  var chg = res.total_chargeable || 0;
+  var surgeBase = Math.round(surgePerKg * chg);
+
+  // UPS 카드들에 적용
+  ['ups','ups2f','upsb8'].forEach(function(key) {
+    var c = res.carriers[key];
+    if (!c) return;
+    // 이미 적용됐으면 스킵
+    if ((c.surs||[]).some(function(s){ return s.name && s.name.indexOf('급증') !== -1; })) return;
+    // 유류할증료 적용 (ups fuel %)
+    var fuelPct = (c.fuel_pct || 0) / 100;
+    var surgeWithFuel = Math.round(surgeBase * (1 + fuelPct));
+    // surs에 추가 (청구가용)
+    if (!c.surs) c.surs = [];
+    c.surs.push({ name: surgeName, amount: surgeWithFuel });
+    // total_quote 업데이트
+    c.total_quote = (c.total_quote || 0) + surgeWithFuel;
+    // 원가도 동일 적용 (원가 = 청구가, 수수료는 pass-through)
+    c.total_cost  = (c.total_cost  || 0) + surgeWithFuel;
+    // sur_fuel_pub에는 포함하지 않음 (별도 surcharge로 표시)
+  });
+}
+
 function renderResults(res) {
+  applyUpsSurgeFee(res);  // UPS 급증 수수료 적용
   document.getElementById('resultEmpty').style.display = 'none';
   document.getElementById('wtPanel').style.display = 'block';
   document.getElementById('wtActual').textContent  = res.total_actual_wt.toFixed(1);
   document.getElementById('wtVol').textContent     = res.total_vol_wt.toFixed(1);
   document.getElementById('wtCharge').textContent  = res.total_chargeable.toFixed(1);
-  // 캐리어별 청구중량
-  const _wdhl = res.wt_dhl   != null ? res.wt_dhl   : res.total_chargeable;
-  const _wfx  = res.wt_fedex != null ? res.wt_fedex : res.total_chargeable;
-  const _wups = res.wt_ups   != null ? res.wt_ups   : res.total_chargeable;
-  const _allSame = (_wdhl === _wfx && _wfx === _wups);
-  // 청구중량 기준 표시: 모두 같으면 그 값, 다르면 raw값(소수점 표시)
-  document.getElementById('wtCharge').textContent = _allSame
-    ? Number(_wdhl).toFixed(1)
-    : res.total_chargeable.toFixed(1);
-  const _cwtDetail = document.getElementById('wtChargeDhl').parentElement;
-  if (_allSame) {
-    _cwtDetail.style.display = 'none';
-  } else {
-    _cwtDetail.style.display = '';
-    document.getElementById('wtChargeDhl').textContent   = Number(_wdhl).toFixed(1);
-    document.getElementById('wtChargeFedex').textContent = Number(_wfx).toFixed(1);
-    document.getElementById('wtChargeUps').textContent   = Number(_wups).toFixed(1);
-  }
 
 
   const ctDiv = document.getElementById('wtCtDetail');
@@ -2749,7 +2818,6 @@ function renderResults(res) {
     const tgt         = state.tgtMargin || 30;
     const zoneNum     = res[zoneKey];
     const zoneBadge   = zoneNum ? `<span class="card-zone-badge">ZONE ${zoneNum}</span>` : '';
-    const cardCwt     = c.chargeable_wt != null ? c.chargeable_wt : res.total_chargeable;
 
     const card = document.createElement('div');
     const isFreightLock = freightFlag && !state.wwef[key]; // Freight이면서 WWEF 미적용
@@ -2839,10 +2907,9 @@ function renderResults(res) {
             <span style="font-size:.68rem;font-weight:800;color:${(adjQuoteBase>0?(adjQuoteBase-adjCostBase)/adjQuoteBase*100:0)>=tgt?'#4ade80':(adjQuoteBase>0?(adjQuoteBase-adjCostBase)/adjQuoteBase*100:0)>=tgt*0.5?'#fbbf24':'#f87171'};">마진 ${fmtWon(adjQuoteBase - adjCostBase)}</span>
           </div>
           ${isWwef ? state.wwef[key].cost_rows
-            : state.lmr[key] ? state.lmr[key].cost_rows
             : freightFlag ? `<div class="freight-notice">⚠️ Freight 진행불가<br>WWEF로만 진행</div>`
             : `
-          <div class="bd-row"><span>항공운임 (원가) <span style="font-size:.62rem;color:#f0a060;opacity:.7;">${cardCwt}kg</span></span><span class="bd-val">${fmtWon(c.net_base)}</span></div>
+          <div class="bd-row"><span>항공운임 (원가)</span><span class="bd-val">${fmtWon(c.net_base)}</span></div>
           ${c.net_fee > 0 ? `<div class="bd-row sub-item"><span>계정수수료 3%</span><span class="bd-val">${fmtWon(c.net_fee)}</span></div>` : ''}
           ${surRows}
           <div class="bd-row sub-item"><span>유류할증료 (원가)</span><span class="bd-val">${fmtWon((c.net_fuel||0)+(c.sur_fuel||0))}</span></div>`}
@@ -2852,7 +2919,7 @@ function renderResults(res) {
         <div class="section-quote">
           <div class="detail-header-quote">📋 청구가 상세</div>
           ${state.lmr[key] ? lmrQuoteRowsDynamic : `
-          <div class="bd-row"><span>항공운임 (견적) <span style="font-size:.62rem;color:#60a5fa;opacity:.7;">${cardCwt}kg</span>${c.disc_rpk ? `<span style="font-size:.62rem;color:#60a5fa;margin-left:5px;">(₩${Math.round(c.disc_rpk).toLocaleString()}/kg)</span>` : ''}</span><span class="bd-val">${fmtWon(c.pub_disc)}</span></div>
+          <div class="bd-row"><span>항공운임 (견적)${c.disc_rpk ? `<span style="font-size:.62rem;color:#60a5fa;margin-left:5px;">(₩${Math.round(c.disc_rpk).toLocaleString()}/kg)</span>` : ''}</span><span class="bd-val">${fmtWon(c.pub_disc)}</span></div>
           ${hasSur ? surRows : ''}
           <div class="bd-row sub-item"><span>유류할증료</span><span class="bd-val">${fmtWon((c.pub_fuel||0)+(c.sur_fuel_pub||0))}</span></div>`}
           ${usClearRow}
@@ -2900,27 +2967,11 @@ function buildEmailHtml(res) {
     ? `${state.ctData[0].L}X${state.ctData[0].W}X${state.ctData[0].H}cm`
     : `${state.ctData.length}종`;
 
-  // 선택된 캐리어 기준 청구중량 (복수 선택 시 각각 표시)
-  function _getCwt(key) {
-    const cw = res.carriers[key]?.chargeable_wt;
-    return cw != null ? cw : res.total_chargeable;
-  }
-
-  // 청구중량 헤더: 모두 같으면 단일 표시
-  const _eWd = res.wt_dhl   || res.total_chargeable;
-  const _eWf = res.wt_fedex || res.total_chargeable;
-  const _eWu = res.wt_ups   || res.total_chargeable;
-  const _eAllSame = (_eWd === _eWf && _eWf === _eWu);
-
   let lines = [];
   lines.push(`C/T : ${totalPkg} PKG`);
   lines.push(`W/T : ${totalWt}kg`);
   lines.push(`SIZE : ${sizeStr}`);
-  if (_eAllSame) {
-    lines.push(`CHARGEABLE WEIGHT : ${Number(_eWd).toFixed(1)}kg`);
-  } else {
-    lines.push(`CHARGEABLE WEIGHT : DHL ${Number(_eWd).toFixed(1)}kg / FedEx ${Number(_eWf).toFixed(1)}kg / UPS ${Number(_eWu).toFixed(1)}kg`);
-  }
+  lines.push(`CHARGEABLE WEIGHT : ${chgWt}kg`);
 
   selectedArr.forEach(key => {
     const c      = res.carriers[key];
@@ -2939,9 +2990,6 @@ function buildEmailHtml(res) {
     const rpk     = c.disc_rpk ? ` (${Math.round(c.disc_rpk).toLocaleString('ko-KR')}원/kg)` : '';
     const surs    = (c.surs||[]);
     lines.push(''); lines.push(name + lmrTag); lines.push('');
-    const cwt = _getCwt(key);
-    // 상단 공통 청구중량과 다를 때만 캐리어별 청구중량 출력
-    if (!_eAllSame) lines.push(`청구중량 : ${cwt}kg`);
     if (state.lmr[key]) {
       // LMR 적용 시 — 청구가는 최신 c 데이터(할인율 반영) 사용
       lines.push(`유류할증료 : ${fuelPct}% (${expiry})`);
@@ -2997,7 +3045,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-function generatePdf() {
+async function generatePdf() {
   if (!state.lastResult) return;
   const res         = state.lastResult;
   const quoteNum    = document.getElementById('quoteNum').value;
@@ -3051,11 +3099,18 @@ function generatePdf() {
     const lmrTag  = lmr  ? `<div style="text-align:center;font-size:8px;font-weight:900;color:#dc2626;letter-spacing:.04em;padding:2px 0;background:#fff5f5;">🔴 이번주 중량화물 특가적용</div>`
                   : wwef ? `<div style="text-align:center;font-size:8px;font-weight:900;color:#d97706;letter-spacing:.04em;padding:2px 0;background:#fffbeb;">🟠 UPS 중량화물 특가적용</div>` : '';
     // 청구가는 항상 최신 c.total_quote 사용 (할인율 변경 반영)
-    const total   = Math.round(c.total_quote||0);
+    const pdfIsUs     = (res.dest_country === 'United States of America' || res.dest_country === 'United States');
+    const pdfIsFedex  = (key === 'fedex' || key === 'fedex_e');
+    const pdfIsExport = (res.mode === '수출');
+    const pdfUsClear  = (pdfIsUs && pdfIsFedex && pdfIsExport) ? 3900 : 0;
+    const total   = Math.round((c.total_quote||0) + pdfUsClear);
     const fuelPct = (c.fuel_pct||0).toFixed(2);
     const surs    = (c.surs||[]);
     const base    = Math.round(c.pub_disc || c.pub_base || 0);
     const fuelAmt = Math.round((c.pub_fuel||0)+(c.sur_fuel_pub||0));
+    const pdfUsClearRow = pdfUsClear > 0
+      ? `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:10px;"><span style="color:#555;">미국 수입 처리 수수료</span><span>₩3,900</span></div>`
+      : '';
 
     let itemLines = '';
     if (lmr) {
@@ -3072,7 +3127,8 @@ function generatePdf() {
         <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0;font-size:11px;">
           <span style="color:#666;">유류할증료 (${fuelPct}%)</span><span>₩${fuelAmt.toLocaleString('ko-KR')}</span>
         </div>
-        ${surLinesPdf ? `<div style="border-bottom:1px solid #f0f0f0;padding:2px 0;">${surLinesPdf}</div>` : ''}`;
+        ${surLinesPdf ? `<div style="border-bottom:1px solid #f0f0f0;padding:2px 0;">${surLinesPdf}</div>` : ''}
+        ${pdfUsClearRow}`;
     } else {
       const surLines = surs.map(s =>
         `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:10px;">
@@ -3086,21 +3142,22 @@ function generatePdf() {
         <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0;font-size:11px;">
           <span style="color:#666;">유류할증료 (${fuelPct}%)</span><span>₩${fuelAmt.toLocaleString('ko-KR')}</span>
         </div>
-        ${surLines ? `<div style="border-bottom:1px solid #f0f0f0;padding:2px 0;">${surLines}</div>` : ''}`;
+        ${surLines ? `<div style="border-bottom:1px solid #f0f0f0;padding:2px 0;">${surLines}</div>` : ''}
+        ${pdfUsClearRow}`;
     }
 
     return `<div class="rate-card" style="border:1px solid #dee2e6;border-radius:4px;overflow:hidden;">
-      <div style="background:#003366;color:#fff;font-weight:800;font-size:10.5px;padding:5px 9px;text-align:center;letter-spacing:.5px;">${name}</div>
+      <div style="background:#003366;color:#fff;font-weight:800;font-size:11px;padding:6px 10px;text-align:center;letter-spacing:.5px;">${name}</div>
       ${lmrTag}
-      <div style="padding:6px 9px;">
+      <div style="padding:8px 10px;">
         ${itemLines}
-        <div style="display:flex;justify-content:space-between;padding:2px 0;font-size:10.5px;">
+        <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11px;">
           <span style="color:#666;">소요시간</span><span>${tt}</span>
         </div>
       </div>
-      <div style="background:#f8f9ff;border-top:2px solid #003366;padding:5px 9px;text-align:right;">
+      <div style="background:#f8f9ff;border-top:2px solid #003366;padding:7px 10px;text-align:right;">
         <span style="font-size:9px;color:#888;margin-right:4px;">총 견적금액</span>
-        <span style="font-size:14px;font-weight:900;color:#e63946;">₩${total.toLocaleString('ko-KR')}</span>
+        <span style="font-size:15px;font-weight:900;color:#e63946;">₩${total.toLocaleString('ko-KR')}</span>
       </div>
     </div>`;
   }).join('');
@@ -3115,29 +3172,33 @@ function generatePdf() {
 <meta charset="UTF-8">
 <title>Airbridge Quotation ${quoteNum}</title>
 <style>
-  @page { size:A4; margin:12mm 13mm 14mm; }
+  @page { size:A4; margin:15mm 15mm 20mm; }
   * { box-sizing:border-box; }
-  body { font-family:'Malgun Gothic','Noto Sans KR',Arial,sans-serif; font-size:11px; color:#333; margin:0; padding:0; }
-  header { border-bottom:3px solid #003366; padding-bottom:7px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:flex-end; }
-  .logo-h1 { color:#003366; margin:0; font-size:20px; font-weight:900; }
-  .logo-sub { font-size:9px; color:#666; letter-spacing:3px; margin-top:2px; text-transform:uppercase; }
-  .doc-right { text-align:right; font-size:11px; color:#555; }
-  .doc-right h2 { margin:0 0 2px; font-size:15px; color:#333; }
-  h3 { font-size:11px; color:#fff; background:#003366; padding:4px 9px; margin:0 0 5px; font-weight:700; }
-  section { margin-bottom:9px; }
-  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  .info-box { border:1px solid #dee2e6; padding:6px 9px; border-radius:3px; }
-  .info-row { display:flex; justify-content:space-between; padding:2px 0; font-size:11px; border-bottom:1px solid #f0f0f0; }
+  body { font-family:'Malgun Gothic','Noto Sans KR',Arial,sans-serif; font-size:12px; color:#333; margin:0; padding:0; }
+  header { border-bottom:3px solid #003366; padding-bottom:10px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:flex-end; }
+  .logo-h1 { color:#003366; margin:0; font-size:22px; font-weight:900; }
+  .logo-sub { font-size:10px; color:#666; letter-spacing:3px; margin-top:2px; text-transform:uppercase; }
+  .doc-right { text-align:right; font-size:12px; color:#555; }
+  .doc-right h2 { margin:0 0 3px; font-size:16px; color:#333; }
+  h3 { font-size:12px; color:#fff; background:#003366; padding:5px 10px; margin:0 0 6px; font-weight:700; }
+  section { margin-bottom:12px; }
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .info-box { border:1px solid #dee2e6; padding:8px 10px; border-radius:3px; }
+  .info-row { display:flex; justify-content:space-between; padding:3px 0; font-size:11.5px; border-bottom:1px solid #f0f0f0; }
   .info-row:last-child { border-bottom:none; }
   .info-label { color:#666; font-weight:600; }
-  table { width:100%; border-collapse:collapse; font-size:10.5px; }
-  th { background:#003366; color:#fff; font-weight:700; padding:5px 7px; text-align:center; border:1px solid #dee2e6; }
-  td { padding:4px 7px; border:1px solid #dee2e6; text-align:center; vertical-align:middle; }
-  .rate-section { }
+  table { width:100%; border-collapse:collapse; font-size:11px; }
+  th { background:#003366; color:#fff; font-weight:700; padding:6px 8px; text-align:center; border:1px solid #dee2e6; }
+  td { padding:5px 8px; border:1px solid #dee2e6; text-align:center; vertical-align:middle; }
+  /* 운임 비교 — 화물이 많으면 페이지 강제 분리 */
+  .rate-section { ${state.ctData.length >= 3 ? 'page-break-before:always; padding-top:4mm;' : ''} }
+  /* 카드 내부에서 잘리지 않게 */
   .rate-card { page-break-inside:avoid; break-inside:avoid; }
-  .remarks-block { margin-top:10px; padding-top:8px; border-top:1px solid #dee2e6; font-size:9.5px; color:#666; page-break-inside:avoid; }
-  .remarks-list { margin:3px 0 0; padding-left:14px; line-height:1.7; }
-  .doc-footer { margin-top:8px; padding-top:6px; border-top:2px solid #003366; display:flex; justify-content:space-between; font-size:10.5px; color:#555; page-break-inside:avoid; }
+  /* 유의사항: 고정 아닌 일반 흐름, 마지막에 배치 */
+  .remarks-block { margin-top:16px; padding-top:10px; border-top:1px solid #dee2e6; font-size:10px; color:#666; page-break-inside:avoid; }
+  .remarks-list { margin:4px 0 0; padding-left:16px; line-height:1.8; }
+  /* 하단 회사정보 */
+  .doc-footer { margin-top:10px; padding-top:8px; border-top:2px solid #003366; display:flex; justify-content:space-between; font-size:11px; color:#555; page-break-inside:avoid; }
   @media print {
     body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     button { display:none !important; }
@@ -3158,7 +3219,7 @@ function generatePdf() {
     견적번호: <strong>${quoteNum}</strong>&nbsp;&nbsp;|&nbsp;&nbsp;견적일자: ${today}
   </div>
 </header>
-<div style="background:#003366;padding:7px 16px;margin-bottom:10px;border-radius:4px;display:flex;align-items:center;gap:20px;">
+<div style="background:#003366;padding:10px 18px;margin-bottom:14px;border-radius:4px;display:flex;align-items:center;gap:20px;">
   <span style="font-size:11px;font-weight:700;color:#aac4e8;white-space:nowrap;letter-spacing:1px;">에어브리지 담당자</span>
   <span style="font-size:15px;font-weight:900;color:#ffffff;">${staffName}</span>
   <span style="font-size:13px;font-weight:600;color:#d0e4f7;">${si.phone||''}</span>
@@ -3182,13 +3243,7 @@ function generatePdf() {
       <div class="info-row"><span class="info-label">부피 중량 (Vol. Weight)</span><span>${res.total_vol_wt.toFixed(1)} kg</span></div>
       <div class="info-row" style="color:#003366;">
         <span class="info-label" style="color:#003366;font-weight:700;">청구 중량 (Chg. Weight)</span>
-        <span style="font-weight:800;">${(() => {
-          const d = res.wt_dhl||res.total_chargeable;
-          const f = res.wt_fedex||res.total_chargeable;
-          const u = res.wt_ups||res.total_chargeable;
-          if (d === f && f === u) return d.toFixed(1) + ' kg';
-          return `DHL ${d.toFixed(1)}kg / FedEx ${f.toFixed(1)}kg / UPS ${u.toFixed(1)}kg`;
-        })()}</span>
+        <span style="font-weight:800;">${res.total_chargeable.toFixed(1)} kg</span>
       </div>
       <div class="info-row"><span class="info-label">청구 기준</span>
         <span>${res.total_vol_wt > res.total_actual_wt ? '부피중량 (Vol.Weight)' : '실중량 (Act.Weight)'}</span>
@@ -3225,23 +3280,40 @@ ${notesBlock}
 </div>
 </body></html>`;
 
-  // Blob URL 방식: 모바일 팝업 차단 우회
+  // html2pdf.js 직접 다운로드
+  showLoader('PDF 견적서 생성중', 'GENERATING PDF...', '📄');
   try {
-    const blob = new Blob([html], {type: 'text/html;charset=utf-8'});
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.target = '_blank';
-    a.rel = 'noopener';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+    const container = document.createElement('div');
+    container.style.cssText = 'position:absolute;left:-9999px;top:0;width:210mm;';
+    // html에서 <html><head>...<body> 태그 제거하고 body 내용만 추출
+    const bodyMatch = html.match(/<body>([\s\S]*)<\/body>/);
+    const bodyHtml  = bodyMatch ? bodyMatch[1] : html;
+    // 스타일 추출
+    const styleMatch = html.match(/<style>([\s\S]*?)<\/style>/);
+    const styleHtml  = styleMatch ? '<style>' + styleMatch[1] + '</style>' : '';
+    container.innerHTML = styleHtml + bodyHtml;
+    document.body.appendChild(container);
+    const fileName = '에어브리지_견적서_' + quoteNum + '.pdf';
+    await html2pdf().set({
+      margin:       [8, 8, 8, 8],
+      filename:     fileName,
+      image:        { type:'jpeg', quality:0.97 },
+      html2canvas:  { scale:2, useCORS:true, logging:false },
+      jsPDF:        { unit:'mm', format:'a4', orientation:'portrait' },
+      pagebreak:    { mode:['avoid-all','css','legacy'] }
+    }).from(container).save();
+    document.body.removeChild(container);
+    hideLoader();
+    showToast('✅ PDF 저장 완료 — 다운로드 폴더를 확인하세요');
   } catch(e) {
-    // fallback
-    const win = window.open('', '_blank', 'width=900,height=1100');
-    if (win) { win.document.write(html); win.document.close(); win.focus(); }
-    else { showToast('⚠️ 팝업 차단됨 — 브라우저 팝업 허용 후 다시 시도하세요'); }
+    hideLoader();
+    showToast('⚠️ PDF 생성 실패: ' + e.message);
+    // fallback: 새창 열기
+    const blob2 = new Blob([html], {type:'text/html;charset=utf-8'});
+    const a2 = document.createElement('a');
+    a2.href = URL.createObjectURL(blob2);
+    a2.target = '_blank';
+    a2.click();
   }
 }
 
@@ -3356,6 +3428,7 @@ function showAiResult(r) {
 }
 
 function applyAiResult() {
+  showLoaderAuto('AI 결과 적용중', 'APPLYING RESULT...', '✅', 900);
   const r = state.aiResult; if (!r) return;
   const en = resolveCountry(r.country);
   if (en && COUNTRY_MAP[en]) {
@@ -3419,21 +3492,44 @@ function showToast(msg) {
   _toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
 }
 
-function showPlaneBanner(msg) {
-  const existing = document.getElementById('planeBannerWrap');
-  if (existing) existing.remove();
-  const wrap = document.createElement('div');
-  wrap.id = 'planeBannerWrap';
-  wrap.className = 'plane-banner-wrap';
-  wrap.innerHTML = `
-    <div class="plane-banner-inner">
-      <span class="plane-icon">✈️</span>
-      <span class="plane-rope"></span>
-      <span class="plane-flag">🎉 ${msg}</span>
-    </div>`;
-  document.body.appendChild(wrap);
-  setTimeout(() => { if (wrap.parentNode) wrap.remove(); }, 3000);
+// ── 로딩 오버레이 ──────────────────────────────
+var _loaderTimer = null;
+function showLoader(title, sub, icon) {
+  icon  = icon  || '🤖';
+  sub   = sub   || 'PROCESSING...';
+  hideLoader();
+  var el = document.createElement('div');
+  el.id = 'loaderOverlay';
+  el.className = 'loader-overlay';
+  el.innerHTML =
+    '<div class="loader-ring-wrap">' +
+      '<svg class="loader-svg" viewBox="0 0 120 120">' +
+        '<circle class="loader-arc1" cx="60" cy="60" r="50"/>' +
+        '<circle class="loader-arc2" cx="60" cy="60" r="50"/>' +
+        '<circle class="loader-arc3" cx="60" cy="60" r="50"/>' +
+      '</svg>' +
+      '<div class="loader-icon">' + icon + '</div>' +
+    '</div>' +
+    '<div class="loader-title">' + title + '</div>' +
+    '<div class="loader-sub">' + sub + '</div>' +
+    '<div class="loader-dots">' +
+      '<div class="loader-dot"></div>' +
+      '<div class="loader-dot"></div>' +
+      '<div class="loader-dot"></div>' +
+    '</div>';
+  document.body.appendChild(el);
 }
+function hideLoader() {
+  var el = document.getElementById('loaderOverlay');
+  if (el) el.remove();
+  if (_loaderTimer) { clearTimeout(_loaderTimer); _loaderTimer = null; }
+}
+function showLoaderAuto(title, sub, icon, ms) {
+  showLoader(title, sub, icon);
+  _loaderTimer = setTimeout(hideLoader, ms || 3000);
+}
+// 구버전 호환 (사용처 잔재)
+function showPlaneBanner(msg) { showLoaderAuto('운임 계산 완료!', 'RATE CALCULATED', '✅', 1800); }
 </script>
 </body>
 </html>
