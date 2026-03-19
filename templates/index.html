@@ -252,6 +252,78 @@ body.mode-imp .tb-calc-btn { background: linear-gradient(135deg, #9d174d, #be185
   font-size: 13px; padding: 5px 8px; outline: none; transition: border .2s; box-sizing: border-box;
 }
 .sb-input:focus, .sb-select:focus, .sb-number:focus { border-color: var(--acc); }
+
+/* ── 문구 선택 패널 ── */
+.phrase-panel {
+  display: none; position: fixed; inset: 0; z-index: 9000;
+  background: rgba(0,0,0,.55); align-items: center; justify-content: center;
+}
+.phrase-panel.open { display: flex; }
+.phrase-box {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 18px; width: 480px; max-width: 95vw;
+  max-height: 80vh; display: flex; flex-direction: column; gap: 10px;
+  box-shadow: 0 8px 40px rgba(0,0,0,.6);
+}
+.phrase-box-title {
+  font-size: .85rem; font-weight: 900; color: var(--text-pri);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.phrase-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1; }
+.phrase-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  background: var(--bg-dark); border: 1px solid var(--border);
+  border-radius: 7px; padding: 8px 10px; cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.phrase-item:hover { background: rgba(255,255,255,.05); }
+.phrase-item.selected { border-color: var(--acc); background: rgba(96,165,250,.1); }
+.phrase-check {
+  width: 16px; height: 16px; border-radius: 4px; border: 2px solid var(--border);
+  flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center;
+  font-size: .65rem; transition: all .15s;
+}
+.phrase-item.selected .phrase-check { background: var(--acc); border-color: var(--acc); color: #fff; }
+.phrase-text { font-size: .72rem; color: var(--text-sec); line-height: 1.5; flex: 1; }
+.phrase-edit-btn, .phrase-del-btn {
+  background: none; border: none; cursor: pointer; padding: 2px 5px;
+  font-size: .7rem; border-radius: 4px; flex-shrink: 0; opacity: .6;
+  transition: opacity .15s;
+}
+.phrase-edit-btn:hover { opacity: 1; color: #60a5fa; }
+.phrase-del-btn:hover  { opacity: 1; color: #f87171; }
+.phrase-actions { display: flex; gap: 8px; }
+.phrase-btn-add {
+  flex: 1; padding: 7px; border: 1px dashed rgba(96,165,250,.4);
+  border-radius: 7px; background: rgba(96,165,250,.06);
+  color: #60a5fa; font-size: .75rem; font-weight: 800;
+  cursor: pointer; font-family: 'Noto Sans KR', sans-serif;
+}
+.phrase-btn-add:hover { background: rgba(96,165,250,.14); }
+.phrase-btn-apply {
+  flex: 1; padding: 7px; border: none; border-radius: 7px;
+  background: linear-gradient(135deg, var(--acc-primary), var(--acc));
+  color: #fff; font-size: .75rem; font-weight: 900;
+  cursor: pointer; font-family: 'Noto Sans KR', sans-serif;
+}
+.phrase-btn-close {
+  background: rgba(255,255,255,.08); border: 1px solid var(--border);
+  border-radius: 7px; color: var(--text-sec); font-size: .75rem;
+  padding: 7px 14px; cursor: pointer; font-family: 'Noto Sans KR', sans-serif;
+}
+.phrase-edit-area {
+  display: none; flex-direction: column; gap: 6px;
+  background: var(--bg-dark); border: 1px solid var(--acc);
+  border-radius: 8px; padding: 10px;
+}
+.phrase-edit-area.open { display: flex; }
+.phrase-edit-ta {
+  width: 100%; box-sizing: border-box; background: rgba(0,0,0,.3);
+  border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text-pri); font-family: 'Noto Sans KR', sans-serif;
+  font-size: .73rem; padding: 7px; resize: vertical; min-height: 70px; outline: none;
+}
+.phrase-edit-ta:focus { border-color: var(--acc); }
 .sb-number { font-family: var(--mono); }
 
 .sb-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -1405,8 +1477,35 @@ body.mode-imp .tb-calc-btn { background: linear-gradient(135deg, #9d174d, #be185
 
     <!-- Notes -->
     <div class="sb-section">
-      <div class="sb-title">📝 특이사항</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+        <div class="sb-title" style="margin-bottom:0;">📝 특이사항</div>
+        <button onclick="openPhrasePanel()" style="background:rgba(96,165,250,.15);border:1px solid rgba(96,165,250,.35);border-radius:6px;color:#60a5fa;font-size:.68rem;font-weight:800;padding:3px 9px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">📋 추가 문구</button>
+      </div>
       <textarea class="sb-input" id="notesInput" rows="3" placeholder="특이사항 입력" style="resize:vertical;"></textarea>
+    </div>
+
+    <!-- 문구 선택 패널 -->
+    <div class="phrase-panel" id="phrasePanel" onclick="if(event.target===this)closePhrasePanel()">
+      <div class="phrase-box">
+        <div class="phrase-box-title">
+          <span>📋 추가 문구 선택</span>
+          <button onclick="closePhrasePanel()" class="phrase-btn-close">✕ 닫기</button>
+        </div>
+        <div class="phrase-list" id="phraseList"></div>
+        <!-- 편집 영역 -->
+        <div class="phrase-edit-area" id="phraseEditArea">
+          <div style="font-size:.68rem;color:#60a5fa;font-weight:800;" id="phraseEditTitle">새 문구 추가</div>
+          <textarea class="phrase-edit-ta" id="phraseEditTa" rows="3" placeholder="문구 내용 입력..."></textarea>
+          <div style="display:flex;gap:6px;">
+            <button onclick="savePhraseEdit()" class="phrase-btn-apply" style="font-size:.72rem;">✅ 저장</button>
+            <button onclick="cancelPhraseEdit()" class="phrase-btn-close" style="font-size:.72rem;">취소</button>
+          </div>
+        </div>
+        <div class="phrase-actions">
+          <button onclick="addPhraseNew()" class="phrase-btn-add">＋ 문구 추가</button>
+          <button onclick="applyPhrases()" class="phrase-btn-apply">✅ 선택 내용 입력</button>
+        </div>
+      </div>
     </div>
 
     <!-- Target margin + Calc button -->
@@ -3590,6 +3689,124 @@ function showLoaderAuto(title, sub, icon, ms) {
   showLoader(title, sub, icon);
   _loaderTimer = setTimeout(hideLoader, ms || 3000);
 }
+
+// ── 추가 문구 관리 ──────────────────────────────────────────────
+var _PHRASE_KEY = 'ab_custom_phrases';
+var _phraseEditIdx = -1; // -1 = 신규
+
+function _defaultPhrases() {
+  return [
+    'DDP(발송인 관세 대납/상기견적 불포함) : DHL 익스프레스는 발송인의 요청에 따라 도착지에서 발생한 관부가세 및 기타 통관 비용을 수취인이 아닌 발송인 혹은 제3자가 지불할 수 있도록 도와드리며 이에 따른 서비스 요금은 실제 관부가세 발생시에만 청구됩니다. (관부가세의 2% 또는 최소 KRW 30,000 중 큰 금액)',
+    'FEDEX : 이번주 중량화물 특가운임으로 차주에는 운임이 변동 될 수 있음을 참고바랍니다.',
+    '중동 지역의 지속되는 정세 불안과 일부 국가의 영공 폐쇄 조치로 인해 항공편 운항에 제한이 발생하고 있습니다. 이에 따라 해당 지역 관련 서비스에 지연이 발생할 수 있으니 이용에 참고 부탁드립니다.'
+  ];
+}
+
+function _loadPhrases() {
+  try {
+    var raw = localStorage.getItem(_PHRASE_KEY);
+    return raw ? JSON.parse(raw) : _defaultPhrases();
+  } catch(e) { return _defaultPhrases(); }
+}
+
+function _savePhrases(arr) {
+  try { localStorage.setItem(_PHRASE_KEY, JSON.stringify(arr)); } catch(e) {}
+}
+
+function openPhrasePanel() {
+  _phraseEditIdx = -1;
+  document.getElementById('phraseEditArea').classList.remove('open');
+  renderPhraseList();
+  document.getElementById('phrasePanel').classList.add('open');
+}
+
+function closePhrasePanel() {
+  document.getElementById('phrasePanel').classList.remove('open');
+}
+
+function renderPhraseList() {
+  var phrases = _loadPhrases();
+  var list = document.getElementById('phraseList');
+  list.innerHTML = '';
+  phrases.forEach(function(p, i) {
+    var item = document.createElement('div');
+    item.className = 'phrase-item';
+    item.dataset.idx = i;
+    item.innerHTML =
+      '<div class="phrase-check">✓</div>' +
+      '<div class="phrase-text">' + p.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</div>' +
+      '<button class="phrase-edit-btn" onclick="event.stopPropagation();editPhrase(' + i + ')" title="수정">✏️</button>' +
+      '<button class="phrase-del-btn"  onclick="event.stopPropagation();deletePhrase(' + i + ')" title="삭제">🗑</button>';
+    item.addEventListener('click', function() {
+      item.classList.toggle('selected');
+    });
+    list.appendChild(item);
+  });
+}
+
+function applyPhrases() {
+  var selected = document.querySelectorAll('#phraseList .phrase-item.selected');
+  if (selected.length === 0) { showToast('⚠️ 문구를 하나 이상 선택하세요'); return; }
+  var ta = document.getElementById('notesInput');
+  var current = ta.value.trim();
+  var adds = [];
+  selected.forEach(function(el) {
+    var idx = parseInt(el.dataset.idx);
+    adds.push(_loadPhrases()[idx]);
+  });
+  ta.value = current ? current + '\n' + adds.join('\n') : adds.join('\n');
+  closePhrasePanel();
+  showToast('✅ ' + adds.length + '개 문구가 특이사항에 추가되었습니다');
+}
+
+function addPhraseNew() {
+  _phraseEditIdx = -1;
+  document.getElementById('phraseEditTitle').textContent = '새 문구 추가';
+  document.getElementById('phraseEditTa').value = '';
+  document.getElementById('phraseEditArea').classList.add('open');
+  document.getElementById('phraseEditTa').focus();
+}
+
+function editPhrase(idx) {
+  var phrases = _loadPhrases();
+  _phraseEditIdx = idx;
+  document.getElementById('phraseEditTitle').textContent = '문구 수정';
+  document.getElementById('phraseEditTa').value = phrases[idx];
+  document.getElementById('phraseEditArea').classList.add('open');
+  document.getElementById('phraseEditTa').focus();
+}
+
+function savePhraseEdit() {
+  var text = document.getElementById('phraseEditTa').value.trim();
+  if (!text) { showToast('⚠️ 내용을 입력하세요'); return; }
+  var phrases = _loadPhrases();
+  if (_phraseEditIdx === -1) {
+    phrases.push(text);
+    showToast('✅ 문구가 추가되었습니다');
+  } else {
+    phrases[_phraseEditIdx] = text;
+    showToast('✅ 문구가 수정되었습니다');
+  }
+  _savePhrases(phrases);
+  cancelPhraseEdit();
+  renderPhraseList();
+}
+
+function cancelPhraseEdit() {
+  _phraseEditIdx = -1;
+  document.getElementById('phraseEditArea').classList.remove('open');
+  document.getElementById('phraseEditTa').value = '';
+}
+
+function deletePhrase(idx) {
+  if (!confirm('이 문구를 삭제할까요?')) return;
+  var phrases = _loadPhrases();
+  phrases.splice(idx, 1);
+  _savePhrases(phrases);
+  renderPhraseList();
+  showToast('🗑 문구가 삭제되었습니다');
+}
+
 // 구버전 호환 (사용처 잔재)
 function showPlaneBanner(msg) { showLoaderAuto('운임 계산 완료!', 'RATE CALCULATED', '✅', 1800); }
 </script>
