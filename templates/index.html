@@ -1865,6 +1865,8 @@ function cleanCustomerName(raw) {
     .replace(/\s*\(할인[^)]*\)/g, '')
     .replace(/\s*\(특가[^)]*\)/g, '')
     .replace(/\s*\([^)]*%[^)]*\)/g, '')   // 퍼센트 포함 괄호 전체 제거
+    .replace(/\s*\(구\s*[:：]?\s*[^)]*\)/g, '')  // (구 : ...) 패턴 제거
+    .replace(/\s+[A-Z0-9]{2,}$/g, '')          // 끝 영문/숫자 약칭 제거 (NXO 등)
     .trim();
 }
 
@@ -3031,15 +3033,12 @@ function renderResults(res) {
       const adjQuoteBase  = c.total_quote + usClearFee + extraCostSum;  // 항상 최신값
 
       // LMR 적용 시 quote_rows도 최신 c 데이터로 동적 생성
-      const lmrQuoteRowsDynamic = state.lmr[key] ? (() => {
-        const surRowsQ = (c.surs||[])
-          .filter(s => s.name !== '__freight__')
-          .map(s => `<div class="bd-row sub-item"><span>${s.name}</span><span class="bd-val">₩${Math.round(s.amount).toLocaleString('ko-KR')}</span></div>`)
-          .join('');
-        return `<div class="bd-row"><span>항공운임 (견적)${c.disc_rpk ? ` <span style="font-size:.62rem;color:#60a5fa;">(₩${Math.round(c.disc_rpk).toLocaleString()}/kg)</span>` : ''}</span><span class="bd-val">₩${Math.round(c.pub_disc||0).toLocaleString('ko-KR')}</span></div>`
-          + surRowsQ
-          + `<div class="bd-row sub-item"><span>유류할증료</span><span class="bd-val">₩${Math.round((c.pub_fuel||0)+(c.sur_fuel_pub||0)).toLocaleString('ko-KR')}</span></div>`;
-      })() : null;
+      // LMR 청구가 행: surRows 그대로 사용 (applyUpsSurgeFee 포함된 최신값)
+      const lmrQuoteRowsDynamic = state.lmr[key] ? (
+        `<div class="bd-row"><span>항공운임 (견적)${c.disc_rpk ? ` <span style="font-size:.62rem;color:#60a5fa;">(₩${Math.round(c.disc_rpk).toLocaleString()}/kg)</span>` : ''}</span><span class="bd-val">${fmtWon(c.pub_disc)}</span></div>`
+        + (hasSur ? surRows : '')
+        + `<div class="bd-row sub-item"><span>유류할증료</span><span class="bd-val">${fmtWon((c.pub_fuel||0)+(c.sur_fuel_pub||0))}</span></div>`
+      ) : null;
 
       card.innerHTML = `
         <div class="card-check">✓</div>
