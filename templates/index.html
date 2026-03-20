@@ -3016,13 +3016,14 @@ function renderResults(res) {
         .join('');
       const hasSur = (c.surs||[]).filter(s=>s.name!=='__freight__').length > 0;
 
-      // FedEx 미국 수입 처리 수수료 (한국→미국 수출, 건당 3,900원, 유류 제외)
+      // FedEx US 인바운드 처리 수수료 (한국→미국 수출, 건당 3,900원, 유류 제외)
       const isUsRoute   = (res.dest_country === 'United States of America' || res.dest_country === 'United States');
       const isFedexCard = (key === 'fedex' || key === 'fedex_e');
       const isExport    = (res.mode === '수출');
-      const usClearFee  = (isUsRoute && isFedexCard && isExport) ? 3900 : 0;
+      // LMR 적용 시 US 수수료는 LMR 금액에 이미 포함 → 중복 방지
+      const usClearFee  = (isUsRoute && isFedexCard && isExport && !state.lmr[key]) ? 3900 : 0;
       const usClearRow  = usClearFee > 0
-        ? `<div class="bd-row sub-item"><span>  미국 수입 처리 수수료</span><span class="bd-val">${fmtWon(usClearFee)}</span></div>`
+        ? `<div class="bd-row sub-item"><span>  US 인바운드 처리 수수료</span><span class="bd-val">${fmtWon(usClearFee)}</span></div>`
         : '';
 
       // WWEF 적용 여부
@@ -3198,7 +3199,7 @@ function buildEmailHtml(res) {
     const rpkStr  = c.disc_rpk ? ` <span style="font-size:9px;color:#888;">(₩${Math.round(c.disc_rpk).toLocaleString()}/kg)</span>` : '';
     const isUsEmail   = (res.dest_country === 'United States of America' || res.dest_country === 'United States');
     const isFedexEmail = (key === 'fedex' || key === 'fedex_e');
-    const emailUsClearFee = (isUsEmail && isFedexEmail && res.mode === '수출') ? 3900 : 0;
+    const emailUsClearFee = (isUsEmail && isFedexEmail && res.mode === '수출' && !state.lmr[key]) ? 3900 : 0;
     const emailExtraSum = (state.extraCosts[key]||[]).reduce((s,e)=>s+(parseFloat(e.amt)||0),0);
     const total   = Math.round((c.total_quote||0) + emailUsClearFee + emailExtraSum);
     const rpk     = c.disc_rpk ? ` (${Math.round(c.disc_rpk).toLocaleString('ko-KR')}원/kg)` : '';
@@ -3213,7 +3214,7 @@ function buildEmailHtml(res) {
       surs.filter(s=>s.name!=='__freight__').forEach(s =>
         lines.push(`${s.name} : ${Math.round(s.amount).toLocaleString('ko-KR')}원`)
       );
-      if (emailUsClearFee > 0) lines.push(`미국 수입 처리 수수료 : ${emailUsClearFee.toLocaleString('ko-KR')}원`);
+      if (emailUsClearFee > 0) lines.push(`US 인바운드 처리 수수료 : ${emailUsClearFee.toLocaleString('ko-KR')}원`);
       lines.push(''); lines.push(`TOTAL : ${total.toLocaleString('ko-KR')}원`);
     } else {
       lines.push(`유류할증료 : ${fuelPct}% (${expiry})`);
@@ -3221,7 +3222,7 @@ function buildEmailHtml(res) {
       lines.push(`운임${rpk} : ${base.toLocaleString('ko-KR')}원`);
       lines.push(`유류할증료 : ${fuelAmt.toLocaleString('ko-KR')}원`);
       surs.forEach(s => lines.push(`${s.name} : ${Math.round(s.amount).toLocaleString('ko-KR')}원`));
-      if (emailUsClearFee > 0) lines.push(`미국 수입 처리 수수료 : ${emailUsClearFee.toLocaleString('ko-KR')}원`);
+      if (emailUsClearFee > 0) lines.push(`US 인바운드 처리 수수료 : ${emailUsClearFee.toLocaleString('ko-KR')}원`);
       lines.push(''); lines.push(`TOTAL : ${total.toLocaleString('ko-KR')}원`);
     }
     lines.push('');
@@ -3319,7 +3320,7 @@ function generatePdf() {
     const pdfIsUs     = (res.dest_country === 'United States of America' || res.dest_country === 'United States');
     const pdfIsFedex  = (key === 'fedex' || key === 'fedex_e');
     const pdfIsExport = (res.mode === '수출');
-    const pdfUsClear  = (pdfIsUs && pdfIsFedex && pdfIsExport) ? 3900 : 0;
+    const pdfUsClear  = (pdfIsUs && pdfIsFedex && pdfIsExport && !state.lmr[key]) ? 3900 : 0;
     const total   = Math.round((c.total_quote||0) + pdfUsClear + pdfExtraSum);
     const fuelPct = (c.fuel_pct||0).toFixed(2);
     const surs    = (c.surs||[]);
@@ -3327,7 +3328,7 @@ function generatePdf() {
     const fuelAmt = Math.round((c.pub_fuel||0)+(c.sur_fuel_pub||0));
     const rpkStr  = c.disc_rpk ? ` <span style="font-size:9px;color:#888;">(₩${Math.round(c.disc_rpk).toLocaleString()}/kg)</span>` : '';
     const pdfUsClearRow = pdfUsClear > 0
-      ? `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:10px;"><span style="color:#555;">미국 수입 처리 수수료</span><span>₩3,900</span></div>`
+      ? `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:10px;"><span style="color:#555;">US 인바운드 처리 수수료</span><span>₩3,900</span></div>`
       : '';
 
     let itemLines = '';
