@@ -155,12 +155,41 @@ def api_calculate():
 
 @app.route("/api/customer-disc", methods=["POST"])
 def api_customer_disc():
+    import re as _re
     d = request.json or {}
     company = d.get("company", "")
     mode    = d.get("mode", "수출")
     if not company:
         return jsonify({"ok": False, "error": "회사명 없음"})
-    disc = get_customer_disc(company, mode)
+
+    def _has_disc(disc_dict):
+        return any(v > 0 for k, v in disc_dict.items() if not k.startswith('_'))
+
+    def _try_disc(name):
+        return get_customer_disc(name, mode)
+
+    # 1차: 원본 그대로
+    disc = _try_disc(company)
+    if not _has_disc(disc):
+        # 2차: 구글시트에서 고객 목록 직접 조회해서 퍼지 매칭
+        try:
+            df = load_customer_db()
+            if not df.empty:
+                # 비교용 정규화 함수
+                def _norm(s):
+                    s = _re.sub(r'\s*\([^)]*\)', '', str(s))  # 괄호 제거
+                    s = _re.sub(r'\s+', '', s)                   # 공백 모두 제거
+                    s = s.upper()
+                    return s
+                q_norm = _norm(company)
+                for sheet_name in df["회사명"].tolist():
+                    if _norm(sheet_name) == q_norm:
+                        disc2 = _try_disc(sheet_name)
+                        if _has_disc(disc2):
+                            disc = disc2
+                            break
+        except Exception:
+            pass
     debug = disc.pop("_debug", "")
     disc.pop("_ups_col", None)
     return jsonify({"ok": True, "disc": disc, "debug": debug})
@@ -289,7 +318,7 @@ def api_ai_lmr_text():
     try:
         client = anthropic.Anthropic()
         msg = client.messages.create(
-            model="claude-opus-4-5",
+            model="claude-haiku-4-5-20251001",
             max_tokens=512,
             messages=[{
                 "role": "user",
