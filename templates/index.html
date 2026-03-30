@@ -2803,7 +2803,7 @@ function renderCTs() {
       </div>`;
     container.appendChild(div);
   });
-  document.getElementById('addCtBtn').style.display = state.ctData.length >= 5 ? 'none' : 'block';
+  document.getElementById('addCtBtn').style.display = state.ctData.length >= 10 ? 'none' : 'block';
 }
 function updateCT(i, field, val) {
   state.ctData[i][field] = field === 'wt' ? parseFloat(val)||1 : parseInt(val)||1;
