@@ -2770,7 +2770,7 @@ function updateCtxBar() { /* ctx-bar 제거됨 */ }
 // C/T Management
 // ─────────────────────────────────────────────
 function addCT() {
-  if (state.ctData.length >= 5) { showToast('최대 5개 C/T'); return; }
+  if (state.ctData.length >= 10) { showToast('최대 10개 C/T'); return; }
   state.ctData.push({wt:1.0, L:30, W:20, H:20, qty:1});
   renderCTs();
 }
