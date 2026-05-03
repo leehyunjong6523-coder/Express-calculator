@@ -2883,50 +2883,110 @@ function roundChargeable(wt) {
 }
 
 // ── UPS 급증 수수료 (Surge Fee) 2026-03-15~ ─────────────────
-const UPS_SURGE_ISRAEL = new Set(['Israel']);
-const UPS_SURGE_MIDEAST = new Set([
-  'Afghanistan','Bahrain','Bangladesh','Egypt','Iraq','Jordan',
-  'Kuwait','Lebanon','Nepal','Oman','Pakistan','Qatar',
-  'Saudi Arabia','Sri Lanka','United Arab Emirates'
-]);
-// 한국 출발 수출 & 한국 도착 수입 모두 적용
-// 금액: 청구중량 × 단가 (유류할증료 추가 적용)
+// ── UPS 급증 긴급 수수료 (Surge Emergency Fee) 2026-04-19~ ────
+// ※ 한국(South Korea) 기준 수출/수입 적용 금액 (KRW/kg, 유류할증 별도)
+
+// 지역 분류
+const UPS_SURGE_REGIONS = {
+  // UAE (단독 — 중동 Set에서 분리)
+  UAE: new Set(['United Arab Emirates']),
+  // 이스라엘
+  Israel: new Set(['Israel']),
+  // 중동 (UAE·이스라엘 제외)
+  MiddleEast: new Set([
+    'Afghanistan','Bahrain','Bangladesh','Egypt','Iraq','Jordan',
+    'Kuwait','Lebanon','Nepal','Oman','Pakistan','Qatar',
+    'Saudi Arabia','Sri Lanka'
+  ]),
+  // 유럽 (수출 전체 확장 목록)
+  Europe: new Set([
+    'Albania','Andorra','Armenia','Austria','Belarus','Belgium',
+    'Bosnia and Herzegovina','Bulgaria','Croatia','Cyprus',
+    'Czech Republic','Denmark','Estonia','Finland','France',
+    'Georgia','Germany','Gibraltar','Greece','Guernsey',
+    'Hungary','Iceland','Ireland','Italy','Kosovo',
+    'Latvia','Lithuania','Luxembourg','Malta','Moldova',
+    'Montenegro','Netherlands','North Macedonia','Norway',
+    'Poland','Portugal','Romania','Russia','San Marino',
+    'Serbia','Slovakia','Slovenia','Spain','Sweden',
+    'Switzerland','Turkey','Ukraine','United Kingdom'
+  ]),
+  // 미국
+  US: new Set(['United States of America','United States']),
+  // 미주 (미국 제외)
+  Americas: new Set([
+    'Anguilla','Antigua and Barbuda','Argentina','Aruba',
+    'Bahamas','Barbados','Belize','Bermuda','Bolivia',
+    'Brazil','Canada','Cayman Islands','Chile','Colombia',
+    'Costa Rica','Cuba','Curacao','Dominica','Dominican Republic',
+    'Ecuador','El Salvador','French Guiana','Grenada','Guadeloupe',
+    'Guatemala','Guyana','Haiti','Honduras','Jamaica','Martinique',
+    'Mexico','Montserrat','Nicaragua','Panama','Paraguay','Peru',
+    'Puerto Rico','Suriname','Trinidad and Tobago',
+    'Uruguay','Venezuela','Virgin Islands, U.S.'
+  ]),
+  // 아시아태평양 (한국 제외)
+  AsiaPacific: new Set([
+    'Australia','Brunei','Cambodia','China (People’s Republic)',
+    'Fiji','Guam','Hong Kong SAR China','India','Indonesia',
+    'Japan','Lao P.D.R.','Malaysia','Myanmar','Mongolia',
+    'Macau SAR China','New Zealand','Philippines','Singapore',
+    'Thailand','Taiwan China','Vietnam'
+  ])
+};
+
+// 수출 단가 (한국→도착지) — 4.19~ (KRW/kg)
+const UPS_SURGE_EXPORT = {
+  UAE:        { rate: 4722, name: 'UPS 급증긴급수수료 (UAE)' },
+  Israel:     { rate: 4722, name: 'UPS 급증긴급수수료 (이스라엘)' },
+  MiddleEast: { rate: 4220, name: 'UPS 급증긴급수수료 (중동)' },
+  Europe:     { rate:  358, name: 'UPS 급증긴급수수료 (유럽)' },
+  US:         { rate:  358, name: 'UPS 급증긴급수수료 (미국)' },
+  Americas:   { rate:  358, name: 'UPS 급증긴급수수료 (미주)' },
+  AsiaPacific:{ rate:  143, name: 'UPS 급증긴급수수료 (아시아태평양)' }
+  // Rest of ISMEA: 358, Rest of World: 358 — 해당 국가는 Other로 처리
+};
+
+// 수입 단가 (출발지→한국) — 4.19~ (KRW/kg)
+const UPS_SURGE_IMPORT = {
+  UAE:        { rate: 4722, name: 'UPS 급증긴급수수료 (UAE)' },
+  Israel:     { rate: 4722, name: 'UPS 급증긴급수수료 (이스라엘)' },
+  MiddleEast: { rate: 4220, name: 'UPS 급증긴급수수료 (중동)' },
+  // Europe: N.A. (적용없음)
+  US:         { rate:  716, name: 'UPS 급증긴급수수료 (미국)' },
+  AsiaPacific:{ rate:  143, name: 'UPS 급증긴급수수료 (아시아태평양)' }
+};
+
+function _getSurgeRegion(dest) {
+  for (var region in UPS_SURGE_REGIONS) {
+    if (UPS_SURGE_REGIONS[region].has(dest)) return region;
+  }
+  return null;
+}
+
 function applyUpsSurgeFee(res) {
   var dest = res.dest_country || '';
   var mode = res.mode || '수출';
-  // 수출: 한국→도착지, 수입: 출발지→한국
-  // 두 경우 모두 dest_country 기준 (수입일 때 dest = 출발지)
-  var surgePerKg = 0;
-  var surgeName  = '';
-  if (UPS_SURGE_ISRAEL.has(dest)) {
-    surgePerKg = 4722;
-    surgeName  = 'UPS 급증수수료 (이스라엘)';
-  } else if (UPS_SURGE_MIDEAST.has(dest)) {
-    surgePerKg = 2004;
-    surgeName  = 'UPS 급증수수료 (중동)';
-  }
-  if (!surgePerKg) return; // 해당 없음
+  var region = _getSurgeRegion(dest);
+  if (!region) return;
+
+  var table = (mode === '수입') ? UPS_SURGE_IMPORT : UPS_SURGE_EXPORT;
+  var entry = table[region];
+  if (!entry) return; // N.A.
 
   var chg = res._rounded_chargeable || res.total_chargeable || 0;
-  var surgeBase = Math.round(surgePerKg * chg);
+  var surgeBase = Math.round(entry.rate * chg);
 
-  // UPS 카드들에 적용
   ['ups','ups2f','upsb8'].forEach(function(key) {
     var c = res.carriers[key];
     if (!c) return;
-    // 이미 적용됐으면 스킵
     if ((c.surs||[]).some(function(s){ return s.name && s.name.indexOf('급증') !== -1; })) return;
-    // 유류할증료 적용 (ups fuel %)
     var fuelPct = (c.fuel_pct || 0) / 100;
     var surgeWithFuel = Math.round(surgeBase * (1 + fuelPct));
-    // surs에 추가 (청구가용)
     if (!c.surs) c.surs = [];
-    c.surs.push({ name: surgeName, amount: surgeWithFuel });
-    // total_quote 업데이트
+    c.surs.push({ name: entry.name, amount: surgeWithFuel });
     c.total_quote = (c.total_quote || 0) + surgeWithFuel;
-    // 원가도 동일 적용 (원가 = 청구가, 수수료는 pass-through)
     c.total_cost  = (c.total_cost  || 0) + surgeWithFuel;
-    // sur_fuel_pub에는 포함하지 않음 (별도 surcharge로 표시)
   });
 }
 
@@ -3027,19 +3087,25 @@ function renderResults(res) {
       // FedEx US 인바운드 처리 수수료 (한국→미국 수출, 건당 3,900원, 유류 제외)
       const isUsRoute   = (res.dest_country === 'United States of America' || res.dest_country === 'United States');
       const isFedexCard = (key === 'fedex' || key === 'fedex_e');
+      const isUpsCard   = (key === 'ups2f' || key === 'upsb8' || key === 'ups');
       const isExport    = (res.mode === '수출');
       // LMR 적용 시 US 수수료는 LMR 금액에 이미 포함 → 중복 방지
       const usClearFee  = (isUsRoute && isFedexCard && isExport && !state.lmr[key]) ? 3900 : 0;
+      // UPS 미국 수출: 국제 처리 수수료 건당 3,642원
+      const upsIntlFee  = (isUsRoute && isUpsCard && isExport) ? 3642 : 0;
       const usClearRow  = usClearFee > 0
         ? `<div class="bd-row sub-item"><span>  US 인바운드 처리 수수료</span><span class="bd-val">${fmtWon(usClearFee)}</span></div>`
+        : '';
+      const upsIntlRow  = upsIntlFee > 0
+        ? `<div class="bd-row sub-item"><span>  국제 처리 수수료</span><span class="bd-val">${fmtWon(upsIntlFee)}</span></div>`
         : '';
 
       // WWEF 적용 여부
       const isWwef = freightFlag && state.wwef[key];
       const extraCostSum  = (state.extraCosts[key]||[]).filter(e=>e.name&&e.amt>0).reduce((s,e)=>s+(parseFloat(e.amt)||0),0);
       const adjCostBase   = (isWwef ? state.wwef[key].total_cost
-                          : (state.lmr[key] ? state.lmr[key].total_cost : c.total_cost) + usClearFee) + extraCostSum;
-      const adjQuoteBase  = c.total_quote + usClearFee + extraCostSum;  // 항상 최신값
+                          : (state.lmr[key] ? state.lmr[key].total_cost : c.total_cost) + usClearFee + upsIntlFee) + extraCostSum;
+      const adjQuoteBase  = c.total_quote + usClearFee + upsIntlFee + extraCostSum;  // 항상 최신값
 
       // LMR 적용 시 quote_rows도 최신 c 데이터로 동적 생성
       // LMR 청구가 행: surRows 그대로 사용 (applyUpsSurgeFee 포함된 최신값)
@@ -3099,6 +3165,7 @@ function renderResults(res) {
           ${surRows}
           <div class="bd-row sub-item"><span>유류할증료 (원가)</span><span class="bd-val">${fmtWon((c.net_fuel||0)+(c.sur_fuel||0))}</span></div>`}
           ${usClearRow}
+          ${upsIntlRow}
           ${(state.extraCosts[key]||[]).filter(e=>e.name&&e.amt>0).map(e=>`<div class="bd-row sub-item"><span>${e.name}</span><span class="bd-val">${fmtWon(e.amt)}</span></div>`).join('')}
           <div class="bd-row total-row"><span>▶ 원가 합계</span><span class="bd-val">${fmtWon(adjCostBase + extraCostSum)}</span></div>
         </div>
@@ -3109,6 +3176,7 @@ function renderResults(res) {
           ${hasSur ? surRows : ''}
           <div class="bd-row sub-item"><span>유류할증료</span><span class="bd-val">${fmtWon((c.pub_fuel||0)+(c.sur_fuel_pub||0))}</span></div>`}
           ${usClearRow}
+          ${upsIntlRow}
           ${(state.extraCosts[key]||[]).filter(e=>e.name&&e.amt>0).map(e=>`<div class="bd-row sub-item" style="color:#4ade80;"><span>${e.name}</span><span class="bd-val">${fmtWon(e.amt)}</span></div>`).join('')}
           <div class="bd-row total-row"><span>▶ 견적가 (고객)</span><span class="bd-val" style="color:var(--acc-bright);font-size:.88rem;">${fmtWon(adjQuoteBase)}</span></div>
         </div>
@@ -3209,8 +3277,10 @@ function buildEmailHtml(res) {
     const isUsEmail   = (res.dest_country === 'United States of America' || res.dest_country === 'United States');
     const isFedexEmail = (key === 'fedex' || key === 'fedex_e');
     const emailUsClearFee = (isUsEmail && isFedexEmail && res.mode === '수출' && !state.lmr[key]) ? 3900 : 0;
+    const isUpsEmail      = (key === 'ups2f' || key === 'upsb8' || key === 'ups');
+    const emailUpsIntlFee = (isUsEmail && isUpsEmail && res.mode === '수출') ? 3642 : 0;
     const emailExtraSum = (state.extraCosts[key]||[]).reduce((s,e)=>s+(parseFloat(e.amt)||0),0);
-    const total   = Math.round((c.total_quote||0) + emailUsClearFee + emailExtraSum);
+    const total   = Math.round((c.total_quote||0) + emailUsClearFee + emailUpsIntlFee + emailExtraSum);
     const rpk     = c.disc_rpk ? ` (${Math.round(c.disc_rpk).toLocaleString('ko-KR')}원/kg)` : '';
     const surs    = (c.surs||[]);
     lines.push(''); lines.push(name + lmrTag); lines.push('');
@@ -3224,6 +3294,7 @@ function buildEmailHtml(res) {
         lines.push(`${s.name} : ${Math.round(s.amount).toLocaleString('ko-KR')}원`)
       );
       if (emailUsClearFee > 0) lines.push(`US 인바운드 처리 수수료 : ${emailUsClearFee.toLocaleString('ko-KR')}원`);
+      if (emailUpsIntlFee > 0) lines.push(`국제 처리 수수료 : ${emailUpsIntlFee.toLocaleString('ko-KR')}원`);
       lines.push(''); lines.push(`TOTAL : ${total.toLocaleString('ko-KR')}원`);
     } else {
       lines.push(`유류할증료 : ${fuelPct}% (${expiry})`);
@@ -3232,6 +3303,7 @@ function buildEmailHtml(res) {
       lines.push(`유류할증료 : ${fuelAmt.toLocaleString('ko-KR')}원`);
       surs.forEach(s => lines.push(`${s.name} : ${Math.round(s.amount).toLocaleString('ko-KR')}원`));
       if (emailUsClearFee > 0) lines.push(`US 인바운드 처리 수수료 : ${emailUsClearFee.toLocaleString('ko-KR')}원`);
+      if (emailUpsIntlFee > 0) lines.push(`국제 처리 수수료 : ${emailUpsIntlFee.toLocaleString('ko-KR')}원`);
       lines.push(''); lines.push(`TOTAL : ${total.toLocaleString('ko-KR')}원`);
     }
     lines.push('');
@@ -3329,8 +3401,10 @@ function generatePdf() {
     const pdfIsUs     = (res.dest_country === 'United States of America' || res.dest_country === 'United States');
     const pdfIsFedex  = (key === 'fedex' || key === 'fedex_e');
     const pdfIsExport = (res.mode === '수출');
-    const pdfUsClear  = (pdfIsUs && pdfIsFedex && pdfIsExport && !state.lmr[key]) ? 3900 : 0;
-    const total   = Math.round((c.total_quote||0) + pdfUsClear + pdfExtraSum);
+    const pdfUsClear   = (pdfIsUs && pdfIsFedex && pdfIsExport && !state.lmr[key]) ? 3900 : 0;
+    const pdfIsUps     = (key === 'ups2f' || key === 'upsb8' || key === 'ups');
+    const pdfUpsIntl   = (pdfIsUs && pdfIsUps && pdfIsExport) ? 3642 : 0;
+    const total   = Math.round((c.total_quote||0) + pdfUsClear + pdfUpsIntl + pdfExtraSum);
     const fuelPct = (c.fuel_pct||0).toFixed(2);
     const surs    = (c.surs||[]);
     const base    = Math.round(c.pub_disc || c.pub_base || 0);
@@ -3338,6 +3412,9 @@ function generatePdf() {
     const rpkStr  = c.disc_rpk ? ` <span style="font-size:9px;color:#888;">(₩${Math.round(c.disc_rpk).toLocaleString()}/kg)</span>` : '';
     const pdfUsClearRow = pdfUsClear > 0
       ? `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:10px;"><span style="color:#555;">US 인바운드 처리 수수료</span><span>₩3,900</span></div>`
+      : '';
+    const pdfUpsIntlRow = pdfUpsIntl > 0
+      ? `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:10px;"><span style="color:#555;">국제 처리 수수료</span><span>₩3,642</span></div>`
       : '';
 
     let itemLines = '';
