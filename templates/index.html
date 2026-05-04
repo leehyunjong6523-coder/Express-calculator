@@ -1460,8 +1460,14 @@ body.mode-imp .tb-calc-btn { background: linear-gradient(135deg, #9d174d, #be185
     <div class="sb-section">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
         <div style="font-size:13px;font-weight:800;color:var(--text-sec);">⛽ 유류할증료 (%)</div>
+        <button onclick="fetchFuelFromGithub()" id="fuelAutoBtn"
+          style="background:linear-gradient(135deg,#1e3a5f,#1d4ed8);border:none;border-radius:6px;
+                 color:#fff;font-size:.65rem;font-weight:800;padding:3px 9px;cursor:pointer;
+                 font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">
+          🔄 자동 불러오기
+        </button>
       </div>
-      <div id="fuelStatus" style="display:none;"></div>
+      <div id="fuelStatus" style="font-size:.65rem;margin-bottom:5px;display:none;"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">
         <div>
           <div style="font-size:11px;color:var(--text-sec);margin-bottom:3px;">DHL<br><span style="color:var(--text-dim);font-size:10px;">월별</span></div>
@@ -1476,7 +1482,8 @@ body.mode-imp .tb-calc-btn { background: linear-gradient(135deg, #9d174d, #be185
           <input class="sb-number" type="number" id="fuelUps" step="0.01" value="{{ settings.fuel_ups }}" min="0" max="60" onchange="saveFuel()">
         </div>
       </div>
-      <div style="font-size:10px;color:var(--text-dim);margin-top:3px;">※ 직접 수정 가능</div>
+      <div id="fuelPeriodLabel" style="display:none;font-size:.68rem;color:#fbbf24;font-weight:700;margin-top:5px;padding:3px 7px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-radius:5px;"></div>
+      <div style="font-size:10px;color:var(--text-dim);margin-top:3px;">※ 수동 수정 후 엔터 or 클릭 아웃</div>
     </div>
 
     <!-- Discount section -->
@@ -2722,6 +2729,73 @@ function setDocMode(isDoc) {
 // ─────────────────────────────────────────────
 // Customer
 // ─────────────────────────────────────────────
+
+// ── GitHub fuel.json 자동 불러오기 ─────────────────────────────
+// fuel.json 형식: {"dhl": 30.5, "fedex": 33.25, "ups": 29.5, "updated": "2026-05-01"}
+const FUEL_JSON_URL = 'https://raw.githubusercontent.com/leehyunjong6523-coder/airbridge-web/main/fuel.json';
+
+async function fetchFuelFromGithub() {
+  const btn    = document.getElementById('fuelAutoBtn');
+  const status = document.getElementById('fuelStatus');
+  btn.disabled = true;
+  btn.textContent = '⏳ 불러오는 중...';
+  status.style.display = 'block';
+  status.style.color = '#7a8fa8';
+  status.textContent = 'GitHub에서 최신 유류할증료 조회 중...';
+  try {
+    // cache 무력화용 timestamp
+    const url = FUEL_JSON_URL + '?t=' + Date.now();
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+
+    const dhl   = parseFloat(data.dhl);
+    const fedex = parseFloat(data.fedex);
+    const ups   = parseFloat(data.ups);
+    if (isNaN(dhl) || isNaN(fedex) || isNaN(ups)) throw new Error('형식 오류');
+
+    // 입력 필드에 반영
+    document.getElementById('fuelDhl').value   = dhl;
+    document.getElementById('fuelFedex').value = fedex;
+    document.getElementById('fuelUps').value   = ups;
+
+    // 서버에 저장
+    await saveFuel();
+
+    // 기간 표시: date 필드 (예: "2026-05-04 ~ 2026-05-10")
+    const period  = data.date || data.updated || '';
+
+    status.style.display = 'block';
+    status.style.color = '#4ade80';
+    status.innerHTML = period
+      ? '✅ <span style="color:#fbbf24;font-weight:900;">' + period + '</span> 기준'
+      : '✅ 업데이트 완료';
+
+    // 유류할증료 섹션 아래 기간 상시 표시
+    var periodEl = document.getElementById('fuelPeriodLabel');
+    if (periodEl && period) {
+      periodEl.textContent = '📅 적용기간: ' + period;
+      periodEl.style.display = 'block';
+    }
+
+    showToast('✅ 유류할증료 업데이트' + (period ? ' — ' + period : ''));
+    setTimeout(() => { status.style.display = 'none'; }, 5000);
+  } catch(e) {
+    status.style.color = '#f87171';
+    status.textContent = '❌ 불러오기 실패 — 수동 입력 사용';
+    showToast('⚠️ GitHub 연결 실패: ' + e.message + ' — 수동 입력하세요');
+    setTimeout(() => { status.style.display = 'none'; }, 5000);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔄 자동 불러오기';
+  }
+}
+
+// 페이지 로드 시 자동 시도 (실패해도 기존값 유지)
+window.addEventListener('DOMContentLoaded', function() {
+  setTimeout(fetchFuelFromGithub, 1500);
+});
+
 async function saveFuel() {
   const dhl   = parseFloat(document.getElementById('fuelDhl').value);
   const fedex = parseFloat(document.getElementById('fuelFedex').value);
