@@ -1512,7 +1512,7 @@ body.mode-imp .tb-calc-btn { background: linear-gradient(135deg, #9d174d, #be185
 
     <!-- Remote area -->
     <div class="sb-section">
-      <div class="sb-title">📮 외곽지역 (DHL RAS)</div>
+      <div class="sb-title">📮 외곽지역</div>
       <div class="sb-row2">
         <div>
           <div class="sb-label">우편번호</div>
@@ -3424,7 +3424,10 @@ function generatePdf() {
   const staffName   = document.getElementById('staffSelect').value || '—';
   const notes       = document.getElementById('notesInput')?.value || '';
   const today       = new Date().toLocaleDateString('ko-KR');
-  const dest        = `${res.dest_kr} (${res.dest_country})`;
+  const _postal     = document.getElementById('remotePostal').value.trim();
+  const _city       = document.getElementById('remoteCity').value.trim();
+  const _destExtra  = [_city, _postal].filter(Boolean).join(' ');
+  const dest        = `${res.dest_kr} (${res.dest_country})${_destExtra ? ' ' + _destExtra : ''}`;
   const modeLabel   = res.mode === '수출' ? '수출 (EXPORT)' : '수입 (IMPORT)';
 
   const STAFF = {
@@ -3629,6 +3632,10 @@ function generatePdf() {
       </div>
       <div class="info-row"><span class="info-label">청구 기준</span>
         <span>${res.total_vol_wt > res.total_actual_wt ? '부피중량 (Vol.Weight)' : '실중량 (Act.Weight)'}</span>
+      </div>
+      <div class="info-row" style="color:#c0392b;">
+        <span class="info-label" style="color:#c0392b;font-weight:700;">발송 수량 (C/T ...)</span>
+        <span style="font-weight:800;">${state.ctData.reduce((s,ct)=>s+(parseInt(ct.qty)||1),0)} PKG</span>
       </div>
     </div>
   </section>
