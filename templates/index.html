@@ -3624,6 +3624,7 @@ function generatePdf() {
   <section>
     <h3>화물 명세 (Cargo Details)</h3>
     <div class="info-box">
+      <div class="info-row"><span class="info-label">발송 수량 (No. of Packages)</span><span>${state.ctData.reduce((s,ct)=>s+(parseInt(ct.qty)||1),0)} PKG</span></div>
       <div class="info-row"><span class="info-label">실 중 량 (Act. Weight)</span><span>${res.total_actual_wt.toFixed(1)} kg</span></div>
       <div class="info-row"><span class="info-label">부피 중량 (Vol. Weight)</span><span>${res.total_vol_wt.toFixed(1)} kg</span></div>
       <div class="info-row" style="color:#003366;">
@@ -3632,10 +3633,6 @@ function generatePdf() {
       </div>
       <div class="info-row"><span class="info-label">청구 기준</span>
         <span>${res.total_vol_wt > res.total_actual_wt ? '부피중량 (Vol.Weight)' : '실중량 (Act.Weight)'}</span>
-      </div>
-      <div class="info-row" style="color:#c0392b;">
-        <span class="info-label" style="color:#c0392b;font-weight:700;">발송 수량 (C/T ...)</span>
-        <span style="font-weight:800;">${state.ctData.reduce((s,ct)=>s+(parseInt(ct.qty)||1),0)} PKG</span>
       </div>
     </div>
   </section>
