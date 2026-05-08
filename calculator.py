@@ -1255,16 +1255,19 @@ def ups_lookup(w, zi, is_doc, acct="2F94A8", dest_country=""):
     }
     _special_tbl = _SPECIAL_NET_PKG.get(dest_country) if acct == "2F94A8" else None
 
+    # float 키만 정렬하는 헬퍼
+    def _float_keys(tbl): return sorted(k for k in tbl if isinstance(k, float))
+
     if w <= 20:
         k = math.ceil(w * 2) / 2
         pub_tbl = UPS_PUB_LTR if (is_doc and w <= 5.0) else UPS_PUB_NDC
-        pub = ceil10(next(pub_tbl[key][zi] for key in sorted(pub_tbl) if key >= k))
+        pub = ceil10(next(pub_tbl[key][zi] for key in _float_keys(pub_tbl) if key >= k))
         if _special_tbl:
-            net = ceil10(next(_special_tbl[key] for key in sorted(k2 for k2 in _special_tbl if isinstance(k2,float)) if key >= k))
+            net = ceil10(next(_special_tbl[key] for key in _float_keys(_special_tbl) if key >= k))
         else:
             ac = UPS_ACCOUNTS[acct]
             net_tbl = ac["doc"] if (is_doc and w <= 5.0) else ac["pkg"]
-            net = ceil10(next(net_tbl[key][zi] for key in sorted(net_tbl) if key >= k))
+            net = ceil10(next(net_tbl[key][zi] for key in _float_keys(net_tbl) if key >= k))
     else:
         rw = int(math.ceil(w))
         if rw <= 44:   br = "21-44"
