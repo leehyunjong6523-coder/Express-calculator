@@ -3055,12 +3055,16 @@ function applyUpsSurgeFee(res) {
     var c = res.carriers[key];
     if (!c) return;
     if ((c.surs||[]).some(function(s){ return s.name && s.name.indexOf('급증') !== -1; })) return;
-    var fuelPct = (c.fuel_pct || 0) / 100;
-    var surgeWithFuel = Math.round(surgeBase * (1 + fuelPct));
+    var fuelPct     = (c.fuel_pct || 0) / 100;
+    var surgeFuel   = Math.round(surgeBase * fuelPct);  // 급증수수료에 붙는 유류할증분
     if (!c.surs) c.surs = [];
-    c.surs.push({ name: entry.name, amount: surgeWithFuel });
-    c.total_quote = (c.total_quote || 0) + surgeWithFuel;
-    c.total_cost  = (c.total_cost  || 0) + surgeWithFuel;
+    c.surs.push({ name: entry.name, amount: surgeBase });  // 급증수수료: 기본금액만
+    // 유류할증료 항목에 급증수수료의 유류할증분 합산
+    c.sur_fuel_pub  = (c.sur_fuel_pub || 0) + surgeFuel;
+    c.pub_fuel      = (c.pub_fuel     || 0);  // pub_fuel은 그대로
+    // total에는 기본 + 유류 모두 반영
+    c.total_quote = (c.total_quote || 0) + surgeBase + surgeFuel;
+    c.total_cost  = (c.total_cost  || 0) + surgeBase + surgeFuel;
   });
 }
 
