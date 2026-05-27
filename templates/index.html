@@ -3010,23 +3010,24 @@ const UPS_SURGE_REGIONS = {
 };
 
 // 수출 단가 (한국→도착지) — 4.19~ (KRW/kg)
+// 수출 단가 (한국→도착지) — 2026-05-24 업데이트
 const UPS_SURGE_EXPORT = {
   UAE:        { rate: 4722, name: 'UPS 급증긴급수수료 (UAE)' },
-  Israel:     { rate: 4722, name: 'UPS 급증긴급수수료 (이스라엘)' },
+  Israel:     { rate: 4722, name: 'UPS 급증긴급수수료 (UAE·이스라엘)' },  // UAE와 동일
   MiddleEast: { rate: 4220, name: 'UPS 급증긴급수수료 (중동)' },
-  Europe:     { rate:  358, name: 'UPS 급증긴급수수료 (유럽)' },
-  US:         { rate:  358, name: 'UPS 급증긴급수수료 (미국)' },
-  Americas:   { rate:  358, name: 'UPS 급증긴급수수료 (미주)' },
+  Europe:     { rate:  720, name: 'UPS 급증긴급수수료 (유럽)' },           // 358→720
+  US:         { rate:  720, name: 'UPS 급증긴급수수료 (미국)' },           // 358→720
+  Americas:   { rate:  720, name: 'UPS 급증긴급수수료 (미주)' },           // 358→720
   AsiaPacific:{ rate:  143, name: 'UPS 급증긴급수수료 (아시아태평양)' }
-  // Rest of ISMEA: 358, Rest of World: 358 — 해당 국가는 Other로 처리
+  // Rest of ISMEA·Rest of World: 720 (유럽·미주와 동일)
 };
 
-// 수입 단가 (출발지→한국) — 4.19~ (KRW/kg)
+// 수입 단가 (출발지→한국) — 2026-05-24 업데이트
 const UPS_SURGE_IMPORT = {
   UAE:        { rate: 4722, name: 'UPS 급증긴급수수료 (UAE)' },
-  Israel:     { rate: 4722, name: 'UPS 급증긴급수수료 (이스라엘)' },
+  // Israel: N.A. (2026-05-24부터 적용 중단)
   MiddleEast: { rate: 4220, name: 'UPS 급증긴급수수료 (중동)' },
-  // Europe: N.A. (적용없음)
+  // Europe: N.A.
   US:         { rate:  716, name: 'UPS 급증긴급수수료 (미국)' },
   AsiaPacific:{ rate:  143, name: 'UPS 급증긴급수수료 (아시아태평양)' }
 };
