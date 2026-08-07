@@ -3010,16 +3010,16 @@ const UPS_SURGE_REGIONS = {
 };
 
 // 수출 단가 (한국→도착지) — 4.19~ (KRW/kg)
-// 수출 단가 (한국→도착지) — 2026-05-24 업데이트
+// 수출 단가 (한국→도착지) — 2026-07-05 업데이트
 const UPS_SURGE_EXPORT = {
   UAE:        { rate: 4722, name: 'UPS 급증긴급수수료 (UAE)' },
-  Israel:     { rate: 4722, name: 'UPS 급증긴급수수료 (UAE·이스라엘)' },  // UAE와 동일
+  Israel:     { rate: 4722, name: 'UPS 급증긴급수수료 (UAE·이스라엘)' },
   MiddleEast: { rate: 4220, name: 'UPS 급증긴급수수료 (중동)' },
-  Europe:     { rate:  720, name: 'UPS 급증긴급수수료 (유럽)' },           // 358→720
-  US:         { rate:  720, name: 'UPS 급증긴급수수료 (미국)' },           // 358→720
-  Americas:   { rate:  720, name: 'UPS 급증긴급수수료 (미주)' },           // 358→720
+  Europe:     { rate:  430, name: 'UPS 급증긴급수수료 (유럽)' },           // 720→430
+  US:         { rate:  720, name: 'UPS 급증긴급수수료 (미국)' },           // 유지
+  Americas:   { rate:  720, name: 'UPS 급증긴급수수료 (미주)' },           // 유지
   AsiaPacific:{ rate:  143, name: 'UPS 급증긴급수수료 (아시아태평양)' }
-  // Rest of ISMEA·Rest of World: 720 (유럽·미주와 동일)
+  // Rest of ISMEA: 430 (유럽과 동일), Rest of World: 720 (미주와 동일)
 };
 
 // 수입 단가 (출발지→한국) — 2026-05-24 업데이트
