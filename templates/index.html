@@ -3435,10 +3435,10 @@ function generatePdf() {
   const dest        = `${res.dest_kr} (${res.dest_country})${_destExtra ? ' ' + _destExtra : ''}`;
   const modeLabel   = res.mode === '수출' ? '수출 (EXPORT)' : '수입 (IMPORT)';
   const isImp       = res.mode === '수입';
-  const PDF_PRIMARY = isImp ? '#8B0000' : '#003366';   // 수입: 진한 빨강, 수출: 파란색
-  const PDF_ACCENT  = isImp ? '#b91c1c' : '#1a4a8a';   // 수입: 밝은 빨강, 수출: 밝은 파랑
-  const PDF_LIGHT   = isImp ? '#fff5f5' : '#f8f9ff';   // 수입: 연빨강, 수출: 연파랑
-  const PDF_CHG_CLR = isImp ? '#b91c1c' : '#003366';   // 청구중량 색상
+  const PDF_PRIMARY = isImp ? '#8B1A8B' : '#003366';   // 수입: 진한 빨강, 수출: 파란색
+  const PDF_ACCENT  = isImp ? '#8B1A8B' : '#1a4a8a';   // 수입: 밝은 빨강, 수출: 밝은 파랑
+  const PDF_LIGHT   = isImp ? '#fff0ff' : '#f8f9ff';   // 수입: 연빨강, 수출: 연파랑
+  const PDF_CHG_CLR = isImp ? '#8B1A8B' : '#003366';   // 청구중량 색상
 
   const STAFF = {
     '호영준': {phone:'010-3767-5413', email:'cs@airos.co.kr'},
@@ -3564,7 +3564,7 @@ function generatePdf() {
       <div style="font-size:12px;line-height:1.8;padding:8px;border:1px solid #dee2e6;">${notes.split('\n').join('<br>')}</div>
     </div>` : '';
 
-  const html = `<!DOCTYPE html><html lang="ko" style="--pdf-color:${isImp ? '#8B0000' : '#003366'};--pdf-light:${isImp ? '#fff5f5' : '#f8f9ff'}"><head>
+  const html = `<!DOCTYPE html><html lang="ko" style="--pdf-color:${isImp ? '#FFC4FF' : '#003366'};--pdf-light:${isImp ? '#fff0ff' : '#f8f9ff'};--pdf-text:${isImp ? '#5b0070' : '#ffffff'}"><head>
 <meta charset="UTF-8">
 <title>Airbridge Quotation ${quoteNum}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3578,7 +3578,7 @@ function generatePdf() {
   .logo-sub { font-size:9px; color:#666; letter-spacing:3px; margin-top:2px; text-transform:uppercase; }
   .doc-right { text-align:right; font-size:11px; color:#555; }
   .doc-right h2 { margin:0 0 3px; font-size:15px; color:#333; font-weight:700; }
-  h3 { font-size:11px; color:#fff; background:var(--pdf-color); padding:4px 8px; margin:0 0 5px; font-weight:700; }
+  h3 { font-size:11px; color:var(--pdf-text); background:var(--pdf-color); padding:4px 8px; margin:0 0 5px; font-weight:700; }
   section { margin-bottom:9px; }
   .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .info-box { border:1px solid #dee2e6; padding:6px 8px; border-radius:3px; }
@@ -3586,7 +3586,7 @@ function generatePdf() {
   .info-row:last-child { border-bottom:none; }
   .info-label { color:#666; font-weight:600; }
   table { width:100%; border-collapse:collapse; font-size:10px; }
-  th { background:var(--pdf-color); color:#fff; font-weight:700; padding:4px 6px; text-align:center; border:1px solid #dee2e6; }
+  th { background:var(--pdf-color); color:var(--pdf-text); font-weight:700; padding:4px 6px; text-align:center; border:1px solid #dee2e6; }
   td { padding:3px 6px; border:1px solid #dee2e6; text-align:center; vertical-align:middle; }
   /* 운임 카드 — 자연스러운 페이지 흐름 (강제 분리 없음) */
   .rate-section { margin-top:4px; }
@@ -3614,7 +3614,7 @@ function generatePdf() {
     견적번호: <strong>${quoteNum}</strong>&nbsp;&nbsp;|&nbsp;&nbsp;견적일자: ${today}
   </div>
 </header>
-<div style="background:var(--pdf-color);padding:7px 14px;margin-bottom:10px;border-radius:4px;display:flex;align-items:center;gap:16px;">
+<div style="background:var(--pdf-color);padding:7px 14px;margin-bottom:10px;border-radius:4px;display:flex;align-items:center;gap:16px;color:var(--pdf-text)">
   <span style="font-size:11px;font-weight:700;color:#aac4e8;white-space:nowrap;letter-spacing:1px;">에어브리지 담당자</span>
   <span style="font-size:15px;font-weight:900;color:#ffffff;">${staffName}</span>
   <span style="font-size:13px;font-weight:600;color:#d0e4f7;">${si.phone||''}</span>
