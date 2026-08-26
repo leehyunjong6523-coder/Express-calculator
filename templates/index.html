@@ -3433,7 +3433,8 @@ function generatePdf() {
   const _city       = document.getElementById('remoteCity').value.trim();
   const _destExtra  = [_city, _postal].filter(Boolean).join(' ');
   const dest        = `${res.dest_kr} (${res.dest_country})${_destExtra ? ' ' + _destExtra : ''}`;
-  const modeLabel   = res.mode === '수출' ? '수출 (EXPORT)' : '수입 (IMPORT)';
+  const _docLabel   = res.is_doc ? '서류 (DOCUMENT)' : '물품 (PACKAGE)';
+  const modeLabel   = (res.mode === '수출' ? '수출 (EXPORT)' : '수입 (IMPORT)') + '  /  ' + _docLabel;
   const isImp       = res.mode === '수입';
   const PDF_PRIMARY = isImp ? '#8B1A8B' : '#003366';   // 수입: 진한 빨강, 수출: 파란색
   const PDF_ACCENT  = isImp ? '#8B1A8B' : '#1a4a8a';   // 수입: 밝은 빨강, 수출: 밝은 파랑
