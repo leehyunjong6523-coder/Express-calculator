@@ -35,24 +35,73 @@ DHL_ZONE_MAP = {
     "Yemen":8,"Zambia":8,"Zimbabwe":8,
 }
 # ────────────────────────────────────────────────────────────
-# FedEx 초과수요 추가요금 (2026-03-05~ , kg당 원화)
-# Zone G/H = 유럽, H에 Israel 별도, Zone J = MEISA
+# FedEx 초과수요 추가요금 (2026-09-02~, kg당 원화)
 # ────────────────────────────────────────────────────────────
-_FEDEX_EDS_EXPORT = {
-    # (FedEx Zone) → kg당 초과수요 추가요금
-    "G": 1600,   # 유럽 서부
-    "H": 1600,   # 유럽 동부 (Israel 포함 — 별도 처리)
-    "J": 2250,   # MEISA (중동/인도아대륙/아프리카)
-    # 나머지 Zone A~F, I → 0
+# 수출 (한국→도착지) Zone별 기본 단가
+_FEDEX_EDS_EXPORT_ZONE = {
+    "A": 260,   # 싱가포르, 홍콩, 대만, 중국, 마카오
+    "B": 260,   # 일본, 괌
+    "C": 260,   # 인도네시아, 말레이시아, 필리핀, 태국 (베트남 별도)
+    "D": 260,   # 아시아 기타 (인도 별도)
+    "G": 1600,  # 유럽 서부
+    "H": 1600,  # 유럽 동부 + 이스라엘
+    "I": 640,   # 라틴 아메리카(LAC)
+    "J": 2250,  # MEISA 그룹1 (기본)
 }
-# Israel은 Zone H이지만 MEISA가 아닌 별도 1600원 → Zone H 기본값으로 커버됨
+# 수출 국가별 예외 단가 (Zone 기본값 override)
+_FEDEX_EDS_EXPORT_COUNTRY = {
+    "Vietnam": 0,                        # 베트남: 0원
+    "India": 0,                          # 인도: 0원
+    "Australia": 430,                    # 호주: 430원
+    "New Zealand": 430,                  # 뉴질랜드: 430원
+    "United States of America": 640,     # 미국: 640원
+    "Canada": 640,                       # 캐나다: 640원
+    "Mexico": 640,                       # 멕시코: 640원
+    "Puerto Rico": 640,                  # 푸에르토리코: 640원
+    # MEISA 그룹2 → 3600원
+    "Algeria":3600,"Angola":3600,"Benin":3600,"Botswana":3600,
+    "Burkina Faso":3600,"Burundi":3600,"Cameroon":3600,"Cape Verde":3600,
+    "Chad":3600,"Congo":3600,"Ivory Coast":3600,"Djibouti":3600,
+    "Eritrea":3600,"Ethiopia":3600,"Gabon":3600,"Gambia":3600,
+    "Ghana":3600,"Guinea":3600,"Iraq":3600,"Kazakhstan":3600,
+    "Kenya":3600,"Lebanon":3600,"Lesotho":3600,"Liberia":3600,
+    "Libya":3600,"Madagascar":3600,"Malawi":3600,"Mali":3600,
+    "Mauritania":3600,"Mauritius":3600,"Morocco":3600,"Mozambique":3600,
+    "Namibia":3600,"Niger":3600,"Nigeria":3600,"Pakistan":3600,
+    "Qatar":3600,"Rwanda":3600,"Senegal":3600,"Seychelles":3600,
+    "South Africa":3600,"Swaziland":3600,"Tanzania":3600,"Togo":3600,
+    "Tunisia":3600,"Uganda":3600,"Zambia":3600,"Zimbabwe":3600,
+}
+# 수입 (출발지→한국) 국가별 단가
+_FEDEX_EDS_IMPORT_ZONE = {
+    "A": 260,   # 싱가포르, 홍콩, 대만, 중국, 마카오
+    "D": 260,   # 아시아 기타
+    "G": 150,   # 유럽 서부
+    "H": 150,   # 유럽 동부 + 이스라엘
+    "J": 1600,  # MEISA (그룹1+2 동일)
+}
+_FEDEX_EDS_IMPORT_COUNTRY = {
+    "Australia": 260, "New Zealand": 260,
+    "India": 0, "Vietnam": 0,
+    "United States of America": 0, "Canada": 0, "Mexico": 0,
+    "Japan": 0, "Guam": 0,
+}
 _FEDEX_EDS_ENABLED = True   # False 로 바꾸면 전체 비활성화
 
-def get_fedex_eds(fx_zone: str, chargeable_wt: float) -> int:
+def get_fedex_eds(fx_zone: str, chargeable_wt: float, dest_country: str = "", mode: str = "수출") -> int:
     """FedEx 초과수요 추가요금 — kg당 요금 × 청구중량 (1원 올림)"""
     if not _FEDEX_EDS_ENABLED:
         return 0
-    rate = _FEDEX_EDS_EXPORT.get(fx_zone, 0)
+    if mode == "수입":
+        # 국가별 예외 먼저
+        rate = _FEDEX_EDS_IMPORT_COUNTRY.get(dest_country, None)
+        if rate is None:
+            rate = _FEDEX_EDS_IMPORT_ZONE.get(fx_zone, 0)
+    else:
+        # 수출: 국가별 예외 먼저, 없으면 Zone 기본값
+        rate = _FEDEX_EDS_EXPORT_COUNTRY.get(dest_country, None)
+        if rate is None:
+            rate = _FEDEX_EDS_EXPORT_ZONE.get(fx_zone, 0)
     if rate == 0:
         return 0
     return math.ceil(rate * chargeable_wt)
@@ -2186,8 +2235,8 @@ def run_calculation(
             sur_dhl_ct["외곽지역(RAS)"] = actual_remote_sur
     total_sur_fedex = sum(sur_fedex_ct.values())
 
-    # FedEx 초과수요 추가요금 (2026-03-05~, kg당 × 청구중량)
-    _eds = get_fedex_eds(fx_zone, _total_w)
+    # FedEx 초과수요 추가요금 (2026-09-02~, kg당 × 청구중량, 국가별 차등)
+    _eds = get_fedex_eds(fx_zone, _total_w, dest_country=dest_country, mode=mode)
     if _eds > 0:
         sur_fedex_ct["초과수요(EDS)"] = _eds
         total_sur_fedex += _eds
