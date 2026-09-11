@@ -3539,7 +3539,7 @@ function generatePdf() {
         ${pdfUsClearRow}`;
     }
 
-    return `<div class="rate-card" style="border:1px solid #dee2e6;border-radius:4px;overflow:hidden;">
+    return `<div class="rate-card" style="border:1px solid #dee2e6;border-radius:4px;">
       <div style="background:var(--pdf-color);color:#fff;font-weight:800;font-size:11px;padding:6px 10px;text-align:center;letter-spacing:.5px;">${name}</div>
       ${lmrTag}
       <div style="padding:8px 10px;">
@@ -3591,7 +3591,7 @@ function generatePdf() {
   td { padding:3px 6px; border:1px solid #dee2e6; text-align:center; vertical-align:middle; }
   /* 운임 카드 — 자연스러운 페이지 흐름 (강제 분리 없음) */
   .rate-section { margin-top:4px; }
-  .rate-card { page-break-inside:avoid; break-inside:avoid; }
+  .rate-card { page-break-inside:avoid; break-inside:avoid; height:auto !important; }
   .remarks-block { margin-top:10px; padding-top:8px; border-top:1px solid #dee2e6; font-size:9.5px; color:#666; page-break-inside:avoid; }
   .remarks-list { margin:3px 0 0; padding-left:14px; line-height:1.7; }
   .doc-footer { margin-top:8px; padding-top:6px; border-top:2px solid var(--pdf-color); display:flex; justify-content:space-between; font-size:10px; color:#555; page-break-inside:avoid; }
@@ -3657,7 +3657,7 @@ function generatePdf() {
 </section>
 <section class="rate-section">
   <h3>운송사별 운임 비교 (Rate Comparison)</h3>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;">${rateCards}</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;align-items:start;">${rateCards}</div>
 </section>
 ${notesBlock}
 <div class="remarks-block">
