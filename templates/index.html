@@ -3521,7 +3521,8 @@ function generatePdf() {
           <span style="color:#666;">유류할증료 (${fuelPct}%)</span><span>₩${fuelAmt.toLocaleString('ko-KR')}</span>
         </div>
         ${surLinesPdf ? `<div style="border-bottom:1px solid #f0f0f0;padding:2px 0;">${surLinesPdf}</div>` : ''}
-        ${pdfUsClearRow}`;
+        ${pdfUsClearRow}
+        ${pdfUpsIntlRow}`;
     } else {
       const surLines = surs.map(s =>
         `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:10px;">
@@ -3536,7 +3537,8 @@ function generatePdf() {
           <span style="color:#666;">유류할증료 (${fuelPct}%)</span><span>₩${fuelAmt.toLocaleString('ko-KR')}</span>
         </div>
         ${surLines ? `<div style="border-bottom:1px solid #f0f0f0;padding:2px 0;">${surLines}</div>` : ''}
-        ${pdfUsClearRow}`;
+        ${pdfUsClearRow}
+        ${pdfUpsIntlRow}`;
     }
 
     return `<div class="rate-card" style="border:1px solid #dee2e6;border-radius:4px;">
