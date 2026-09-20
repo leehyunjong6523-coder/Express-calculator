@@ -3006,6 +3006,24 @@ const UPS_SURGE_REGIONS = {
     'Japan','Lao P.D.R.','Malaysia','Myanmar','Mongolia',
     'Macau SAR China','New Zealand','Philippines','Singapore',
     'Thailand','Taiwan China','Vietnam'
+  ]),
+  // Rest of ISMEA
+  RestOfISMEA: new Set([
+    'Angola','Azerbaijan','Burkina Faso','Burundi','Benin','Botswana',
+    'Congo (Republic)','Congo (Democratic Republic)','Ivory Coast',
+    'Cameroon','Cape Verde','Djibouti','Algeria','Eritrea','Ethiopia',
+    'Gabon','Ghana','Gambia','Guinea','Guinea-Bissau','Kenya',
+    'Kyrgyzstan','Comoros','Kazakhstan','Liberia','Lesotho','Morocco',
+    'Madagascar','Mali','Mauritania','Mauritius','Maldives','Malawi',
+    'Mozambique','Namibia','Niger','Nigeria','Reunion Island','Rwanda',
+    'Seychelles','Sierra Leone','Senegal','Swaziland','Chad','Togo',
+    'Turkmenistan','Tunisia','Tanzania','Uganda','Uzbekistan','Yemen',
+    'Mayotte','South Africa','Zambia','Zimbabwe'
+  ]),
+  // Rest of World
+  RestOfWorld: new Set([
+    'Central African Republic','Cook Islands','Micronesia',
+    'Faeroe Islands','Greenland'
   ])
 };
 
@@ -3018,8 +3036,9 @@ const UPS_SURGE_EXPORT = {
   Europe:     { rate:  430, name: 'UPS 급증긴급수수료 (유럽)' },           // 720→430
   US:         { rate:  720, name: 'UPS 급증긴급수수료 (미국)' },           // 유지
   Americas:   { rate:  720, name: 'UPS 급증긴급수수료 (미주)' },           // 유지
-  AsiaPacific:{ rate:  143, name: 'UPS 급증긴급수수료 (아시아태평양)' }
-  // Rest of ISMEA: 430 (유럽과 동일), Rest of World: 720 (미주와 동일)
+  AsiaPacific:{ rate:  143, name: 'UPS 급증긴급수수료 (아시아태평양)' },
+  RestOfISMEA:{ rate:  430, name: 'UPS 급증긴급수수료 (Rest of ISMEA)' },
+  RestOfWorld:{ rate:  720, name: 'UPS 급증긴급수수료 (Rest of World)' }
 };
 
 // 수입 단가 (출발지→한국) — 2026-05-24 업데이트
