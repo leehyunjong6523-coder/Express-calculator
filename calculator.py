@@ -35,29 +35,26 @@ DHL_ZONE_MAP = {
     "Yemen":8,"Zambia":8,"Zimbabwe":8,
 }
 # ────────────────────────────────────────────────────────────
-# FedEx 초과수요 추가요금 (2026-09-02~, kg당 원화)
+# FedEx 초과수요 추가요금 (2026-09-21~, kg당 원화)
 # ────────────────────────────────────────────────────────────
 # 수출 (한국→도착지) Zone별 기본 단가
 _FEDEX_EDS_EXPORT_ZONE = {
-    "A": 260,   # 싱가포르, 홍콩, 대만, 중국, 마카오
-    "B": 260,   # 일본, 괌
-    "C": 260,   # 인도네시아, 말레이시아, 필리핀, 태국 (베트남 별도)
+    "A": 260,   # 아시아 (싱가포르, 홍콩, 대만, 중국, 마카오 등)
+    "B": 260,   # 아시아 (일본, 괌 등 — 개별 국가에서 재확인)
+    "C": 260,   # 아시아 (인도네시아, 말레이시아, 필리핀, 태국 — 베트남 별도)
     "D": 260,   # 아시아 기타 (인도 별도)
-    "G": 1600,  # 유럽 서부
-    "H": 1600,  # 유럽 동부 + 이스라엘
-    "I": 640,   # 라틴 아메리카(LAC)
+    "G": 1870,  # 유럽 (2026-09-21: 1600→1870)
+    "H": 1870,  # 유럽 + 이스라엘 (2026-09-21: 1600→1870)
+    "I": 0,     # 라틴 아메리카(LAC) — Priority/Economy 별도 처리로 이관
     "J": 2250,  # MEISA 그룹1 (기본)
 }
-# 수출 국가별 예외 단가 (Zone 기본값 override)
+# 수출 국가별 예외 단가 (Zone 기본값 override, 정액)
 _FEDEX_EDS_EXPORT_COUNTRY = {
-    "Vietnam": 0,                        # 베트남: 0원
-    "India": 0,                          # 인도: 0원
-    "Australia": 430,                    # 호주: 430원
-    "New Zealand": 430,                  # 뉴질랜드: 430원
-    "United States of America": 640,     # 미국: 640원
-    "Canada": 640,                       # 캐나다: 640원
-    "Mexico": 640,                       # 멕시코: 640원
-    "Puerto Rico": 640,                  # 푸에르토리코: 640원
+    "Vietnam": 0,                         # 베트남: 0원
+    "India": 160,                         # 인도: 0→160원 (2026-09-21)
+    "Australia": 720,                     # 호주: 430→720원 (2026-09-21)
+    "New Zealand": 720,                   # 뉴질랜드: 430→720원
+    "Fiji": 720,                          # 피지: 신규 720원
     # MEISA 그룹2 → 3600원
     "Algeria":3600,"Angola":3600,"Benin":3600,"Botswana":3600,
     "Burkina Faso":3600,"Burundi":3600,"Cameroon":3600,"Cape Verde":3600,
@@ -72,33 +69,169 @@ _FEDEX_EDS_EXPORT_COUNTRY = {
     "South Africa":3600,"Swaziland":3600,"Tanzania":3600,"Togo":3600,
     "Tunisia":3600,"Uganda":3600,"Zambia":3600,"Zimbabwe":3600,
 }
+# 수출 — 서비스별(Priority/Economy) 정액 적용 국가 (미국/캐나다/멕시코/LAC)
+# 정액: 청구중량 곱하지 않음 (건당 고정 부가금)
+_FEDEX_EDS_EXPORT_FLAT_PRIORITY = 2310   # kg당 아님 — 발송물당 정액
+_FEDEX_EDS_EXPORT_FLAT_ECONOMY  = 1730
+_FEDEX_EDS_EXPORT_FLAT_COUNTRIES = {
+    "United States of America", "Canada", "Mexico", "Puerto Rico",
+    # LAC (라틴 아메리카 및 카리브해)
+    "Anguilla","Antigua and Barbuda","Argentina","Aruba","Bahamas",
+    "Barbados","Belize","Bermuda","Bolivia","Brazil",
+    "British Virgin Islands","Cayman Islands","Chile","Colombia",
+    "Costa Rica","Curacao","Dominica","Dominican Republic","Ecuador",
+    "El Salvador","French Guiana","Grenada","Guadeloupe","Guatemala",
+    "Guyana","Haiti","Honduras","Jamaica","Martinique","Montserrat",
+    "Nicaragua","Panama","Paraguay","Peru","Saint Lucia",
+    "Saint Vincent and the Grenadines","Suriname",
+    "Trinidad and Tobago","Turks and Caicos Islands",
+    "U.S. Virgin Islands","Uruguay","Venezuela",
+}
 # 수입 (출발지→한국) 국가별 단가
 _FEDEX_EDS_IMPORT_ZONE = {
-    "A": 260,   # 싱가포르, 홍콩, 대만, 중국, 마카오
+    "A": 260,   # 아시아
     "D": 260,   # 아시아 기타
-    "G": 150,   # 유럽 서부
-    "H": 150,   # 유럽 동부 + 이스라엘
+    "G": 150,   # 유럽
+    "H": 150,   # 유럽 + 이스라엘
     "J": 1600,  # MEISA (그룹1+2 동일)
 }
 _FEDEX_EDS_IMPORT_COUNTRY = {
-    "Australia": 260, "New Zealand": 260,
-    "India": 0, "Vietnam": 0,
+    "Australia": 260, "New Zealand": 260, "Fiji": 260,
+    "India": 790,   # 0→790원 (2026-09-21)
+    "Vietnam": 0,
     "United States of America": 0, "Canada": 0, "Mexico": 0,
     "Japan": 0, "Guam": 0,
 }
 _FEDEX_EDS_ENABLED = True   # False 로 바꾸면 전체 비활성화
 
-def get_fedex_eds(fx_zone: str, chargeable_wt: float, dest_country: str = "", mode: str = "수출") -> int:
-    """FedEx 초과수요 추가요금 — kg당 요금 × 청구중량 (1원 올림)"""
-    if not _FEDEX_EDS_ENABLED:
+
+# ── DHL 초과 수요 추가요금 (Demand Surcharge) — 2026-10-01 ~ 2027-02-05 한시적 적용 ──
+# kg당 원화, 유류할증료 별도 가산됨 (기존 로직 그대로 유지)
+import datetime as _dt
+_DHL_EDS_START = _dt.date(2026, 10, 1)
+_DHL_EDS_END   = _dt.date(2027, 2, 5)
+
+# 지역 정의 — 출발지(한국 기준: 이외 아시아 지역 고정)
+# 목적지 지역별 국가 매핑 (한국 자체는 목적지 "아시아"에 속함, 오세아니아는 별도)
+_DHL_EDS_DEST_CHINA_HK = {"China (People's Republic)", "Hong Kong SAR China", "Macau SAR China"}
+
+_DHL_EDS_DEST_ASIA = {
+    "Bangladesh","Japan","Nepal","Sri Lanka","Bhutan","Lao P.D.R.","Pakistan",
+    "Taiwan China","Brunei","Malaysia","Philippines","Thailand","Cambodia",
+    "Maldives","Singapore","East Timor (Timor-Leste)","India","Indonesia",
+    "Mongolia","South Korea","Vietnam","Myanmar",
+}
+
+_DHL_EDS_DEST_OCEANIA = {
+    "Australia","Cook Islands","Niue","Tonga","Fiji","Nauru",
+    "Papua New Guinea","Tuvalu","French Polynesia","New Caledonia","Samoa",
+    "Vanuatu","Kiribati","New Zealand","Solomon Islands",
+}
+
+_DHL_EDS_DEST_EUROPE = {
+    "Albania","France","Liechtenstein","Montenegro","Andorra","Germany",
+    "Lithuania","Romania","Austria","Gibraltar","Luxembourg","San Marino",
+    "Belgium","Greece","Malta","Serbia","Bosnia and Herzegovina","Guernsey",
+    "Monaco","Slovakia","Bulgaria","Hungary","Netherlands","Slovenia",
+    "Canary Islands","Iceland","Marshall Islands","Spain","Croatia","Israel",
+    "Norway","Sweden","Cyprus","Italy","Poland","Switzerland",
+    "Czech Republic","Jersey","Portugal","Turkiye","Denmark","Kosovo",
+    "Ireland","United Kingdom","Estonia","Latvia","Moldova","Vatican City",
+    "Finland","Luxembourg",
+}
+
+_DHL_EDS_DEST_AMERICAS = {
+    "Antigua","Curacao","Nevis","Trinidad and Tobago","Anguilla","Dominica",
+    "Nicaragua","Turks and Caicos Islands","Argentina","Dominican Republic",
+    "Panama","Uruguay","Aruba","Ecuador","Paraguay","British Virgin Islands",
+    "Bahamas","El Salvador","Peru","United States of America","Barbados",
+    "Grenada","Suriname","American Samoa","Bermuda","Guadeloupe",
+    "Saint Barthelemy","Northern Mariana Islands","Bolivia","Guyana (British)",
+    "Saint Eustatius","Guam","Brazil","French Guiana","Saint Kitts",
+    "Marshall Islands","Belize","Guatemala","Saint Lucia","Micronesia",
+    "Bonaire","Haiti","Saint Martin","Palau","Cayman Islands","Honduras",
+    "Saint Vincent","Puerto Rico","Canada","Jamaica","U.S. Virgin Islands",
+    "Chile","Martinique","Colombia","Mexico","Costa Rica","Montserrat",
+}
+
+_DHL_EDS_DEST_MEA = {
+    "Algeria","Kuwait","Qatar","Bahrain","Lebanon","Saudi Arabia",
+    "Egypt","Morocco","Tunisia","Jordan","Oman","United Arab Emirates",
+}
+
+def _dhl_eds_dest_region(dest_country: str) -> str:
+    """DHL 초과수요 추가요금 — 목적지 지역 분류"""
+    if dest_country in _DHL_EDS_DEST_CHINA_HK: return "china_hk"
+    if dest_country in _DHL_EDS_DEST_ASIA:      return "asia"
+    if dest_country in _DHL_EDS_DEST_OCEANIA:   return "oceania"
+    if dest_country in _DHL_EDS_DEST_EUROPE:    return "europe"
+    if dest_country in _DHL_EDS_DEST_AMERICAS:  return "americas"
+    if dest_country in _DHL_EDS_DEST_MEA:       return "mea"
+    return "row"  # 이외 모든 국가
+
+def _dhl_eds_origin_region(dest_country: str) -> str:
+    """DHL 초과수요 추가요금 — 출발지 지역 분류 (수입 모드: 국가가 출발지)"""
+    if dest_country in _DHL_EDS_DEST_CHINA_HK: return "china_hk"
+    # 남아시아: Bangladesh, Bhutan, India, Maldives, Nepal, Pakistan, Sri Lanka
+    if dest_country in {"Bangladesh","Bhutan","India","Maldives","Nepal","Pakistan","Sri Lanka"}:
+        return "south_asia"
+    if dest_country in _DHL_EDS_DEST_EUROPE:    return "europe"
+    if dest_country in _DHL_EDS_DEST_AMERICAS:  return "americas"
+    if dest_country in _DHL_EDS_DEST_MEA:       return "mea"
+    if dest_country in _DHL_EDS_DEST_ASIA or dest_country in _DHL_EDS_DEST_OCEANIA:
+        return "other_asia"  # 이외 아시아 지역 (오세아니아 포함, 한국도 이 그룹)
+    return "row"
+
+# 요율표: [출발지][목적지] → KRW/kg
+_DHL_EDS_TABLE = {
+    "china_hk":   {"china_hk":200, "asia":200, "oceania":900, "europe":3300, "americas":3500, "mea":2700, "row":1500},
+    "south_asia": {"china_hk":200, "asia":200, "oceania":900, "europe":2000, "americas":2500, "mea":900,  "row":1500},
+    "other_asia": {"china_hk":200, "asia":200, "oceania":900, "europe":2200, "americas":2600, "mea":2100, "row":1500},
+    "europe":     {"china_hk":0,   "asia":0,   "oceania":900, "europe":500,  "americas":900,  "mea":0,    "row":1500},
+    "americas":   {"china_hk":0,   "asia":0,   "oceania":900, "europe":0,    "americas":500,  "mea":0,    "row":1500},
+    "mea":        {"china_hk":0,   "asia":0,   "oceania":900, "europe":2000, "americas":2400, "mea":200,  "row":1500},
+    "row":        {"china_hk":1500,"asia":1500,"oceania":1500,"europe":1500, "americas":1500, "mea":1500, "row":1500},
+}
+
+def get_dhl_demand_surcharge(dest_country: str, chargeable_wt: float, mode: str = "수출", calc_date=None) -> int:
+    """DHL 초과 수요 추가요금 (2026-10-01~2027-02-05 한시적, kg당 KRW)
+    한국은 출발지 기준 '이외 아시아 지역', 목적지 기준 '아시아'에 속함(오세아니아는 별도).
+    """
+    d = calc_date or _dt.date.today()
+    if not (_DHL_EDS_START <= d <= _DHL_EDS_END):
         return 0
     if mode == "수입":
-        # 국가별 예외 먼저
+        origin = _dhl_eds_origin_region(dest_country)
+        dest   = "other_asia"  # 한국(목적지) = 이외 아시아 지역 그룹 (표에서는 아시아 열로 매핑)
+        # 표는 "이외 아시아 지역"을 출발지 행에서 쓰지만, 목적지 열은 "아시아"만 있음 → 한국은 아시아 열 사용
+        dest = "asia"
+        rate = _DHL_EDS_TABLE.get(origin, {}).get(dest, 0)
+    else:
+        origin = "other_asia"  # 한국 = 출발지 "이외 아시아 지역"
+        dest   = _dhl_eds_dest_region(dest_country)
+        rate = _DHL_EDS_TABLE.get(origin, {}).get(dest, 0)
+    if rate <= 0:
+        return 0
+    return math.ceil(rate * chargeable_wt)
+
+
+def get_fedex_eds(fx_zone: str, chargeable_wt: float, dest_country: str = "", mode: str = "수출", service: str = "IP") -> int:
+    """FedEx 초과수요 추가요금
+    - 일반: kg당 요금 × 청구중량 (1원 올림)
+    - 미국/캐나다/멕시코/LAC 수출: 서비스별(Priority=IP/Economy) 발송물당 정액
+    """
+    if not _FEDEX_EDS_ENABLED:
+        return 0
+
+    if mode != "수입" and dest_country in _FEDEX_EDS_EXPORT_FLAT_COUNTRIES:
+        # Priority(=IP) / Economy 정액 (kg 곱하지 않음)
+        return _FEDEX_EDS_EXPORT_FLAT_PRIORITY if service == "IP" else _FEDEX_EDS_EXPORT_FLAT_ECONOMY
+
+    if mode == "수입":
         rate = _FEDEX_EDS_IMPORT_COUNTRY.get(dest_country, None)
         if rate is None:
             rate = _FEDEX_EDS_IMPORT_ZONE.get(fx_zone, 0)
     else:
-        # 수출: 국가별 예외 먼저, 없으면 Zone 기본값
         rate = _FEDEX_EDS_EXPORT_COUNTRY.get(dest_country, None)
         if rate is None:
             rate = _FEDEX_EDS_EXPORT_ZONE.get(fx_zone, 0)
@@ -2184,6 +2317,8 @@ def run_calculation(
     total_vol_wt     = 0
     total_chargeable = 0
 
+    total_chargeable_fedex = 0  # FedEx 전용 청구중량 (용적조건 성립시 박스당 최소 18kg 적용)
+
     for ct in ct_data:
         winfo = calc_weight(ct["wt"], ct["L"], ct["W"], ct["H"])
         total_actual_wt  += ct["wt"] * ct.get("qty", 1)
@@ -2201,12 +2336,41 @@ def run_calculation(
 
         # FedEx surs
         s_fx = {}
-        if w > 50:
+        _fx_girth = ct["L"] + ct["W"]*2 + ct["H"]*2
+        _fx_vol   = ct["L"] * ct["W"] * ct["H"]
+        _fx_nonstd = False       # 비표준화물 초과수요 추가요금 대상 여부
+        _fx_vol_cond = False     # 추가취급(용적) 조건 성립 여부 — FedEx 최소 청구중량 18kg 트리거
+
+        # 미허가 패키지 처리 추가요금 (최우선 — 최대 규격 초과)
+        if dims[0] > 274 or _fx_girth > 419 or ct["wt"] > 68:
+            s_fx["미허가패키지처리"] = 378200
+            _fx_nonstd = True
+            if dims[0] > 121 or dims[1] > 76 or _fx_girth > 266 or _fx_vol > 169901:
+                _fx_vol_cond = True
+        # 특대형 화물 취급 요금
+        elif (dims[0] > 243 or _fx_girth > 330 or w > 50 or _fx_vol > 283168):
             s_fx["특대형"] = 86000
+            _fx_nonstd = True
+            if dims[0] > 121 or dims[1] > 76 or _fx_girth > 266 or _fx_vol > 169901:
+                _fx_vol_cond = True
         else:
-            if w > 25:              s_fx["추가취급(중량)"] = 35600
-            if dims[0] > 121 or dims[1] > 76: s_fx["추가취급(용적)"] = 35600
+            if w > 25:
+                s_fx["추가취급(중량)"] = 35600
+                _fx_nonstd = True
+            if dims[0] > 121 or dims[1] > 76 or _fx_girth > 266 or _fx_vol > 169901:
+                s_fx["추가취급(용적)"] = 35600
+                _fx_nonstd = True
+                _fx_vol_cond = True
+
+        # 비표준 화물 초과수요 추가요금 (2026-09-21~, 소포당 정액, 위 조건 하나라도 해당 시)
+        if _fx_nonstd:
+            s_fx["비표준화물초과수요"] = 7200
+
         for k, v in s_fx.items(): sur_fedex_ct[k] = sur_fedex_ct.get(k, 0) + v * ct.get("qty", 1)
+
+        # FedEx 전용: 추가취급(용적) 조건 성립 시 박스당 최소 청구중량 18kg 적용
+        _fx_ct_w = max(w, 18.0) if _fx_vol_cond else w
+        total_chargeable_fedex += _fx_ct_w * ct.get("qty", 1)
 
         # UPS surs
         s_ups = {}
@@ -2218,11 +2382,12 @@ def run_calculation(
         if ct["wt"] > 70: s_ups["__freight__"] = 1
         for k, v in s_ups.items(): sur_ups_ct[k] = sur_ups_ct.get(k, 0) + v * ct.get("qty", 1)
 
-    _total_w = total_chargeable   # ← 루프 종료 후 즉시 확정
+    _total_w = total_chargeable   # ← 루프 종료 후 즉시 확정 (DHL/UPS 공통 기준)
+    _fx_total_w = max(total_chargeable_fedex, _total_w)  # FedEx 전용 (용적조건 18kg 최소중량 반영, DHL/UPS는 영향 없음)
 
     # ── 캐리어별 청구중량 (반올림 기준 상이) ──
     _wt_dhl   = round_wt_dhl(_total_w)
-    _wt_fedex = round_wt_fedex(_total_w)
+    _wt_fedex = round_wt_fedex(_fx_total_w)
     _wt_ups   = round_wt_ups(_total_w)
 
     total_sur_dhl   = sum(v for k, v in sur_dhl_ct.items() if k != "__freight__")
@@ -2233,23 +2398,53 @@ def run_calculation(
         if "외곽지역(RAS)" in sur_dhl_ct:
             total_sur_dhl = total_sur_dhl - sur_dhl_ct["외곽지역(RAS)"] + actual_remote_sur
             sur_dhl_ct["외곽지역(RAS)"] = actual_remote_sur
+
+    # DHL 초과 수요 추가요금 (2026-10-01~2027-02-05 한시적, kg당 × 청구중량)
+    _dhl_demand = get_dhl_demand_surcharge(dest_country, _total_w, mode=mode)
+    if _dhl_demand > 0:
+        sur_dhl_ct["초과수요"] = _dhl_demand
+        total_sur_dhl += _dhl_demand
     total_sur_fedex = sum(sur_fedex_ct.values())
 
-    # FedEx 초과수요 추가요금 (2026-09-02~, kg당 × 청구중량, 국가별 차등)
-    _eds = get_fedex_eds(fx_zone, _total_w, dest_country=dest_country, mode=mode)
-    if _eds > 0:
-        sur_fedex_ct["초과수요(EDS)"] = _eds
-        total_sur_fedex += _eds
+    # FedEx 초과수요 추가요금 (2026-09-21~, kg당 또는 정액, 국가별/서비스별 차등)
+    _fedex_flat_country = (mode != "수입") and (dest_country in _FEDEX_EDS_EXPORT_FLAT_COUNTRIES)
+    if _fedex_flat_country:
+        # 미국/캐나다/멕시코/LAC 수출: IP·Economy 각각 다른 정액 (발송물당, kg 곱하지 않음)
+        _eds_ip  = get_fedex_eds(fx_zone, _fx_total_w, dest_country=dest_country, mode=mode, service="IP")
+        _eds_ec  = get_fedex_eds(fx_zone, _fx_total_w, dest_country=dest_country, mode=mode, service="Economy")
+        sur_fedex_ct_ip = dict(sur_fedex_ct)
+        sur_fedex_ct_ec = dict(sur_fedex_ct)
+        if _eds_ip > 0: sur_fedex_ct_ip["초과수요(EDS)"] = _eds_ip
+        if _eds_ec > 0: sur_fedex_ct_ec["초과수요(EDS)"] = _eds_ec
+        total_sur_fedex_ip = total_sur_fedex + _eds_ip
+        total_sur_fedex_ec = total_sur_fedex + _eds_ec
+    else:
+        _eds = get_fedex_eds(fx_zone, _fx_total_w, dest_country=dest_country, mode=mode)
+        if _eds > 0:
+            sur_fedex_ct["초과수요(EDS)"] = _eds
+            total_sur_fedex += _eds
+        sur_fedex_ct_ip = sur_fedex_ct
+        sur_fedex_ct_ec = sur_fedex_ct
+        total_sur_fedex_ip = total_sur_fedex
+        total_sur_fedex_ec = total_sur_fedex
 
-    # FedEx ODA/OPA 추가요금
+    # FedEx ODA/OPA 추가요금 (IP/Economy 공통이므로 양쪽 dict에 반영)
     _fx_tier = get_fedex_oda_opa_tier(dest_country, remote_postal, remote_city)
-    _fx_oda_opa = calc_fedex_oda_opa_sur(_fx_tier, _total_w)
+    _fx_oda_opa = calc_fedex_oda_opa_sur(_fx_tier, _fx_total_w)
     if _fx_oda_opa["opa"] > 0:
         sur_fedex_ct["서비스외지역 픽업(OPA)"] = _fx_oda_opa["opa"]
+        sur_fedex_ct_ip["서비스외지역 픽업(OPA)"] = _fx_oda_opa["opa"]
+        sur_fedex_ct_ec["서비스외지역 픽업(OPA)"] = _fx_oda_opa["opa"]
         total_sur_fedex += _fx_oda_opa["opa"]
+        total_sur_fedex_ip += _fx_oda_opa["opa"]
+        total_sur_fedex_ec += _fx_oda_opa["opa"]
     if _fx_oda_opa["oda"] > 0:
         sur_fedex_ct["서비스외지역 배송(ODA)"] = _fx_oda_opa["oda"]
+        sur_fedex_ct_ip["서비스외지역 배송(ODA)"] = _fx_oda_opa["oda"]
+        sur_fedex_ct_ec["서비스외지역 배송(ODA)"] = _fx_oda_opa["oda"]
         total_sur_fedex += _fx_oda_opa["oda"]
+        total_sur_fedex_ip += _fx_oda_opa["oda"]
+        total_sur_fedex_ec += _fx_oda_opa["oda"]
     total_sur_ups   = sum(v for k, v in sur_ups_ct.items() if k != "__freight__")
     ups_freight_flag = sur_ups_ct.get("__freight__", 0) > 0
 
@@ -2279,14 +2474,14 @@ def run_calculation(
 
     # ── FedEx ──
     if mode == "수출":
-        total_pub_fedex_ip, fx_rpk   = fedex_lookup(_total_w, fx_zi, is_doc=is_doc, econ=False)
+        total_pub_fedex_ip, fx_rpk   = fedex_lookup(_fx_total_w, fx_zi, is_doc=is_doc, econ=False)
         total_net_fedex_ip  = ceil10(total_pub_fedex_ip * 0.5)
-        total_pub_fedex_ec, fx_ec_rpk = fedex_lookup(_total_w, fx_zi, is_doc=False, econ=True)
+        total_pub_fedex_ec, fx_ec_rpk = fedex_lookup(_fx_total_w, fx_zi, is_doc=False, econ=True)
         total_net_fedex_ec  = ceil10(total_pub_fedex_ec * 0.5)
     else:
-        total_pub_fedex_ip, fx_rpk   = fximp_lookup(_total_w, fx_zi, is_doc=is_doc, econ=False)
+        total_pub_fedex_ip, fx_rpk   = fximp_lookup(_fx_total_w, fx_zi, is_doc=is_doc, econ=False)
         total_net_fedex_ip  = ceil10(total_pub_fedex_ip * 0.5)
-        total_pub_fedex_ec, fx_ec_rpk = fximp_lookup(_total_w, fx_zi, is_doc=False, econ=True)
+        total_pub_fedex_ec, fx_ec_rpk = fximp_lookup(_fx_total_w, fx_zi, is_doc=False, econ=True)
         total_net_fedex_ec  = ceil10(total_pub_fedex_ec * 0.5)
 
     # ── UPS ──
@@ -2309,8 +2504,8 @@ def run_calculation(
     # ── calc_carrier ──
     UPS_ACCT_FEE_RATE = 0.03  # 전체 원가 기준 3% → calc_carrier 내부에서 계산
     res_dhl     = calc_carrier("DHL Express",   _dhl_pub_for_calc,  total_net_dhl,      total_sur_dhl,   fuel_dhl,   disc_dhl)
-    res_fedex   = calc_carrier("FedEx IP",      total_pub_fedex_ip, total_net_fedex_ip, total_sur_fedex, fuel_fedex, disc_fedex)
-    res_fedex_e = calc_carrier("FedEx Economy", total_pub_fedex_ec, total_net_fedex_ec, total_sur_fedex, fuel_fedex, disc_fedex_e)
+    res_fedex   = calc_carrier("FedEx IP",      total_pub_fedex_ip, total_net_fedex_ip, total_sur_fedex_ip, fuel_fedex, disc_fedex)
+    res_fedex_e = calc_carrier("FedEx Economy", total_pub_fedex_ec, total_net_fedex_ec, total_sur_fedex_ec, fuel_fedex, disc_fedex_e)
     res_ups2f   = calc_carrier("UPS 2F94A8",    total_pub_ups_2F,   total_net_ups_2F,   total_sur_ups,   fuel_ups,   disc_ups,   net_fee=UPS_ACCT_FEE_RATE)
     res_upsb8   = calc_carrier("UPS B8733R",    total_pub_ups_B8,   total_net_ups_B8,   total_sur_ups,   fuel_ups,   disc_ups_b8 if mode == "수입" else disc_ups, net_fee=UPS_ACCT_FEE_RATE)
 
@@ -2342,8 +2537,8 @@ def run_calculation(
         "carriers": {
             # disc_rpk = 실제 청구 항공운임 ÷ 청구중량 → 10원 단위 올림
             "dhl":     {**res_dhl,     "surs": _sur_list(sur_dhl_ct),   "fuel_pct": fuel_dhl,   "disc_pct": disc_dhl,    "surcharge_5pct": _dhl_5pct, "rpk": dhl_rpk,   "disc_rpk": ceil10(res_dhl.get("pub_disc",0)   / _wt_dhl)   if dhl_rpk   and _wt_dhl   else None, "chargeable_wt": _wt_dhl},
-            "fedex":   {**res_fedex,   "surs": _sur_list(sur_fedex_ct), "fuel_pct": fuel_fedex, "disc_pct": disc_fedex,  "rpk": fx_rpk,    "disc_rpk": ceil10(res_fedex.get("pub_disc",0)  / _wt_fedex) if fx_rpk    and _wt_fedex else None, "chargeable_wt": _wt_fedex},
-            "fedex_e": {**res_fedex_e, "surs": _sur_list(sur_fedex_ct), "fuel_pct": fuel_fedex, "disc_pct": disc_fedex_e,"rpk": fx_ec_rpk, "disc_rpk": ceil10(res_fedex_e.get("pub_disc",0)/ _wt_fedex) if fx_ec_rpk and _wt_fedex else None, "chargeable_wt": _wt_fedex},
+            "fedex":   {**res_fedex,   "surs": _sur_list(sur_fedex_ct_ip), "fuel_pct": fuel_fedex, "disc_pct": disc_fedex,  "rpk": fx_rpk,    "disc_rpk": ceil10(res_fedex.get("pub_disc",0)  / _wt_fedex) if fx_rpk    and _wt_fedex else None, "chargeable_wt": _wt_fedex},
+            "fedex_e": {**res_fedex_e, "surs": _sur_list(sur_fedex_ct_ec), "fuel_pct": fuel_fedex, "disc_pct": disc_fedex_e,"rpk": fx_ec_rpk, "disc_rpk": ceil10(res_fedex_e.get("pub_disc",0)/ _wt_fedex) if fx_ec_rpk and _wt_fedex else None, "chargeable_wt": _wt_fedex},
             "ups2f":   {**res_ups2f,   "surs": _sur_list(sur_ups_ct),   "fuel_pct": fuel_ups,   "disc_pct": disc_ups,    "rpk": ups_rpk,   "disc_rpk": ceil10(res_ups2f.get("pub_disc",0)  / _wt_ups)   if ups_rpk   and _wt_ups   else None, "chargeable_wt": _wt_ups},
             "upsb8":   {**res_upsb8,   "surs": _sur_list(sur_ups_ct),   "fuel_pct": fuel_ups,   "disc_pct": disc_ups_b8, "rpk": ups_rpk,   "disc_rpk": ceil10(res_upsb8.get("pub_disc",0)  / _wt_ups)   if ups_rpk   and _wt_ups   else None, "chargeable_wt": _wt_ups},
         }
