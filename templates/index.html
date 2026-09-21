@@ -3027,29 +3027,137 @@ const UPS_SURGE_REGIONS = {
   ])
 };
 
-// 수출 단가 (한국→도착지) — 4.19~ (KRW/kg)
-// 수출 단가 (한국→도착지) — 2026-07-05 업데이트
-const UPS_SURGE_EXPORT = {
+// ═══════════════════════════════════════════════════════════
+// UPS 급증긴급수수료 — 기간별 요율 (KRW/kg)
+// ═══════════════════════════════════════════════════════════
+
+// ── 수출: 2026-07-05 ~ 2026-09-26 ──
+const UPS_SURGE_EXPORT_P1 = {
   UAE:        { rate: 4722, name: 'UPS 급증긴급수수료 (UAE)' },
   Israel:     { rate: 4722, name: 'UPS 급증긴급수수료 (UAE·이스라엘)' },
   MiddleEast: { rate: 4220, name: 'UPS 급증긴급수수료 (중동)' },
-  Europe:     { rate:  430, name: 'UPS 급증긴급수수료 (유럽)' },           // 720→430
-  US:         { rate:  720, name: 'UPS 급증긴급수수료 (미국)' },           // 유지
-  Americas:   { rate:  720, name: 'UPS 급증긴급수수료 (미주)' },           // 유지
+  Europe:     { rate:  430, name: 'UPS 급증긴급수수료 (유럽)' },
+  US:         { rate:  720, name: 'UPS 급증긴급수수료 (미국)' },
+  Americas:   { rate:  720, name: 'UPS 급증긴급수수료 (미주)' },
   AsiaPacific:{ rate:  143, name: 'UPS 급증긴급수수료 (아시아태평양)' },
   RestOfISMEA:{ rate:  430, name: 'UPS 급증긴급수수료 (Rest of ISMEA)' },
   RestOfWorld:{ rate:  720, name: 'UPS 급증긴급수수료 (Rest of World)' }
 };
 
-// 수입 단가 (출발지→한국) — 2026-05-24 업데이트
-const UPS_SURGE_IMPORT = {
+// ── 수출: 2026-09-27 ~ 2027-02-06 (신규 지역구분: ISMEA/Europe/US&Americas/AsiaPacific/AU&NZ/RestOfWorld) ──
+const UPS_SURGE_EXPORT_P2 = {
+  ISMEA:       { rate: 1720, name: 'UPS 급증긴급수수료 (ISMEA)' },
+  Europe:      { rate: 1720, name: 'UPS 급증긴급수수료 (유럽)' },
+  US:          { rate: 2430, name: 'UPS 급증긴급수수료 (미국)' },
+  Americas:    { rate: 2430, name: 'UPS 급증긴급수수료 (미주)' },
+  AsiaPacific: { rate:  140, name: 'UPS 급증긴급수수료 (아시아태평양)' },
+  AuNz:        { rate:  140, name: 'UPS 급증긴급수수료 (호주·뉴질랜드)' },
+  RestOfWorld: { rate: 2430, name: 'UPS 급증긴급수수료 (Rest of World)' }
+};
+
+// ── 수입: 2026-05-24 ~ 2026-09-19 ──
+const UPS_SURGE_IMPORT_P1 = {
   UAE:        { rate: 4722, name: 'UPS 급증긴급수수료 (UAE)' },
-  // Israel: N.A. (2026-05-24부터 적용 중단)
   MiddleEast: { rate: 4220, name: 'UPS 급증긴급수수료 (중동)' },
-  // Europe: N.A.
   US:         { rate:  716, name: 'UPS 급증긴급수수료 (미국)' },
   AsiaPacific:{ rate:  143, name: 'UPS 급증긴급수수료 (아시아태평양)' }
 };
+
+// ── 수입: 2026-09-20 ~ 2026-09-26 ──
+const UPS_SURGE_IMPORT_P2 = {
+  UAE:        { rate: 4722, name: 'UPS 급증긴급수수료 (UAE)' },
+  MiddleEast: { rate: 4220, name: 'UPS 급증긴급수수료 (중동)' },
+  US:         { rate:  716, name: 'UPS 급증긴급수수료 (미국)' },
+  AsiaPacific:{ rate:  140, name: 'UPS 급증긴급수수료 (아시아태평양)' }
+};
+
+// ── 수입: 2026-09-27 ~ 2027-02-06 ──
+const UPS_SURGE_IMPORT_P3 = {
+  UAE:        { rate: 4722, name: 'UPS 급증긴급수수료 (UAE)' },
+  MiddleEast: { rate: 4220, name: 'UPS 급증긴급수수료 (중동)' },
+  US:         { rate: 1000, name: 'UPS 급증긴급수수료 (미국)' },
+  Americas:   { rate:  720, name: 'UPS 급증긴급수수료 (미주)' },
+  AsiaPacific:{ rate:  140, name: 'UPS 급증긴급수수료 (아시아태평양)' },
+  ChinaHK:    { rate:  140, name: 'UPS 급증긴급수수료 (중국·홍콩·마카오)' }
+};
+
+// 날짜 기준 기간 판별 (KST 기준 오늘 날짜)
+function _upsSurgePeriod(mode) {
+  var now = new Date();
+  var y = now.getFullYear(), m = now.getMonth()+1, d = now.getDate();
+  var ymd = y*10000 + m*100 + d;
+  if (mode === '수입') {
+    if (ymd >= 20260524 && ymd <= 20260919) return 'IMPORT_P1';
+    if (ymd >= 20260920 && ymd <= 20260926) return 'IMPORT_P2';
+    if (ymd >= 20260927 && ymd <= 20270206) return 'IMPORT_P3';
+    return null;
+  } else {
+    if (ymd >= 20260705 && ymd <= 20260926) return 'EXPORT_P1';
+    if (ymd >= 20260927 && ymd <= 20270206) return 'EXPORT_P2';
+    return null;
+  }
+}
+
+// P2(9/27~) 신규 지역구분용 국가 Set
+const UPS_SURGE_REGIONS_P2 = {
+  AuNz: new Set(['Australia','New Zealand']),
+  ChinaHK: new Set(["China (People\u2019s Republic)",'Hong Kong SAR China','Macau SAR China']),
+  ISMEA: new Set([
+    'Afghanistan','Algeria','Angola','Azerbaijan','Bahrain','Bangladesh',
+    'Benin','Botswana','Burkina Faso','Burundi','Cameroon','Cape Verde',
+    'Chad','Comoros','Djibouti','Egypt','Eritrea','Ethiopia','Gabon',
+    'Gambia','Ghana','Guinea','Guinea-Bissau','Iraq','Jordan','Kazakhstan',
+    'Kenya','Kuwait','Kyrgyzstan','Lebanon','Lesotho','Liberia',
+    'Madagascar','Malawi','Maldives','Mali','Mauritania','Mauritius',
+    'Mayotte','Morocco','Mozambique','Namibia','Nepal','Niger','Nigeria',
+    'Oman','Congo (Republic)','Ivory Coast','Tunisia','Reunion Island',
+    'Rwanda','Saudi Arabia','Sri Lanka','Senegal','Seychelles',
+    'Sierra Leone','South Africa','Swaziland','Tanzania',
+    'Congo (Democratic Republic)','Togo','Turkmenistan','United Arab Emirates',
+    'Uganda','Uzbekistan','Yemen','Zambia','Zimbabwe'
+  ]),
+  Europe: new Set([
+    'Albania','Andorra','Armenia','Austria','Belarus','Belgium',
+    'Bosnia and Herzegovina','Bulgaria','Croatia','Cyprus',
+    'Czech Republic','Denmark','Estonia','Finland','France',
+    'Georgia','Germany','Gibraltar','Greece','Guernsey',
+    'Hungary','Iceland','Ireland','Israel','Italy','Jersey','Kosovo',
+    'Latvia','Lithuania','Luxembourg','Malta','Moldova',
+    'Montenegro','Netherlands','North Macedonia','Norway',
+    'Poland','Portugal','Romania','Russia','San Marino',
+    'Serbia','Slovakia','Slovenia','Spain','Sweden',
+    'Switzerland','Turkey','Ukraine','United Kingdom'
+  ]),
+  US: new Set(['United States of America','United States']),
+  Americas: new Set([
+    'Anguilla','Antigua and Barbuda','Argentina','Aruba',
+    'Bahamas','Barbados','Belize','Bermuda','Bolivia',
+    'Brazil','Canada','Cayman Islands','Chile','Colombia',
+    'Costa Rica','Curacao','Dominica','Dominican Republic',
+    'Ecuador','El Salvador','French Guiana','Grenada','Guadeloupe',
+    'Guatemala','Guyana','Haiti','Honduras','Jamaica','Martinique',
+    'Mexico','Montserrat','Nicaragua','Panama','Paraguay','Peru',
+    'Puerto Rico','Suriname','Trinidad and Tobago',
+    'Uruguay','Venezuela'
+  ]),
+  AsiaPacific: new Set([
+    'American Samoa','Brunei','Cambodia','Guam','India','Indonesia',
+    'Japan','Lao P.D.R.','Malaysia','Mongolia','Myanmar',
+    'New Caledonia','Northern Mariana Islands','Philippines',
+    'Singapore','Samoa','Taiwan China','Thailand','Vietnam'
+  ]),
+  RestOfWorld: new Set([
+    'Central African Republic','Cook Islands','Micronesia',
+    'Faeroe Islands','Greenland'
+  ])
+};
+
+function _getSurgeRegionP2(dest) {
+  for (var region in UPS_SURGE_REGIONS_P2) {
+    if (UPS_SURGE_REGIONS_P2[region].has(dest)) return region;
+  }
+  return null;
+}
 
 function _getSurgeRegion(dest) {
   for (var region in UPS_SURGE_REGIONS) {
@@ -3061,11 +3169,26 @@ function _getSurgeRegion(dest) {
 function applyUpsSurgeFee(res) {
   var dest = res.dest_country || '';
   var mode = res.mode || '수출';
-  var region = _getSurgeRegion(dest);
-  if (!region) return;
+  var period = _upsSurgePeriod(mode);
+  if (!period) return; // 적용 기간 아님
 
-  var table = (mode === '수입') ? UPS_SURGE_IMPORT : UPS_SURGE_EXPORT;
-  var entry = table[region];
+  var entry = null;
+  if (period === 'EXPORT_P1') {
+    var region1 = _getSurgeRegion(dest);
+    if (region1) entry = UPS_SURGE_EXPORT_P1[region1];
+  } else if (period === 'EXPORT_P2') {
+    var region2 = _getSurgeRegionP2(dest);
+    if (region2) entry = UPS_SURGE_EXPORT_P2[region2];
+  } else if (period === 'IMPORT_P1') {
+    var region3 = _getSurgeRegion(dest);
+    if (region3) entry = UPS_SURGE_IMPORT_P1[region3];
+  } else if (period === 'IMPORT_P2') {
+    var region4 = _getSurgeRegion(dest);
+    if (region4) entry = UPS_SURGE_IMPORT_P2[region4];
+  } else if (period === 'IMPORT_P3') {
+    var region5 = _getSurgeRegionP2(dest);
+    if (region5) entry = UPS_SURGE_IMPORT_P3[region5];
+  }
   if (!entry) return; // N.A.
 
   var chg = res._rounded_chargeable || res.total_chargeable || 0;
