@@ -2318,6 +2318,7 @@ def run_calculation(
     total_chargeable = 0
 
     total_chargeable_fedex = 0  # FedEx 전용 청구중량 (용적조건 성립시 박스당 최소 18kg 적용)
+    total_chargeable_ups = 0    # UPS 전용 청구중량 (대형포장물 조건 성립시 박스당 최소 40kg 적용)
 
     for ct in ct_data:
         winfo = calc_weight(ct["wt"], ct["L"], ct["W"], ct["H"])
@@ -2372,23 +2373,46 @@ def run_calculation(
         _fx_ct_w = max(w, 18.0) if _fx_vol_cond else w
         total_chargeable_fedex += _fx_ct_w * ct.get("qty", 1)
 
-        # UPS surs
+        # UPS surs — 비규격품(AHC)/대형포장물(LPS-MBW)/최대허용한도초과(OML)
+        # 2026-09-27~2027-02-06: 한시 인상 요율, 그 외 기간: 평시 요율
+        _ups_d = _dt.date.today()
+        _ups_surge_period = (_dt.date(2026,9,27) <= _ups_d <= _dt.date(2027,2,6))
+        if _ups_surge_period:
+            _UPS_AHC_FEE, _UPS_LPS_FEE, _UPS_OML_FEE = 2580, 9020, 286240
+        else:
+            _UPS_AHC_FEE, _UPS_LPS_FEE, _UPS_OML_FEE = 21400, 69200, 307900
+
         s_ups = {}
-        girth = (dims[1] + dims[2]) * 2
-        if (dims[0] + girth) > 300:
-            s_ups["대형포장물"] = 69200
+        girth = (dims[1] + dims[2]) * 2          # 둘레: (폭×2)+(높이×2)
+        length_girth_sum = dims[0] + girth        # 길이 + 둘레
+
+        # 최대허용한도초과(OML): 중량70kg / 길이274cm / 길이+둘레 400cm 초과 시 (최우선)
+        if ct["wt"] > 70 or dims[0] > 274 or length_girth_sum > 400:
+            s_ups["최대허용한도초과"] = _UPS_OML_FEE
+            s_ups["__freight__"] = 1
+        # 대형포장물(LPS-MBW): 길이+둘레 300~400cm (OML 미해당)
+        elif length_girth_sum > 300:
+            s_ups["대형포장물"] = _UPS_LPS_FEE
+            # 대형포장물 최소 청구중량 40kg (해당 박스만 적용, UPS 전용)
+        # 비규격품(AHC): 최장변 122cm 또는 차장변 76cm 또는 실중량 25kg 초과 (대형포장물 미해당 시만)
         elif dims[0] > 122 or dims[1] > 76 or ct["wt"] > 25:
-            s_ups["비규격품(OSP)"] = 21400
-        if ct["wt"] > 70: s_ups["__freight__"] = 1
+            s_ups["비규격품(OSP)"] = _UPS_AHC_FEE
+
         for k, v in s_ups.items(): sur_ups_ct[k] = sur_ups_ct.get(k, 0) + v * ct.get("qty", 1)
 
-    _total_w = total_chargeable   # ← 루프 종료 후 즉시 확정 (DHL/UPS 공통 기준)
-    _fx_total_w = max(total_chargeable_fedex, _total_w)  # FedEx 전용 (용적조건 18kg 최소중량 반영, DHL/UPS는 영향 없음)
+        # UPS 전용: 대형포장물(LPS-MBW) 최소 청구중량 40kg 적용 (박스 단위, DHL/FedEx 영향 없음)
+        _ups_lps_cond = "대형포장물" in s_ups
+        _ups_ct_w = max(w, 40.0) if _ups_lps_cond else w
+        total_chargeable_ups += _ups_ct_w * ct.get("qty", 1)
+
+    _total_w = total_chargeable   # ← 루프 종료 후 즉시 확정 (DHL 기준)
+    _fx_total_w  = max(total_chargeable_fedex, _total_w)  # FedEx 전용 (용적조건 18kg 최소중량 반영, DHL/UPS는 영향 없음)
+    _ups_total_w = max(total_chargeable_ups, _total_w)    # UPS 전용 (대형포장물 40kg 최소중량 반영, DHL/FedEx는 영향 없음)
 
     # ── 캐리어별 청구중량 (반올림 기준 상이) ──
     _wt_dhl   = round_wt_dhl(_total_w)
     _wt_fedex = round_wt_fedex(_fx_total_w)
-    _wt_ups   = round_wt_ups(_total_w)
+    _wt_ups   = round_wt_ups(_ups_total_w)
 
     total_sur_dhl   = sum(v for k, v in sur_dhl_ct.items() if k != "__freight__")
 
@@ -2486,8 +2510,8 @@ def run_calculation(
 
     # ── UPS ──
     if mode == "수출":
-        total_pub_ups_2F, total_net_ups_2F, ups_rpk = ups_lookup(_total_w, ups_zi, is_doc, "2F94A8", dest_country)
-        total_pub_ups_B8, total_net_ups_B8, _       = ups_lookup(_total_w, ups_zi, is_doc, "B8733R")
+        total_pub_ups_2F, total_net_ups_2F, ups_rpk = ups_lookup(_ups_total_w, ups_zi, is_doc, "2F94A8", dest_country)
+        total_pub_ups_B8, total_net_ups_B8, _       = ups_lookup(_ups_total_w, ups_zi, is_doc, "B8733R")
     else:
         total_pub_ups_2F = ups_imp_lookup(_total_w, ups_imp_zi, is_doc)
         total_net_ups_2F = ups_imp_cost_lookup(_total_w, ups_imp_zi, is_doc, "2F94A8")
