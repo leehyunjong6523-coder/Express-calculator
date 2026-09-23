@@ -805,11 +805,15 @@ FEDEX_PUB_IP = {
     20.0:[380100,416800,445300,575200,601800,620200,895000,1050500,1002000,1152800],
     20.5:[380100,422200,452100,583600,611300,630600,912600,1070600,1019400,1172500],
 }
-# ── FedEx IP Over 20.5kg — 1kg당 요금 ──
+# ── FedEx IP Over 20.5kg — 1kg당 요금 (21~67kg 구간만 사용, 68kg+ 는 IPF로 전환) ──
 FEDEX_PUB_OVER = {
     "21-44":  [18100,20500,24100,27800,29200,30100,43500,51700,51100,59900],
-    "45-70":  [17900,19300,23600,23900,28600,29500,42600,46700,46600,55300],
-    "71-99":  [17700,18600,23600,22800,28300,29100,42200,44300,46000,51100],
+    "45-67":  [17900,19300,23600,23900,28600,29500,42600,46700,46600,55300],
+}
+# ── FedEx IPF(International Priority Freight) Export DTD — 68kg 이상 전용, 1kg당 요금 ──
+# 2026-01-05 시행 (Door-to-Door 기준. DTA/ATD/ATA는 별도 요율)
+FEDEX_IPF_DTD = {
+    "68-99":  [17700,18600,23600,22800,28300,29100,42200,44300,46000,51100],
     "100-299":[17000,17700,22200,22000,27600,29000,41900,43900,45700,50300],
     "300-499":[16700,17500,21600,21800,26700,28000,40700,42500,44700,48700],
     "500-999":[16600,17200,21500,21800,26400,27400,40700,41900,44700,47700],
@@ -860,11 +864,15 @@ FEDEX_PUB_ECON = {
     20.0:[325500,373500,400300,494500,526700,540000,778300,909000,869500,1007100],
     20.5:[328500,377000,405100,499100,532800,546600,790600,922700,880900,1020200],
 }
-# ── FedEx Economy Over — 1kg당 요금 ── 2026년 1월 5일 공식 요금표
+# ── FedEx Economy Over — 1kg당 요금 (21~67kg 구간만 사용, 68kg+ 는 IEF로 전환) ── 2026년 1월 5일 공식 요금표
 FEDEX_PUB_ECON_OVER = {
     "21-44":  [16100,18200,21300,24100,25500,26100,37800,44700,44500,51900],
-    "45-70":  [15900,17300,21000,20900,24600,25300,37000,40300,40500,48200],
-    "71-99":  [15800,16600,20900,19700,24400,25100,36700,38900,40000,44300],
+    "45-67":  [15900,17300,21000,20900,24600,25300,37000,40300,40500,48200],
+}
+# ── FedEx IEF(International Economy Freight) Export DTD — 68kg 이상 전용, 1kg당 요금 ──
+# 2026-01-05 시행 (Door-to-Door 기준. DTA/ATD/ATA는 별도 요율)
+FEDEX_IEF_DTD = {
+    "68-99":  [15800,16600,20900,19700,24400,25100,36700,38900,40000,44300],
     "100-299":[15200,15900,20000,19100,23900,25000,36600,38200,39700,43800],
     "300-499":[15100,15700,19300,18900,23100,24300,35400,36900,38900,42500],
     "500-999":[15000,15400,19200,18900,23100,24000,35400,36500,38900,41400],
@@ -1399,32 +1407,39 @@ def dhl_lookup(w, zi, is_doc):
     return pub, net, pub_rpk
 
 def fedex_lookup(w, zi, is_doc=False, econ=False):
-    """FedEx 공시가 반환 → (price, rpk_or_None)"""
+    """FedEx 공시가 반환 → (price, rpk_or_None, is_freight)
+    68kg 이상은 IPF(IP)/IEF(Economy) 프레이트 서비스로 자동 전환 (Door-to-Door 기준)"""
     if not econ and is_doc:
         if w <= 0.5:
-            return ceil10(FEDEX_PUB_ENV[0.5][zi]), None
+            return ceil10(FEDEX_PUB_ENV[0.5][zi]), None, False
         elif w <= 2.5:
             k = math.ceil(w * 2) / 2
             for key in sorted(FEDEX_PUB_PAK):
-                if key >= k: return ceil10(FEDEX_PUB_PAK[key][zi]), None
-            return ceil10(FEDEX_PUB_PAK[max(FEDEX_PUB_PAK)][zi]), None
+                if key >= k: return ceil10(FEDEX_PUB_PAK[key][zi]), None, False
+            return ceil10(FEDEX_PUB_PAK[max(FEDEX_PUB_PAK)][zi]), None, False
 
     pub_tbl = FEDEX_PUB_ECON      if econ else FEDEX_PUB_IP
     ovr_tbl = FEDEX_PUB_ECON_OVER if econ else FEDEX_PUB_OVER
+    frt_tbl = FEDEX_IEF_DTD       if econ else FEDEX_IPF_DTD
     if w <= 20.5:
         k = math.ceil(w * 2) / 2
         for key in sorted(pub_tbl):
-            if key >= k: return ceil10(pub_tbl[key][zi]), None
-        return ceil10(pub_tbl[max(pub_tbl)][zi]), None
+            if key >= k: return ceil10(pub_tbl[key][zi]), None, False
+        return ceil10(pub_tbl[max(pub_tbl)][zi]), None, False
     rw = int(math.ceil(w))
-    br = ("21-44"   if rw <= 44  else
-          "45-70"   if rw <= 70  else
-          "71-99"   if rw <= 99  else
-          "100-299" if rw <= 299 else
-          "300-499" if rw <= 499 else
-          "500-999" if rw <= 999 else "1000+")
-    rpk = ovr_tbl[br][zi]
-    return ceil10(rpk * rw), rpk
+    if rw < 68:
+        # 21~67kg: 기존 IP/IE 초과중량 요율
+        br = "21-44" if rw <= 44 else "45-67"
+        rpk = ovr_tbl[br][zi]
+        return ceil10(rpk * rw), rpk, False
+    else:
+        # 68kg 이상: IPF/IEF 프레이트 요율 (Door-to-Door)
+        br = ("68-99"   if rw <= 99  else
+              "100-299" if rw <= 299 else
+              "300-499" if rw <= 499 else
+              "500-999" if rw <= 999 else "1000+")
+        rpk = frt_tbl[br][zi]
+        return ceil10(rpk * rw), rpk, True
 
 def ups_lookup(w, zi, is_doc, acct="2F94A8", dest_country=""):
     """UPS Worldwide Express Saver 요금 조회 → (published, net, rpk_or_None)"""
@@ -2496,11 +2511,13 @@ def run_calculation(
         total_net_dhl = dhl_imp_cost_lookup(_total_w, dhl_zi, is_doc)
         dhl_rpk = None
 
-    # ── FedEx ──
+    # ── FedEx ── (68kg 이상 수출은 IPF/IEF 프레이트 요율로 자동 전환)
+    _fx_is_freight_ip = False
+    _fx_is_freight_ec = False
     if mode == "수출":
-        total_pub_fedex_ip, fx_rpk   = fedex_lookup(_fx_total_w, fx_zi, is_doc=is_doc, econ=False)
+        total_pub_fedex_ip, fx_rpk, _fx_is_freight_ip   = fedex_lookup(_fx_total_w, fx_zi, is_doc=is_doc, econ=False)
         total_net_fedex_ip  = ceil10(total_pub_fedex_ip * 0.5)
-        total_pub_fedex_ec, fx_ec_rpk = fedex_lookup(_fx_total_w, fx_zi, is_doc=False, econ=True)
+        total_pub_fedex_ec, fx_ec_rpk, _fx_is_freight_ec = fedex_lookup(_fx_total_w, fx_zi, is_doc=False, econ=True)
         total_net_fedex_ec  = ceil10(total_pub_fedex_ec * 0.5)
     else:
         total_pub_fedex_ip, fx_rpk   = fximp_lookup(_fx_total_w, fx_zi, is_doc=is_doc, econ=False)
@@ -2561,8 +2578,8 @@ def run_calculation(
         "carriers": {
             # disc_rpk = 실제 청구 항공운임 ÷ 청구중량 → 10원 단위 올림
             "dhl":     {**res_dhl,     "surs": _sur_list(sur_dhl_ct),   "fuel_pct": fuel_dhl,   "disc_pct": disc_dhl,    "surcharge_5pct": _dhl_5pct, "rpk": dhl_rpk,   "disc_rpk": ceil10(res_dhl.get("pub_disc",0)   / _wt_dhl)   if dhl_rpk   and _wt_dhl   else None, "chargeable_wt": _wt_dhl},
-            "fedex":   {**res_fedex,   "surs": _sur_list(sur_fedex_ct_ip), "fuel_pct": fuel_fedex, "disc_pct": disc_fedex,  "rpk": fx_rpk,    "disc_rpk": ceil10(res_fedex.get("pub_disc",0)  / _wt_fedex) if fx_rpk    and _wt_fedex else None, "chargeable_wt": _wt_fedex},
-            "fedex_e": {**res_fedex_e, "surs": _sur_list(sur_fedex_ct_ec), "fuel_pct": fuel_fedex, "disc_pct": disc_fedex_e,"rpk": fx_ec_rpk, "disc_rpk": ceil10(res_fedex_e.get("pub_disc",0)/ _wt_fedex) if fx_ec_rpk and _wt_fedex else None, "chargeable_wt": _wt_fedex},
+            "fedex":   {**res_fedex,   "surs": _sur_list(sur_fedex_ct_ip), "fuel_pct": fuel_fedex, "disc_pct": disc_fedex,  "rpk": fx_rpk,    "disc_rpk": ceil10(res_fedex.get("pub_disc",0)  / _wt_fedex) if fx_rpk    and _wt_fedex else None, "chargeable_wt": _wt_fedex, "is_freight": _fx_is_freight_ip},
+            "fedex_e": {**res_fedex_e, "surs": _sur_list(sur_fedex_ct_ec), "fuel_pct": fuel_fedex, "disc_pct": disc_fedex_e,"rpk": fx_ec_rpk, "disc_rpk": ceil10(res_fedex_e.get("pub_disc",0)/ _wt_fedex) if fx_ec_rpk and _wt_fedex else None, "chargeable_wt": _wt_fedex, "is_freight": _fx_is_freight_ec},
             "ups2f":   {**res_ups2f,   "surs": _sur_list(sur_ups_ct),   "fuel_pct": fuel_ups,   "disc_pct": disc_ups,    "rpk": ups_rpk,   "disc_rpk": ceil10(res_ups2f.get("pub_disc",0)  / _wt_ups)   if ups_rpk   and _wt_ups   else None, "chargeable_wt": _wt_ups},
             "upsb8":   {**res_upsb8,   "surs": _sur_list(sur_ups_ct),   "fuel_pct": fuel_ups,   "disc_pct": disc_ups_b8, "rpk": ups_rpk,   "disc_rpk": ceil10(res_upsb8.get("pub_disc",0)  / _wt_ups)   if ups_rpk   and _wt_ups   else None, "chargeable_wt": _wt_ups},
         }
