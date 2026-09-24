@@ -3338,7 +3338,7 @@ function renderResults(res) {
 
       card.innerHTML = `
         <div class="card-check">✓</div>
-        <div class="card-badge ${badge}">${label}${zoneBadge}${isBest ? '<span class="card-best-badge">🏆 최저</span>' : ''}${(key==='dhl' && c.surcharge_5pct) ? '<span style="background:#f59e0b;color:#1a1a00;font-size:.6rem;font-weight:900;padding:1px 5px;border-radius:3px;margin-left:5px;">⚡+5%</span>' : ''}${_lmrBadgeHtml(key)}${_wwefBadgeHtml(key, freightFlag)}</div>
+        <div class="card-badge ${badge}">${label}${zoneBadge}${isBest ? '<span class="card-best-badge">🏆 최저</span>' : ''}${(key==='dhl' && c.surcharge_5pct) ? '<span style="background:#f59e0b;color:#1a1a00;font-size:.6rem;font-weight:900;padding:1px 5px;border-radius:3px;margin-left:5px;">⚡+5%</span>' : ''}${c.is_freight ? `<span style="background:#a855f7;color:#fff;font-size:.6rem;font-weight:900;padding:1px 6px;border-radius:3px;margin-left:5px;">📦 ${key==='fedex'?'IPF':'IEF'}</span>` : ''}${_lmrBadgeHtml(key)}${_wwefBadgeHtml(key, freightFlag)}</div>
         <div class="card-meta">
           <span class="meta-tag meta-tt">⏱ ${tt}</span>
           ${c.disc_rpk ? `<span class="meta-tag" style="background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3);">₩${Math.round(c.disc_rpk).toLocaleString()}/kg</span>` : ''}
