@@ -673,7 +673,7 @@ FEDEX_ZONES=["A","B","C","D","E","F","G","H","I","J"]
 FEDEX_ZONE_MAP_EN = {
     # Zone A
     "Hong Kong SAR China":"A","Taiwan, China":"A","Macau SAR China":"A","Singapore":"A",
-    "China (People's Republic)":"A",  # South: A, others: C — 코드상 단순화: 남부 별도 처리 없음
+    # China (People's Republic): 기본 Zone C, 남부(푸젠성/광동성 특정 우편번호)만 Zone A — 아래 우편번호 로직에서 처리
     # Zone B
     "Japan":"B",
     # Zone C
@@ -2287,6 +2287,24 @@ def run_calculation(
     else:
         fx_country_kr = _COUNTRY_TO_FEDEX.get(dest_country, "미국 (기타 지역)")
         fx_zone = FEDEX_ZONE_MAP.get(fx_country_kr, "F")
+
+    # ── FedEx 미국/중국 우편번호 기준 Zone 재조정 (외곽지역 우편번호란 재사용) ──
+    # 미국: 서부 8개주(우편번호대) → Zone E, 그 외 전체 → Zone F(기본값)
+    # 중국: 푸젠성(350000-369999)/광동성(510000-529999) → Zone A, 그 외 전체 → Zone C(기본값)
+    _fx_pc = (remote_postal or "").strip().replace("-", "")
+    if dest_country in ("United States of America", "United States") and _fx_pc.isdigit():
+        _fx_pc5 = int(_fx_pc[:5]) if len(_fx_pc) >= 5 else None
+        _US_WEST_RANGES = [
+            (80000,81699),(83200,83999),(84000,84799),(85000,86599),
+            (89000,89899),(90000,96699),(97000,97999),(98000,99499),
+        ]
+        if _fx_pc5 is not None and any(lo <= _fx_pc5 <= hi for lo, hi in _US_WEST_RANGES):
+            fx_zone = "E"
+    elif dest_country == "China (People's Republic)" and _fx_pc.isdigit():
+        _fx_pc6 = int(_fx_pc[:6]) if len(_fx_pc) >= 6 else None
+        if _fx_pc6 is not None and (350000 <= _fx_pc6 <= 369999 or 510000 <= _fx_pc6 <= 529999):
+            fx_zone = "A"
+
     fx_zi = FEDEX_ZONES.index(fx_zone)
 
     ups_no_service   = dest_country in UPS_NO_SERVICE
