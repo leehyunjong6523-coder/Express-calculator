@@ -401,6 +401,7 @@ body.mode-imp .tb-calc-btn { background: linear-gradient(135deg, #9d174d, #be185
 .carrier-card.c-fedex { border-top-color: #4D148C; }
 .carrier-card.c-fedex-e { border-top-color: #6620b0; }
 .carrier-card.c-ups   { border-top-color: #92400e; }
+.carrier-card.c-ems   { border-top-color: #b91c1c; }
 
 .card-check {
   position: absolute; top: 10px; right: 10px;
@@ -419,6 +420,7 @@ body.mode-imp .tb-calc-btn { background: linear-gradient(135deg, #9d174d, #be185
 .badge-fedex { background: #4D148C; color: #fff; }
 .badge-fedex-e { background: #6620b0; color: #fff; }
 .badge-ups   { background: #351C15; color: #fff; border: 1px solid #92400e; }
+.badge-ems   { background: #7f1d1d; color: #fff; border: 1px solid #b91c1c; }
 
 .card-meta { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
 .meta-tag { padding: 2px 8px; border-radius: 5px; font-size: .68rem; font-weight: 700; }
@@ -1507,7 +1509,6 @@ body.mode-imp .tb-calc-btn { background: linear-gradient(135deg, #9d174d, #be185
           <input class="sb-number" type="number" id="discUps" step="0.01" value="{{ settings.disc_ups }}" min="0" max="99.99">
         </div>
       </div>
-      <input type="hidden" id="discUpsB8" value="{{ settings.disc_ups_b8 }}">
     </div>
 
     <!-- Remote area -->
@@ -1762,10 +1763,10 @@ let state = {
   aiResult: null, pasteImageBlob: null, staffName: '', tgtMargin: 30,
   lmr: { fedex: null, fedex_e: null },       // LMR 적용 데이터
   lmrPasteBlob: { fedex: null, fedex_e: null }, // LMR 붙여넣기 이미지
-  wwef: { ups: null, ups2f: null, upsb8: null }, // WWEF 적용 데이터
-  wwefPasteBlob: { ups: null, ups2f: null, upsb8: null },
-  ttOverride:  { dhl:'', fedex:'', fedex_e:'', ups2f:'', upsb8:'' }, // 소요일 수정
-  extraCosts:  { dhl:[], fedex:[], fedex_e:[], ups2f:[], upsb8:[] }, // 추가비용
+  wwef: { ups: null, ups2f: null }, // WWEF 적용 데이터
+  wwefPasteBlob: { ups: null, ups2f: null },
+  ttOverride:  { dhl:'', fedex:'', fedex_e:'', ups2f:'', ems:'' }, // 소요일 수정
+  extraCosts:  { dhl:[], fedex:[], fedex_e:[], ups2f:[], ems:[] }, // 추가비용
 };
 
 // ─────────────────────────────────────────────
@@ -2716,7 +2717,6 @@ function setMode(mode) {
   document.getElementById('btnExp').className = 'mode-btn' + (mode === '수출' ? ' active-exp' : '');
   document.getElementById('btnImp').className = 'mode-btn' + (mode === '수입' ? ' active-imp' : '');
   document.getElementById('logoMark').textContent = mode === '수출' ? '✈' : '📦';
-  if (mode === '수입') document.getElementById('discUpsB8').value = document.getElementById('discUps').value;
   updateCtxBar();
 }
 
@@ -3194,7 +3194,7 @@ function applyUpsSurgeFee(res) {
   var chg = res._rounded_chargeable || res.total_chargeable || 0;
   var surgeBase = Math.round(entry.rate * chg);
 
-  ['ups','ups2f','upsb8'].forEach(function(key) {
+  ['ups','ups2f'].forEach(function(key) {
     var c = res.carriers[key];
     if (!c) return;
     if ((c.surs||[]).some(function(s){ return s.name && s.name.indexOf('급증') !== -1; })) return;
@@ -3249,9 +3249,9 @@ function renderResults(res) {
   } else { remoteBadge.style.display = 'none'; }
 
   const quotes = {};
-  ['dhl','fedex','fedex_e','ups2f','upsb8'].forEach(k => {
+  ['dhl','fedex','fedex_e','ups2f','ems'].forEach(k => {
     const c = res.carriers[k];
-    const noSvc = (k.startsWith('ups') && res.ups_no_service) || (k.startsWith('fedex') && res.fedex_no_service);
+    const noSvc = (k.startsWith('ups') && res.ups_no_service) || (k.startsWith('fedex') && res.fedex_no_service) || (k === 'ems' && res.ems_no_service);
     if (c && !noSvc) quotes[k] = c.total_quote;
   });
   const minQuote = Math.min(...Object.values(quotes));
@@ -3264,7 +3264,7 @@ function renderResults(res) {
     {key:'fedex',   label:'FedEx IP',       badge:'badge-fedex',   cls:'c-fedex',   tt:'1~3 영업일', zoneKey:'fx_zone'},
     {key:'fedex_e', label:'FedEx Economy',  badge:'badge-fedex-e', cls:'c-fedex-e', tt:'7~8 영업일', zoneKey:'fx_zone'},
     {key:'ups2f',   label:'UPS SAVER <span style="background:#b45309;color:#fef3c7;font-size:.75rem;font-weight:800;padding:2px 8px;border-radius:4px;margin-left:6px;vertical-align:middle;">🔑 2F94A8</span>', badge:'badge-ups', cls:'c-ups', tt:'2~5 영업일', zoneKey:'ups_zone'},
-    {key:'upsb8',   label:'UPS SAVER <span style="background:#b45309;color:#fef3c7;font-size:.75rem;font-weight:800;padding:2px 8px;border-radius:4px;margin-left:6px;vertical-align:middle;">🔑 B8733R</span>', badge:'badge-ups', cls:'c-ups', tt:'2~5 영업일', zoneKey:'ups_zone'},
+    {key:'ems',     label:'EMS <span style="background:#b91c1c;color:#fee2e2;font-size:.75rem;font-weight:800;padding:2px 8px;border-radius:4px;margin-left:6px;vertical-align:middle;">🏣 국제특급우편</span>', badge:'badge-ems', cls:'c-ems', tt:'5~10 영업일', zoneKey:'ems_zone'},
   ];
 
   const gridTop = document.getElementById('resultsGrid');
@@ -3276,7 +3276,7 @@ function renderResults(res) {
   carriers.forEach(({key, label, badge, cls, tt, zoneKey}, idx) => {
     const c = res.carriers[key];
     if (!c) return;
-    const noService   = (key.startsWith('ups') && res.ups_no_service) || (key.startsWith('fedex') && res.fedex_no_service);
+    const noService   = (key.startsWith('ups') && res.ups_no_service) || (key.startsWith('fedex') && res.fedex_no_service) || (key === 'ems' && res.ems_no_service);
     const freightFlag = key.startsWith('ups') && res.ups_freight_flag;
     const isBest      = !noService && key === bestKey;
     const marginRate  = c.margin_rate || 0;
@@ -3297,7 +3297,102 @@ function renderResults(res) {
       card.innerHTML = `
         <div class="card-check">✓</div>
         <div class="card-badge ${badge}">${label}</div>
-        <div style="text-align:center;padding:20px 0;color:var(--text-dim);"><span class="tag-ns">서비스 불가</span></div>`;
+        <div style="text-align:center;padding:20px 0;color:var(--text-dim);"><span class="tag-ns">${key === 'ems' ? 'EMS는 수출만 진행합니다 (수입 서비스 없음)' : '서비스 불가'}</span></div>`;
+    } else if (key === 'ems') {
+      // EMS(국제특급우편): 견적가=공시요금 그대로, 원가=공시요금표에서 20% 할인 — C/T(박스)별 개별 요금 합산
+      const emsExtras    = (state.extraCosts['ems']||[]).filter(e=>e.name&&e.amt>0);
+      const emsExtraSum  = emsExtras.reduce((s,e)=>s+(parseFloat(e.amt)||0),0);
+      const emsQuoteBase = (c.total_quote||0) + emsExtraSum;
+      const emsCostBase  = (c.total_cost||0) + emsExtraSum;
+      const emsMarginAmt = emsQuoteBase - emsCostBase;
+      const emsMarginPct = emsQuoteBase > 0 ? (emsMarginAmt / emsQuoteBase * 100) : 0;
+      const tgt2          = state.tgtMargin || 30;
+      const emsZoneLabel = (c.zone_key && c.zone_key.indexOf('Region') === 0)
+        ? `${res.dest_kr || res.dest_country} · 지역${c.zone_key.slice(-1)}`
+        : (res.dest_kr || c.zone_key || res.dest_country);
+      const emsBoxQuoteRows = (c.boxes||[]).map((b,i) => `
+        <div class="bd-row sub-item">
+          <span>  C/T ${i+1} (실중량 ${b.actual_wt}kg / 부피중량 ${b.vol_wt}kg → 청구 ${b.chargeable_wt}kg)</span>
+          <span class="bd-val">${fmtWon(b.price)}</span>
+        </div>`).join('');
+      const emsBoxCostRows = (c.boxes||[]).map((b,i) => `
+        <div class="bd-row sub-item">
+          <span>  C/T ${i+1} (20% 할인 적용)</span>
+          <span class="bd-val">${fmtWon(b.cost)}</span>
+        </div>`).join('');
+      const emsOverLimitBadge = c.over_limit
+        ? `<span style="background:#dc2626;color:#fff;font-size:.6rem;font-weight:900;padding:1px 6px;border-radius:3px;margin-left:5px;">⚠️ 중량초과</span>` : '';
+
+      card.innerHTML = `
+        <div class="card-check">✓</div>
+        <div class="card-badge ${badge}">${label}${isBest ? '<span class="card-best-badge">🏆 최저</span>' : ''}${emsOverLimitBadge}</div>
+        <div class="card-meta">
+          <span class="meta-tag meta-tt">⏱ ${tt}</span>
+          <span class="meta-tag" style="background:rgba(185,28,28,.12);color:#fca5a5;border:1px solid rgba(185,28,28,.3);">${emsZoneLabel}</span>
+        </div>
+        <div class="card-top-row">
+          <div class="card-top-left">
+            <div class="card-quote" style="color:var(--acc-bright);">${fmtWon(emsQuoteBase)}</div>
+            <div class="card-cost-bar">
+              <span class="cost-bar-label">원가</span>
+              <span class="cost-bar-val">${fmtWon(emsCostBase)}</span>
+            </div>
+          </div>
+          <div class="card-top-right">
+            <div class="margin-circle ${emsMarginPct >= tgt2 ? 'mc-ok' : emsMarginPct >= tgt2*0.5 ? 'mc-warn' : 'mc-bad'}">
+              <div class="mc-num">${fmtPct(emsMarginPct)}</div>
+              <div class="mc-lbl">마진 (목표${state.tgtMargin}%)</div>
+            </div>
+          </div>
+        </div>
+        <div class="section-cost">
+          <div class="detail-header-cost" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>💰 원가 상세 (공시요금 20%↓)</span>
+            <span style="font-size:.68rem;font-weight:800;color:${emsMarginPct>=tgt2?'#4ade80':emsMarginPct>=tgt2*0.5?'#fbbf24':'#f87171'};">마진 ${fmtWon(emsMarginAmt)}</span>
+          </div>
+          ${emsBoxCostRows}
+          ${emsExtras.map(e=>`<div class="bd-row sub-item"><span>${e.name}</span><span class="bd-val">${fmtWon(e.amt)}</span></div>`).join('')}
+          <div class="bd-row total-row"><span>▶ 원가 합계</span><span class="bd-val">${fmtWon(emsCostBase)}</span></div>
+        </div>
+        <div class="section-quote">
+          <div class="detail-header-quote">📋 청구가 상세 (공시요금 그대로)</div>
+          ${emsBoxQuoteRows}
+          ${emsExtras.map(e=>`<div class="bd-row sub-item" style="color:#4ade80;"><span>${e.name}</span><span class="bd-val">${fmtWon(e.amt)}</span></div>`).join('')}
+          <div class="bd-row total-row"><span>▶ 견적가 (고객)</span><span class="bd-val" style="color:var(--acc-bright);font-size:.88rem;">${fmtWon(emsQuoteBase)}</span></div>
+        </div>
+        <div class="card-extra-section">
+          <div class="extra-row">
+            <span class="extra-label">⏱ 소요일</span>
+            <input class="extra-input" placeholder="${tt.replace(' 영업일','')}" value="${state.ttOverride['ems']||''}"
+              onclick="event.stopPropagation()"
+              onkeydown="event.stopPropagation()"
+              oninput="event.stopPropagation();state.ttOverride['ems']=this.value.replace(/[^0-9~\-]/g,'')"
+              onblur="event.stopPropagation();"
+              style="max-width:70px;text-align:center;">
+            <span style="font-size:.72rem;color:var(--text-sec);flex-shrink:0;">영업일</span>
+          </div>
+          <div class="extra-row" style="align-items:flex-start;flex-direction:column;gap:4px;">
+            <span class="extra-label" style="color:#4ade80;">💰 추가비용</span>
+            <div class="extra-cost-rows" id="extraRows_ems">
+              ${(state.extraCosts['ems']||[]).map((e,i)=>`
+              <div class="extra-cost-item">
+                <input class="extra-cost-name" placeholder="항목명 (예: 픽업비)" value="${e.name||''}"
+                  onclick="event.stopPropagation()"
+                  onkeydown="event.stopPropagation()"
+                  oninput="event.stopPropagation();state.extraCosts['ems'][${i}].name=this.value"
+                  onblur="event.stopPropagation();">
+                <input class="extra-cost-amt" placeholder="금액 입력" type="text"
+                  value="${e.amt ? Math.round(e.amt).toLocaleString('ko-KR') : ''}"
+                  onclick="event.stopPropagation()"
+                  onkeydown="event.stopPropagation()"
+                  oninput="event.stopPropagation();setExtraAmtOnly('ems',${i},this)"
+                  onblur="event.stopPropagation();setExtraAmt('ems',${i},this)">
+                <button class="extra-cost-del" onclick="event.stopPropagation();delExtraCost('ems',${i})">✕</button>
+              </div>`).join('')}
+            </div>
+            <button class="extra-add-btn" onclick="event.stopPropagation();addExtraCost('ems')">＋ 항목 추가</button>
+          </div>
+        </div>`;
     } else {
       const surRows = (c.surs||[])
         .filter(s => s.name !== '__freight__')
@@ -3308,7 +3403,7 @@ function renderResults(res) {
       // FedEx US 인바운드 처리 수수료 (한국→미국 수출, 건당 3,900원, 유류 제외)
       const isUsRoute   = (res.dest_country === 'United States of America' || res.dest_country === 'United States');
       const isFedexCard = (key === 'fedex' || key === 'fedex_e');
-      const isUpsCard   = (key === 'ups2f' || key === 'upsb8' || key === 'ups');
+      const isUpsCard   = (key === 'ups2f' || key === 'ups');
       const isExport    = (res.mode === '수출');
       // LMR 적용 시 US 수수료는 LMR 금액에 이미 포함 → 중복 방지
       const usClearFee  = (isUsRoute && isFedexCard && isExport && !state.lmr[key]) ? 3900 : 0;
@@ -3457,17 +3552,18 @@ function toggleCard(key) {
 // Email / PDF
 // ─────────────────────────────────────────────
 function buildEmailHtml(res) {
-  const CNAME   = {dhl:'DHL',fedex:'FEDEX IP',fedex_e:'FEDEX ECONOMY',ups2f:'UPS SAVER',upsb8:'UPS SAVER'};
-  const TTMAP   = {dhl:'3~5일',fedex:'3~4일',fedex_e:'5~7일',ups2f:'5~7일',upsb8:'5~7일'};
-  const FEXPIRY = {dhl:'~03/31',fedex:'~03/31',fedex_e:'~03/31',ups2f:'~03/15',upsb8:'~03/15'};
+  const CNAME   = {dhl:'DHL',fedex:'FEDEX IP',fedex_e:'FEDEX ECONOMY',ups2f:'UPS SAVER',ems:'EMS(국제특급우편)'};
+  const TTMAP   = {dhl:'3~5일',fedex:'3~4일',fedex_e:'5~7일',ups2f:'5~7일',ems:'5~10일'};
+  const FEXPIRY = {dhl:'~03/31',fedex:'~03/31',fedex_e:'~03/31',ups2f:'~03/15',ems:''};
 
   const selectedArr = Array.from(state.selectedCards).filter(k => {
     const c = res.carriers[k];
     if (!c) return false;
     if (k.startsWith('ups') && res.ups_no_service) return false;
     if (k.startsWith('fedex') && res.fedex_no_service) return false;
+    if (k === 'ems' && res.ems_no_service) return false;
     return true;
-  }).filter((k, _, arr) => !(k === 'upsb8' && arr.includes('ups2f')));
+  });
 
   const totalPkg = state.ctData.reduce((s,c) => s+(c.qty||1), 0);
   const totalWt  = res.total_actual_wt.toFixed(1);
@@ -3486,6 +3582,22 @@ function buildEmailHtml(res) {
   selectedArr.forEach(key => {
     const c      = res.carriers[key];
     const name   = CNAME[key] || key.toUpperCase();
+    const _ettRaw0 = state.ttOverride[key];
+    const tt0    = _ettRaw0 ? _ettRaw0.replace(/영업일/g,'').trim() + ' 영업일' : TTMAP[key] || '—';
+    if (key === 'ems') {
+      const emsExtras   = (state.extraCosts['ems']||[]).filter(e=>e.name&&e.amt>0);
+      const emsExtraSum = emsExtras.reduce((s,e)=>s+(parseFloat(e.amt)||0),0);
+      const emsTotal    = Math.round((c.total_quote||0) + emsExtraSum);
+      lines.push(''); lines.push(name); lines.push('');
+      (c.boxes||[]).forEach((b,i) => {
+        lines.push(`C/T ${i+1} (${b.actual_wt}kg → 청구 ${b.chargeable_wt}kg) : ${Math.round(b.price).toLocaleString('ko-KR')}원`);
+      });
+      emsExtras.forEach(e => lines.push(`${e.name} : ${Math.round(e.amt).toLocaleString('ko-KR')}원`));
+      lines.push(''); lines.push(`TOTAL : ${emsTotal.toLocaleString('ko-KR')}원`);
+      lines.push('');
+      lines.push(`T/TIME : 우편 사정 및 통관상 지연이 없을 시 영업일 기준으로 대략 ${tt0} 소요 예상됩니다.`);
+      return;
+    }
     const lmrTag = (key==='fedex'||key==='fedex_e') && state.lmr[key] ? ' [이번주 중량화물 특가적용]'
                  : key.startsWith('ups') && state.wwef[key] ? ' [UPS 중량화물 특가적용]' : '';
     const _ettRaw = state.ttOverride[key];
@@ -3498,7 +3610,7 @@ function buildEmailHtml(res) {
     const isUsEmail   = (res.dest_country === 'United States of America' || res.dest_country === 'United States');
     const isFedexEmail = (key === 'fedex' || key === 'fedex_e');
     const emailUsClearFee = (isUsEmail && isFedexEmail && res.mode === '수출' && !state.lmr[key]) ? 3900 : 0;
-    const isUpsEmail      = (key === 'ups2f' || key === 'upsb8' || key === 'ups');
+    const isUpsEmail      = (key === 'ups2f' || key === 'ups');
     const emailUpsIntlFee = (isUsEmail && isUpsEmail && res.mode === '수출') ? 3642 : 0;
     const emailExtraSum = (state.extraCosts[key]||[]).reduce((s,e)=>s+(parseFloat(e.amt)||0),0);
     const total   = Math.round((c.total_quote||0) + emailUsClearFee + emailUpsIntlFee + emailExtraSum);
@@ -3590,17 +3702,14 @@ function generatePdf() {
   };
   const si = STAFF[staffName] || {};
 
-  const PDF_NAME = {dhl:'DHL EXPRESS',fedex:'FEDEX EXPRESS',fedex_e:'FEDEX ECONOMY',ups2f:'UPS SAVER',upsb8:'UPS SAVER'};
-  const TT_MAP   = {dhl:'1~3 영업일',fedex:'1~3 영업일',fedex_e:'7~8 영업일',ups2f:'2~5 영업일',upsb8:'2~5 영업일'};
+  const PDF_NAME = {dhl:'DHL EXPRESS',fedex:'FEDEX EXPRESS',fedex_e:'FEDEX ECONOMY',ups2f:'UPS SAVER',ems:'EMS 국제특급우편'};
+  const TT_MAP   = {dhl:'1~3 영업일',fedex:'1~3 영업일',fedex_e:'7~8 영업일',ups2f:'2~5 영업일',ems:'5~10 영업일'};
 
-  const _rawSelected = Array.from(state.selectedCards).filter(k => {
+  const selectedArr = Array.from(state.selectedCards).filter(k => {
     if (!res.carriers[k]) return false;
     if (k.startsWith('ups') && res.ups_no_service) return false;
     if (k.startsWith('fedex') && res.fedex_no_service) return false;
-    return true;
-  });
-  const selectedArr = _rawSelected.filter((k, idx, arr) => {
-    if (k === 'upsb8' && arr.includes('ups2f')) return false;
+    if (k === 'ems' && res.ems_no_service) return false;
     return true;
   });
 
@@ -3623,6 +3732,33 @@ function generatePdf() {
     const tt      = _ttRaw ? _ttRaw.replace(/영업일/g,'').trim() + ' 영업일' : TT_MAP[key] || '—';
     const pdfExtras = (state.extraCosts[key]||[]).filter(e=>e.name&&e.amt>0);
     const pdfExtraSum = pdfExtras.reduce((s,e)=>s+(parseFloat(e.amt)||0),0);
+
+    if (key === 'ems') {
+      const emsTotal = Math.round((c.total_quote||0) + pdfExtraSum);
+      const emsBoxLinesPdf = (c.boxes||[]).map((b,i) => `
+        <div style="display:flex;justify-content:space-between;padding:2px 0;font-size:10px;">
+          <span style="color:#555;">C/T ${i+1} (${b.actual_wt}kg → 청구 ${b.chargeable_wt}kg)</span>
+          <span>₩${Math.round(b.price).toLocaleString('ko-KR')}</span>
+        </div>`).join('');
+      return `<div class="rate-card" style="border:1px solid #dee2e6;border-radius:4px;">
+        <div style="background:var(--pdf-color);color:#fff;font-weight:800;font-size:11px;padding:6px 10px;text-align:center;letter-spacing:.5px;">${name}</div>
+        <div style="padding:8px 10px;">
+          <div style="border-bottom:1px solid #f0f0f0;padding:2px 0;">${emsBoxLinesPdf}</div>
+          ${pdfExtras.map(e=>`
+          <div style="display:flex;justify-content:space-between;padding:2px 0;font-size:10px;border-bottom:1px solid #f0f0f0;">
+            <span style="color:#555;">${e.name}</span><span>₩${Math.round(e.amt).toLocaleString('ko-KR')}</span>
+          </div>`).join('')}
+          <div style="padding:5px 0;font-size:10.5px;color:#555;margin-top:3px;border-top:1px dashed #e9ecef;line-height:1.5;">
+            소요일 : 우편 사정 및 통관상 지연이 없을 시 영업일 기준으로 ${tt.replace(' 영업일','')}일 소요 예상됩니다. (우체국 공시요금, 할인 없음)
+          </div>
+        </div>
+        <div style="background:;border-top:2px solid var(--pdf-color);padding:7px 10px;text-align:right;">
+          <span style="font-size:9px;color:#888;margin-right:4px;">총 견적금액</span>
+          <span style="font-size:15px;font-weight:900;color:#e63946;">₩${emsTotal.toLocaleString('ko-KR')}</span>
+        </div>
+      </div>`;
+    }
+
     const lmr     = state.lmr[key];
     const wwef    = state.wwef[key];
     const lmrTag  = lmr  ? `<div style="text-align:center;font-size:8px;font-weight:900;color:#dc2626;letter-spacing:.04em;padding:2px 0;background:#fff5f5;">🔴 이번주 중량화물 특가적용</div>`
@@ -3632,7 +3768,7 @@ function generatePdf() {
     const pdfIsFedex  = (key === 'fedex' || key === 'fedex_e');
     const pdfIsExport = (res.mode === '수출');
     const pdfUsClear   = (pdfIsUs && pdfIsFedex && pdfIsExport && !state.lmr[key]) ? 3900 : 0;
-    const pdfIsUps     = (key === 'ups2f' || key === 'upsb8' || key === 'ups');
+    const pdfIsUps     = (key === 'ups2f' || key === 'ups');
     const pdfUpsIntl   = (pdfIsUs && pdfIsUps && pdfIsExport) ? 3642 : 0;
     const total   = Math.round((c.total_quote||0) + pdfUsClear + pdfUpsIntl + pdfExtraSum);
     const fuelPct = (c.fuel_pct||0).toFixed(2);
