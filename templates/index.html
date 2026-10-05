@@ -1487,7 +1487,7 @@ body.mode-imp .tb-calc-btn { background: linear-gradient(135deg, #9d174d, #be185
         </div>
         <div>
           <div style="font-size:11px;color:var(--text-sec);margin-bottom:3px;">OCS<br><span style="color:var(--text-dim);font-size:10px;">월별·수동</span></div>
-          <input class="sb-number" type="number" id="fuelOcs" step="0.01" value="{{ settings.fuel_ocs }}" min="0" max="60">
+          <input class="sb-number" type="number" id="fuelOcs" step="0.01" value="{{ settings.fuel_ocs }}" min="0" max="60" onchange="saveFuel()">
         </div>
       </div>
       <div id="fuelPeriodLabel" style="display:none;font-size:.68rem;color:#fbbf24;font-weight:700;margin-top:5px;padding:3px 7px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-radius:5px;"></div>
@@ -2814,11 +2814,15 @@ async function saveFuel() {
   const dhl   = parseFloat(document.getElementById('fuelDhl').value);
   const fedex = parseFloat(document.getElementById('fuelFedex').value);
   const ups   = parseFloat(document.getElementById('fuelUps').value);
+  const ocsEl = document.getElementById('fuelOcs');
+  const ocs   = ocsEl ? parseFloat(ocsEl.value) : NaN;
   if (isNaN(dhl) || isNaN(fedex) || isNaN(ups)) return;
   try {
+    const body = {dhl, fedex, ups};
+    if (!isNaN(ocs)) body.ocs = ocs;
     await fetch('/api/save-fuel', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({dhl, fedex, ups})
+      body: JSON.stringify(body)
     });
   } catch(e) {}
 }
@@ -4305,9 +4309,10 @@ function delExtraCost(key, idx) {
   renderResults(state.lastResult);
 }
 
-// ── 추가 문구 관리 ──────────────────────────────────────────────
-var _PHRASE_KEY = 'ab_custom_phrases';
+// ── 추가 문구 관리 (전 직원 공용 — 서버에 저장되어 누가 열어도 동일한 목록) ──────
+var _PHRASE_KEY = 'ab_custom_phrases'; // 구버전 localStorage 키 — 최초 1회 서버 이전(마이그레이션) 용도로만 사용
 var _phraseEditIdx = -1; // -1 = 신규
+var _phrasesCache = null; // 서버와 동기화된 메모리 캐시 (null = 아직 서버에서 못 불러온 상태)
 
 function _defaultPhrases() {
   return [
@@ -4317,20 +4322,43 @@ function _defaultPhrases() {
   ];
 }
 
-function _loadPhrases() {
+async function _ensurePhrasesLoaded() {
+  if (_phrasesCache !== null) return; // 이미 서버에서 불러온 상태
+  try {
+    const r = await fetch('/api/phrases');
+    const data = await r.json();
+    if (data.ok && Array.isArray(data.phrases)) {
+      _phrasesCache = data.phrases;
+      return;
+    }
+  } catch(e) {}
+  // 서버에 아직 저장된 목록이 없음(최초 실행) → 이 브라우저의 구버전 localStorage가 있으면 그걸로,
+  // 없으면 기본 문구로 최초 1회 초기화하여 서버에 저장 (이후부터는 전 직원 공유됨)
+  var fallback;
   try {
     var raw = localStorage.getItem(_PHRASE_KEY);
-    return raw ? JSON.parse(raw) : _defaultPhrases();
-  } catch(e) { return _defaultPhrases(); }
+    fallback = raw ? JSON.parse(raw) : _defaultPhrases();
+  } catch(e) { fallback = _defaultPhrases(); }
+  _phrasesCache = fallback;
+  _savePhrases(fallback);
+}
+
+function _loadPhrases() {
+  return _phrasesCache || _defaultPhrases();
 }
 
 function _savePhrases(arr) {
-  try { localStorage.setItem(_PHRASE_KEY, JSON.stringify(arr)); } catch(e) {}
+  _phrasesCache = arr;
+  fetch('/api/phrases', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({phrases: arr})
+  }).catch(function(){});
 }
 
-function openPhrasePanel() {
+async function openPhrasePanel() {
   _phraseEditIdx = -1;
   document.getElementById('phraseEditArea').classList.remove('open');
+  await _ensurePhrasesLoaded();
   renderPhraseList();
   document.getElementById('phrasePanel').classList.add('open');
 }
