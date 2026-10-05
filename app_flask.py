@@ -41,6 +41,9 @@ DEFAULTS = {
     "disc_fedex_e": 0.0,
     "disc_ups":     0.0,
     "disc_ups_b8":  0.0,
+    "disc_ems":     0.0,
+    "fuel_ocs":     0.0,
+    "disc_ocs":     0.0,
     "tgt_margin":  30.0,
     "our_contact":  "",
     "our_phone":   "032-502-1880",
@@ -108,6 +111,9 @@ def api_calculate():
     disc_fedex_e  = float(d.get("disc_fedex_e", 0.0))
     disc_ups      = float(d.get("disc_ups",     0.0))
     disc_ups_b8   = float(d.get("disc_ups_b8",  0.0))
+    disc_ems      = float(d.get("disc_ems",     0.0))
+    fuel_ocs      = float(d.get("fuel_ocs",     0.0))
+    disc_ocs      = float(d.get("disc_ocs",     0.0))
     remote_postal = str(d.get("remote_postal", ""))
     remote_city   = str(d.get("remote_city",   ""))
     customer      = str(d.get("customer",      ""))
@@ -144,6 +150,9 @@ def api_calculate():
             disc_fedex_e=disc_fedex_e,
             disc_ups=disc_ups,
             disc_ups_b8=disc_ups_b8,
+            disc_ems=disc_ems,
+            fuel_ocs=fuel_ocs,
+            disc_ocs=disc_ocs,
             remote_postal=remote_postal,
             remote_city=remote_city,
             customer=customer,
