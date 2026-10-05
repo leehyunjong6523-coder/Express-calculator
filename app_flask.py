@@ -65,7 +65,7 @@ def _get_settings() -> dict:
     try:
         from fuel_scraper import _load_file_cache, _cache
         _load_file_cache()
-        for carrier, key in (("dhl","fuel_dhl"),("fedex","fuel_fedex"),("ups","fuel_ups")):
+        for carrier, key in (("dhl","fuel_dhl"),("fedex","fuel_fedex"),("ups","fuel_ups"),("ocs","fuel_ocs")):
             if carrier in _cache and _cache[carrier].get("value") is not None:
                 s[key] = _cache[carrier]["value"]
     except Exception:
@@ -247,7 +247,7 @@ def api_save_fuel():
     """앱 화면에서 수동 입력한 유류할증료 저장"""
     data = request.get_json(force=True)
     from fuel_scraper import set_fuel_from_api
-    for carrier, key in (("dhl","dhl"),("fedex","fedex"),("ups","ups")):
+    for carrier, key in (("dhl","dhl"),("fedex","fedex"),("ups","ups"),("ocs","ocs")):
         val = data.get(key)
         if val is not None:
             try:
@@ -371,6 +371,45 @@ def api_pdf():
         )
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
+
+
+PHRASES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "phrases_cache.json")
+
+def _load_phrases_file():
+    """전 직원 공용 '추가 문구' 목록 — 서버 파일(phrases_cache.json)에서 읽기"""
+    try:
+        with open(PHRASES_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, list):
+                return data
+    except Exception:
+        pass
+    return None
+
+def _save_phrases_file(phrases):
+    try:
+        with open(PHRASES_FILE, "w", encoding="utf-8") as f:
+            json.dump(phrases, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+@app.route("/api/phrases", methods=["GET"])
+def api_get_phrases():
+    """전 직원 공용 '추가 문구' 목록 조회 (없으면 phrases=None → 프론트에서 기본값/마이그레이션 처리)"""
+    return jsonify({"ok": True, "phrases": _load_phrases_file()})
+
+
+@app.route("/api/phrases", methods=["POST"])
+def api_save_phrases():
+    """전 직원 공용 '추가 문구' 목록 저장 — 누가 수정하든 전체 목록을 덮어씀"""
+    d = request.json or {}
+    phrases = d.get("phrases")
+    if not isinstance(phrases, list):
+        return jsonify({"ok": False, "error": "phrases must be a list"}), 400
+    phrases = [str(p)[:2000] for p in phrases if str(p).strip()][:200]
+    _save_phrases_file(phrases)
+    return jsonify({"ok": True})
 
 
 @app.route("/api/settings", methods=["POST"])
