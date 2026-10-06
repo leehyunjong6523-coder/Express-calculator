@@ -3563,6 +3563,7 @@ function renderResults(res) {
   });
 
   document.getElementById('quotePanel').style.display = 'block';
+  _updateCardCheckNumbers();
   buildEmailHtml(res);
 }
 
@@ -3572,7 +3573,19 @@ function toggleCard(key) {
   } else { state.selectedCards.add(key); }
   document.querySelectorAll('.carrier-card').forEach(card =>
     card.classList.toggle('selected', state.selectedCards.has(card.dataset.key)));
+  _updateCardCheckNumbers();
   if (state.lastResult) buildEmailHtml(state.lastResult);
+}
+
+// 선택한 순서대로 체크박스에 번호 표시 (인스타/카톡 사진 선택처럼)
+function _updateCardCheckNumbers() {
+  const ordered = Array.from(state.selectedCards);
+  document.querySelectorAll('.carrier-card').forEach(card => {
+    const chk = card.querySelector('.card-check');
+    if (!chk) return;
+    const idx = ordered.indexOf(card.dataset.key);
+    chk.textContent = idx >= 0 ? String(idx + 1) : '✓';
+  });
 }
 
 // ─────────────────────────────────────────────
@@ -3778,7 +3791,7 @@ function generatePdf() {
             <span style="color:#555;">${e.name}</span><span>₩${Math.round(e.amt).toLocaleString('ko-KR')}</span>
           </div>`).join('')}
           <div style="padding:5px 0;font-size:10.5px;color:#555;margin-top:3px;border-top:1px dashed #e9ecef;line-height:1.5;">
-            소요일 : 우편 사정 및 통관상 지연이 없을 시 영업일 기준으로 ${tt.replace(' 영업일','')}일 소요 예상됩니다. (우체국 공시요금, 할인 없음)
+            소요일 : 우편 사정 및 통관상 지연이 없을 시 영업일 기준으로 ${tt.replace(' 영업일','')}일 소요 예상됩니다.
           </div>
         </div>
         <div style="background:;border-top:2px solid var(--pdf-color);padding:7px 10px;text-align:right;">
