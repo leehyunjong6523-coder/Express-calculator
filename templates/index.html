@@ -3700,11 +3700,26 @@ function copyEmailHtml() {
 }
 
 async function copyEmailPopup() {
-  const text = document.getElementById('emailPopupText').value;
+  const ta = document.getElementById('emailPopupText');
+  const text = ta.value;
+  // 모던 브라우저: Clipboard API 우선 시도
   try {
-    await navigator.clipboard.writeText(text);
-    showToast('✅ 복사 완료 — 메일에 붙여넣기 하세요');
-  } catch(e) { showToast('❌ 복사 실패: ' + e.message); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      showToast('✅ 복사 완료 — 메일에 붙여넣기 하세요');
+      return;
+    }
+  } catch(e) { /* 아래 레거시 방식으로 폴백 */ }
+  // 폴백: 모바일 인앱 브라우저(카카오톡/인스타 등) 등 Clipboard API 미지원 환경용
+  try {
+    ta.focus(); ta.select();
+    ta.setSelectionRange(0, text.length); // 모바일 일부 브라우저 호환
+    const ok = document.execCommand('copy');
+    if (ok) { showToast('✅ 복사 완료 — 메일에 붙여넣기 하세요'); return; }
+    throw new Error('execCommand 실패');
+  } catch(e2) {
+    showToast('❌ 자동 복사가 지원되지 않는 브라우저입니다 — 텍스트를 직접 길게 눌러 선택 후 복사해주세요');
+  }
 }
 
 function closeEmailPopup() { document.getElementById('emailPopupOverlay').style.display = 'none'; }
@@ -4006,20 +4021,34 @@ ${notesBlock}
 </div>
 </body></html>`;
 
-  // 새 창 열기 방식 (Blob URL)
+  // 새 창에 직접 write — 모바일(iOS Safari, 카카오톡/인스타 인앱 브라우저 등)에서
+  // blob: URL을 새 탭에서 열면 빈 화면만 뜨는 경우가 많아, 가장 호환성 높은
+  // window.open() + document.write() 방식을 우선 사용한다 (클릭 핸들러 안에서 동기 호출 필수).
+  const win = window.open('', '_blank');
+  if (win) {
+    try {
+      win.document.open();
+      win.document.write(html);
+      win.document.close();
+      win.focus();
+    } catch(e) {
+      showToast('⚠️ PDF 미리보기를 여는 중 오류가 발생했습니다: ' + e.message);
+    }
+    return;
+  }
+  // window.open이 막힌 경우(팝업 차단) — Blob URL 다운로드 방식으로 폴백
   try {
     const blob = new Blob([html], {type: 'text/html;charset=utf-8'});
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = blobUrl; a.target = '_blank'; a.rel = 'noopener';
+    a.href = blobUrl; a.target = '_blank'; a.rel = 'noopener'; a.download = `견적서_${quoteNum || 'quote'}.html`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+    showToast('⚠️ 팝업이 차단되어 파일로 다운로드했습니다 — 다운로드 폴더에서 열어 인쇄(PDF로 저장)하세요');
   } catch(e) {
-    const win = window.open('', '_blank', 'width=900,height=1100');
-    if (win) { win.document.write(html); win.document.close(); win.focus(); }
-    else { showToast('⚠️ 팝업 차단됨 — 브라우저 팝업 허용 후 다시 시도'); }
+    showToast('⚠️ 팝업 차단됨 — 브라우저 팝업 허용 후 다시 시도해주세요');
   }
 }
 
