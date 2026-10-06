@@ -58,18 +58,42 @@ STAFF = {
 # ──────────────────────────────────────────
 # 헬퍼
 # ──────────────────────────────────────────
+OCS_FUEL_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ocs_fuel_cache.json")
+
+def _load_ocs_fuel():
+    """OCS 유류할증료(수동입력) — DHL/FedEx/UPS와 달리 fuel_scraper 캐시를 쓰지 않고
+    자체 파일(ocs_fuel_cache.json)에 직접 저장/조회 (전 직원 공용)"""
+    try:
+        with open(OCS_FUEL_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return float(data.get("value"))
+    except Exception:
+        return None
+
+def _save_ocs_fuel(value: float):
+    try:
+        with open(OCS_FUEL_FILE, "w", encoding="utf-8") as f:
+            json.dump({"value": value}, f)
+    except Exception:
+        pass
+
+
 def _get_settings() -> dict:
     s = dict(DEFAULTS)
     s.update({k: session.get(k, v) for k, v in DEFAULTS.items()})
-    # fuel_cache.json에서 저장된 유류할증료 읽기
+    # fuel_cache.json에서 저장된 유류할증료 읽기 (DHL/FedEx/UPS — 자동조회 캐시)
     try:
         from fuel_scraper import _load_file_cache, _cache
         _load_file_cache()
-        for carrier, key in (("dhl","fuel_dhl"),("fedex","fuel_fedex"),("ups","fuel_ups"),("ocs","fuel_ocs")):
+        for carrier, key in (("dhl","fuel_dhl"),("fedex","fuel_fedex"),("ups","fuel_ups")):
             if carrier in _cache and _cache[carrier].get("value") is not None:
                 s[key] = _cache[carrier]["value"]
     except Exception:
         pass
+    # ocs_fuel_cache.json에서 저장된 OCS 유류할증료 읽기 (수동입력 전용 — 자체 파일)
+    ocs_val = _load_ocs_fuel()
+    if ocs_val is not None:
+        s["fuel_ocs"] = ocs_val
     return s
 
 def _fmt(n: float) -> str:
@@ -247,13 +271,19 @@ def api_save_fuel():
     """앱 화면에서 수동 입력한 유류할증료 저장"""
     data = request.get_json(force=True)
     from fuel_scraper import set_fuel_from_api
-    for carrier, key in (("dhl","dhl"),("fedex","fedex"),("ups","ups"),("ocs","ocs")):
+    for carrier, key in (("dhl","dhl"),("fedex","fedex"),("ups","ups")):
         val = data.get(key)
         if val is not None:
             try:
                 set_fuel_from_api(carrier, float(val))
             except Exception:
                 pass
+    ocs_val = data.get("ocs")
+    if ocs_val is not None:
+        try:
+            _save_ocs_fuel(float(ocs_val))
+        except Exception:
+            pass
     return jsonify({"ok": True})
 
 
