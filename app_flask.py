@@ -10,6 +10,10 @@ try:
     load_dotenv()
 except ImportError:
     pass
+try:
+    import requests as _requests
+except ImportError:
+    _requests = None
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, send_file, session
 
@@ -58,11 +62,61 @@ STAFF = {
 # ──────────────────────────────────────────
 # 헬퍼
 # ──────────────────────────────────────────
+
+# ── Upstash Redis (영구 저장소, 전 직원 공용) ──────────────
+# Render 무료 플랜은 로컬 파일을 재배포/재시작/슬립 때마다 초기화하므로,
+# 유류할증료(OCS)·추가문구 같은 "직원이 입력 → 계속 유지돼야 하는" 값은
+# 로컬 파일이 아니라 Upstash Redis(무료 티어)에 저장한다.
+# Render 환경변수에 UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN 이 설정되어
+# 있지 않으면 자동으로 로컬 파일 방식으로 동작(폴백) — 로컬 개발용.
+UPSTASH_URL   = os.environ.get("UPSTASH_REDIS_REST_URL", "").rstrip("/")
+UPSTASH_TOKEN = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
+
+def _kv_get(key: str):
+    """Upstash Redis에서 값 조회(문자열). 미설정이거나 실패하면 None 반환."""
+    if not (_requests and UPSTASH_URL and UPSTASH_TOKEN):
+        return None
+    try:
+        r = _requests.get(
+            f"{UPSTASH_URL}/get/{key}",
+            headers={"Authorization": f"Bearer {UPSTASH_TOKEN}"},
+            timeout=5,
+        )
+        if r.status_code == 200:
+            return r.json().get("result")
+    except Exception:
+        pass
+    return None
+
+def _kv_set(key: str, value: str) -> bool:
+    """Upstash Redis에 값 저장(문자열). 성공하면 True, 미설정/실패하면 False."""
+    if not (_requests and UPSTASH_URL and UPSTASH_TOKEN):
+        return False
+    try:
+        r = _requests.post(
+            f"{UPSTASH_URL}/set/{key}",
+            headers={"Authorization": f"Bearer {UPSTASH_TOKEN}"},
+            data=value.encode("utf-8"),
+            timeout=5,
+        )
+        return r.status_code == 200
+    except Exception:
+        return False
+
+
 OCS_FUEL_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ocs_fuel_cache.json")
+OCS_FUEL_KEY = "ab:ocs_fuel"
 
 def _load_ocs_fuel():
-    """OCS 유류할증료(수동입력) — DHL/FedEx/UPS와 달리 fuel_scraper 캐시를 쓰지 않고
-    자체 파일(ocs_fuel_cache.json)에 직접 저장/조회 (전 직원 공용)"""
+    """OCS 유류할증료(수동입력) — Upstash Redis(전 직원 공용, 영구저장)에서 우선 조회.
+    Upstash 미설정/조회 실패 시에만 로컬 파일(ocs_fuel_cache.json)로 폴백
+    (주의: Render 무료 플랜에서는 로컬 파일이 재배포 시 초기화됨)."""
+    val = _kv_get(OCS_FUEL_KEY)
+    if val is not None:
+        try:
+            return float(val)
+        except Exception:
+            pass
     try:
         with open(OCS_FUEL_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -71,6 +125,8 @@ def _load_ocs_fuel():
         return None
 
 def _save_ocs_fuel(value: float):
+    if _kv_set(OCS_FUEL_KEY, str(value)):
+        return
     try:
         with open(OCS_FUEL_FILE, "w", encoding="utf-8") as f:
             json.dump({"value": value}, f)
@@ -404,9 +460,20 @@ def api_pdf():
 
 
 PHRASES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "phrases_cache.json")
+PHRASES_KEY = "ab:phrases"
 
 def _load_phrases_file():
-    """전 직원 공용 '추가 문구' 목록 — 서버 파일(phrases_cache.json)에서 읽기"""
+    """전 직원 공용 '추가 문구' 목록 — Upstash Redis에서 우선 조회.
+    Upstash 미설정/조회 실패 시에만 로컬 파일(phrases_cache.json)로 폴백
+    (주의: Render 무료 플랜에서는 로컬 파일이 재배포 시 초기화됨)."""
+    val = _kv_get(PHRASES_KEY)
+    if val is not None:
+        try:
+            data = json.loads(val)
+            if isinstance(data, list):
+                return data
+        except Exception:
+            pass
     try:
         with open(PHRASES_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -417,6 +484,8 @@ def _load_phrases_file():
     return None
 
 def _save_phrases_file(phrases):
+    if _kv_set(PHRASES_KEY, json.dumps(phrases, ensure_ascii=False)):
+        return
     try:
         with open(PHRASES_FILE, "w", encoding="utf-8") as f:
             json.dump(phrases, f, ensure_ascii=False, indent=2)

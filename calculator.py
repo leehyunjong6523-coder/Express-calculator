@@ -1873,20 +1873,25 @@ def ups_lookup(w, zi, is_doc, acct="2F94A8", dest_country=""):
 def fmt(n): return f"₩{int(n):,}"
 def pct(n): return f"{n:.1f}%"
 
-def calc_carrier(carrier_name, total_pub_base, net_base, sur_total, fuel, disc, net_fee=0):
-    """운송사 요금 계산 공통 함수 — net_fee: UPS 계정 수수료율(0.03) 또는 고정금액"""
+def calc_carrier(carrier_name, total_pub_base, net_base, sur_total, fuel, disc, net_fee=0, cost_fuel=None):
+    """운송사 요금 계산 공통 함수 — net_fee: UPS 계정 수수료율(0.03) 또는 고정금액
+    cost_fuel: 원가(매입) 측 유류할증률이 견적(판매가, fuel) 측과 다를 때 별도 지정.
+               예) OCS는 원가 유류할증을 25% 고정으로 적용하되, 고객 견적가 유류할증은 fuel(입력값)을 그대로 사용.
+               지정하지 않으면 fuel과 동일하게 적용 (DHL/FedEx/UPS 기존 동작과 동일)."""
+    if cost_fuel is None:
+        cost_fuel = fuel
     # ── 원가 계산 ──
     # UPS: net_fee가 비율(0.03)로 전달된 경우 → 전체 원가(운임+유류+부가서비스) 기준으로 수수료 산출
     if 0 < net_fee < 1:  # 비율로 전달됨 (예: 0.03)
-        net_fuel_base = ceil10(net_base * fuel / 100)
-        sur_fuel_base = ceil10(sur_total * fuel / 100)
+        net_fuel_base = ceil10(net_base * cost_fuel / 100)
+        sur_fuel_base = ceil10(sur_total * cost_fuel / 100)
         base_cost     = net_base + net_fuel_base + sur_total + sur_fuel_base
         net_fee_amt   = ceil10(base_cost * net_fee)
     else:
         net_fee_amt   = net_fee  # 고정금액으로 전달됨
 
-    net_fuel  = ceil10(net_base * fuel / 100)
-    sur_fuel  = ceil10(sur_total * fuel / 100)
+    net_fuel  = ceil10(net_base * cost_fuel / 100)
+    sur_fuel  = ceil10(sur_total * cost_fuel / 100)
     total_cost = net_base + net_fee_amt + net_fuel + sur_total + sur_fuel
     # ── 견적가 ──
     pub_disc      = ceil10(total_pub_base * (1 - disc / 100))
@@ -2963,7 +2968,7 @@ def run_calculation(
     res_fedex   = calc_carrier("FedEx IP",      total_pub_fedex_ip, total_net_fedex_ip, total_sur_fedex_ip, fuel_fedex, disc_fedex)
     res_fedex_e = calc_carrier("FedEx Economy", total_pub_fedex_ec, total_net_fedex_ec, total_sur_fedex_ec, fuel_fedex, disc_fedex_e)
     res_ups2f   = calc_carrier("UPS 2F94A8",    total_pub_ups_2F,   total_net_ups_2F,   total_sur_ups,   fuel_ups,   disc_ups,   net_fee=UPS_ACCT_FEE_RATE)
-    res_ocs     = calc_carrier("OCS",           total_pub_ocs,      total_net_ocs,      0,               fuel_ocs,   disc_ocs)
+    res_ocs     = calc_carrier("OCS",           total_pub_ocs,      total_net_ocs,      0,               fuel_ocs,   disc_ocs,   cost_fuel=25.0)  # 원가측 유류할증 25% 고정
 
     # ── 부가서비스 목록 (표시용) ──
     def _sur_list(d):
