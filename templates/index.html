@@ -1030,6 +1030,18 @@ body.mode-imp .tb-calc-btn { background: linear-gradient(135deg, #9d174d, #be185
   cursor: pointer; font-family: 'Noto Sans KR',sans-serif;
 }
 .extra-add-btn:hover { background: rgba(74,222,128,.2); }
+/* 자동계산된 추가비용(sur/US통관료 등) 줄 삭제 버튼 */
+.sur-del-btn {
+  background: none; border: none; color: #f87171; cursor: pointer;
+  padding: 0 2px; margin-left: 5px; font-size: .68rem; opacity: .55; vertical-align: middle;
+}
+.sur-del-btn:hover { opacity: 1; }
+.sur-restore-btn {
+  background: none; border: 1px solid rgba(255,255,255,.2); border-radius: 4px;
+  color: var(--text-dim); cursor: pointer; font-size: .65rem; font-weight: 700;
+  padding: 1px 7px; font-family: 'Noto Sans KR',sans-serif;
+}
+.sur-restore-btn:hover { color: var(--text-pri); border-color: rgba(255,255,255,.4); }
 .section-cost.lmr-mode .detail-header-cost { color: #fca5a5; border-color: rgba(239,68,68,.4); }
 /* ── 공통 3탭 패널 (LMR/WWEF) ── */
 .rate-tabs { display:flex; gap:2px; background:rgba(0,0,0,.4); border-radius:8px; padding:3px; margin-bottom:10px; }
@@ -1781,6 +1793,9 @@ let state = {
   wwefPasteBlob: { ups: null, ups2f: null },
   ttOverride:  { dhl:'', fedex:'', fedex_e:'', ups2f:'', ems:'', ocs:'' }, // 소요일 수정
   extraCosts:  { dhl:[], fedex:[], fedex_e:[], ups2f:[], ems:[], ocs:[] }, // 추가비용
+  // 자동계산된 추가비용(원격지요금·급증수수료·US통관료 등) 중 이번 견적에서 제외한 항목.
+  // 값: Set of id — sur 항목은 'sur:<c.surs 배열 인덱스>', US 인바운드 처리 수수료는 'usClear', UPS 국제 처리 수수료는 'upsIntl'.
+  removedExtra: { dhl:new Set(), fedex:new Set(), fedex_e:new Set(), ups2f:new Set(), ocs:new Set() },
 };
 
 // ─────────────────────────────────────────────
@@ -2970,6 +2985,44 @@ async function calculate() {
 function fmtWon(n) { if (n == null) return '—'; return '₩' + Math.round(n).toLocaleString('ko-KR'); }
 function fmtPct(n) { return (n||0).toFixed(1) + '%'; }
 
+// ── 자동계산된 추가비용(원격지요금·급증수수료·US통관료 등) 삭제 관리 ──
+// 운임·유류할증료를 제외한 "그 외 추가비용" 행 옆에 ✕ 버튼을 달아, 계산 완료 후
+// 해당 견적에 한해 특정 항목을 제외할 수 있게 한다 (DHL/FedEx/UPS/OCS 공통 카드에 적용).
+function ceil10(x) { return Math.ceil(x / 10) * 10; }
+
+function _removedSet(key) {
+  if (!state.removedExtra[key]) state.removedExtra[key] = new Set();
+  return state.removedExtra[key];
+}
+
+function removeAutoItem(key, id) {
+  _removedSet(key).add(id);
+  if (state.lastResult) renderResults(state.lastResult);
+}
+
+function restoreAutoItems(key) {
+  state.removedExtra[key] = new Set();
+  if (state.lastResult) renderResults(state.lastResult);
+}
+
+// 삭제된 sur 항목들의 금액(faceSum) + 그 위에 붙던 유류할증료 몫(fuelDelta)을 함께 반환.
+// (원가/견적 모두 sur는 할인 없이 동일 금액 + 동일 유류율이 적용되므로 하나의 계산으로 양쪽에 동일 적용 가능 —
+//  OCS는 cost_fuel이 fuel_pct와 다를 수 있지만 OCS는 surs가 항상 비어있어 이 함수가 호출될 일이 없음)
+function _surRemoval(key, c) {
+  const removed = _removedSet(key);
+  const rawSurs = c.surs || [];
+  let faceSum = 0;
+  rawSurs.forEach((s, i) => { if (removed.has('sur:' + i)) faceSum += (parseFloat(s.amount) || 0); });
+  if (faceSum <= 0) return { faceSum: 0, fuelDelta: 0, total: 0 };
+  const rate = c.fuel_pct || 0;
+  const oldSurTotal = c.sur_total || 0;
+  const newSurTotal = Math.max(0, oldSurTotal - faceSum);
+  const oldFuelOnSur = c.sur_fuel_pub != null ? c.sur_fuel_pub : ceil10(oldSurTotal * rate / 100);
+  const newFuelOnSur = ceil10(newSurTotal * rate / 100);
+  const fuelDelta = Math.max(0, oldFuelOnSur - newFuelOnSur);
+  return { faceSum, fuelDelta, total: faceSum + fuelDelta };
+}
+
 
 // ── 청구중량 반올림: 30kg 이하 0.5kg 단위, 초과 1kg 단위 ──────
 function roundChargeable(wt) {
@@ -3421,11 +3474,14 @@ function renderResults(res) {
           </div>
         </div>`;
     } else {
+      const removedSet = _removedSet(key);
       const surRows = (c.surs||[])
-        .filter(s => s.name !== '__freight__')
-        .map(s => `<div class="bd-row sub-item"><span>  ${s.name}</span><span class="bd-val">${fmtWon(s.amount)}</span></div>`)
+        .map((s,i) => ({s,i}))
+        .filter(({s}) => s.name !== '__freight__')
+        .filter(({i}) => !removedSet.has('sur:'+i))
+        .map(({s,i}) => `<div class="bd-row sub-item"><span>  ${s.name}</span><span class="bd-val">${fmtWon(s.amount)}<button class="sur-del-btn" onclick="event.stopPropagation();removeAutoItem('${key}','sur:${i}')" title="이 항목 제외">✕</button></span></div>`)
         .join('');
-      const hasSur = (c.surs||[]).filter(s=>s.name!=='__freight__').length > 0;
+      const hasSur = (c.surs||[]).filter((s,i)=>s.name!=='__freight__' && !removedSet.has('sur:'+i)).length > 0;
 
       // FedEx US 인바운드 처리 수수료 (한국→미국 수출, 건당 3,900원, 유류 제외)
       const isUsRoute   = (res.dest_country === 'United States of America' || res.dest_country === 'United States');
@@ -3433,29 +3489,35 @@ function renderResults(res) {
       const isUpsCard   = (key === 'ups2f' || key === 'ups');
       const isExport    = (res.mode === '수출');
       // LMR 적용 시 US 수수료는 LMR 금액에 이미 포함 → 중복 방지
-      const usClearFee  = (isUsRoute && isFedexCard && isExport && !state.lmr[key]) ? 3900 : 0;
+      const usClearFeeRaw = (isUsRoute && isFedexCard && isExport && !state.lmr[key]) ? 3900 : 0;
       // UPS 미국 수출: 국제 처리 수수료 건당 3,642원
-      const upsIntlFee  = (isUsRoute && isUpsCard && isExport) ? 3642 : 0;
-      const usClearRow  = usClearFee > 0
-        ? `<div class="bd-row sub-item"><span>  US 인바운드 처리 수수료</span><span class="bd-val">${fmtWon(usClearFee)}</span></div>`
+      const upsIntlFeeRaw = (isUsRoute && isUpsCard && isExport) ? 3642 : 0;
+      const usClearFee  = removedSet.has('usClear') ? 0 : usClearFeeRaw;
+      const upsIntlFee  = removedSet.has('upsIntl') ? 0 : upsIntlFeeRaw;
+      const usClearRow  = usClearFeeRaw > 0 && !removedSet.has('usClear')
+        ? `<div class="bd-row sub-item"><span>  US 인바운드 처리 수수료</span><span class="bd-val">${fmtWon(usClearFeeRaw)}<button class="sur-del-btn" onclick="event.stopPropagation();removeAutoItem('${key}','usClear')" title="이 항목 제외">✕</button></span></div>`
         : '';
-      const upsIntlRow  = upsIntlFee > 0
-        ? `<div class="bd-row sub-item"><span>  국제 처리 수수료</span><span class="bd-val">${fmtWon(upsIntlFee)}</span></div>`
+      const upsIntlRow  = upsIntlFeeRaw > 0 && !removedSet.has('upsIntl')
+        ? `<div class="bd-row sub-item"><span>  국제 처리 수수료</span><span class="bd-val">${fmtWon(upsIntlFeeRaw)}<button class="sur-del-btn" onclick="event.stopPropagation();removeAutoItem('${key}','upsIntl')" title="이 항목 제외">✕</button></span></div>`
         : '';
+      const surRemoval = _surRemoval(key, c);
+      const hasRemovedAuto = removedSet.size > 0;
+      const effFuelCost  = Math.max(0, (c.net_fuel||0) + (c.sur_fuel||0)     - surRemoval.fuelDelta);
+      const effFuelQuote = Math.max(0, (c.pub_fuel||0) + (c.sur_fuel_pub||0) - surRemoval.fuelDelta);
 
       // WWEF 적용 여부
       const isWwef = freightFlag && state.wwef[key];
       const extraCostSum  = (state.extraCosts[key]||[]).filter(e=>e.name&&e.amt>0).reduce((s,e)=>s+(parseFloat(e.amt)||0),0);
       const adjCostBase   = (isWwef ? state.wwef[key].total_cost
-                          : (state.lmr[key] ? state.lmr[key].total_cost : c.total_cost) + usClearFee + upsIntlFee) + extraCostSum;
-      const adjQuoteBase  = c.total_quote + usClearFee + upsIntlFee + extraCostSum;  // 항상 최신값
+                          : (state.lmr[key] ? state.lmr[key].total_cost : c.total_cost - surRemoval.total) + usClearFee + upsIntlFee) + extraCostSum;
+      const adjQuoteBase  = c.total_quote - surRemoval.total + usClearFee + upsIntlFee + extraCostSum;  // 항상 최신값
 
       // LMR 적용 시 quote_rows도 최신 c 데이터로 동적 생성
       // LMR 청구가 행: surRows 그대로 사용 (applyUpsSurgeFee 포함된 최신값)
       const lmrQuoteRowsDynamic = state.lmr[key] ? (
         `<div class="bd-row"><span>항공운임 (견적)${c.disc_rpk ? ` <span style="font-size:.62rem;color:#60a5fa;">(₩${Math.round(c.disc_rpk).toLocaleString()}/kg)</span>` : ''}</span><span class="bd-val">${fmtWon(c.pub_disc)}</span></div>`
         + (hasSur ? surRows : '')
-        + `<div class="bd-row sub-item"><span>유류할증료</span><span class="bd-val">${fmtWon((c.pub_fuel||0)+(c.sur_fuel_pub||0))}</span></div>`
+        + `<div class="bd-row sub-item"><span>유류할증료</span><span class="bd-val">${fmtWon(effFuelQuote)}</span></div>`
       ) : null;
 
       card.innerHTML = `
@@ -3493,6 +3555,7 @@ function renderResults(res) {
             </div>
           </div>
         ${extraCostSum > 0 ? `<div class="bd-row total-extra"><span>📌 추가비용 소계</span><span class="bd-val">${fmtWon(extraCostSum)}</span></div>` : ''}
+        ${hasRemovedAuto ? `<div class="bd-row total-extra" style="color:var(--text-dim);"><span>🚫 제외한 항목 ${removedSet.size}개</span><span class="bd-val"><button class="sur-restore-btn" onclick="event.stopPropagation();restoreAutoItems('${key}')">↺ 복원</button></span></div>` : ''}
         </div>
         <div class="section-cost${isWwef ? ' wwef-mode' : state.lmr[key] ? ' lmr-mode' : ''}">
           <div class="detail-header-cost" style="display:flex;justify-content:space-between;align-items:center;">
@@ -3506,18 +3569,18 @@ function renderResults(res) {
           <div class="bd-row"><span>항공운임 (원가)</span><span class="bd-val">${fmtWon(c.net_base)}</span></div>
           ${c.net_fee > 0 ? `<div class="bd-row sub-item"><span>계정수수료 3%</span><span class="bd-val">${fmtWon(c.net_fee)}</span></div>` : ''}
           ${surRows}
-          <div class="bd-row sub-item"><span>유류할증료 (원가)</span><span class="bd-val">${fmtWon((c.net_fuel||0)+(c.sur_fuel||0))}</span></div>`}
+          <div class="bd-row sub-item"><span>유류할증료 (원가)</span><span class="bd-val">${fmtWon(effFuelCost)}</span></div>`}
           ${usClearRow}
           ${upsIntlRow}
           ${(state.extraCosts[key]||[]).filter(e=>e.name&&e.amt>0).map(e=>`<div class="bd-row sub-item"><span>${e.name}</span><span class="bd-val">${fmtWon(e.amt)}</span></div>`).join('')}
-          <div class="bd-row total-row"><span>▶ 원가 합계</span><span class="bd-val">${fmtWon(adjCostBase + extraCostSum)}</span></div>
+          <div class="bd-row total-row"><span>▶ 원가 합계</span><span class="bd-val">${fmtWon(adjCostBase)}</span></div>
         </div>
         <div class="section-quote">
           <div class="detail-header-quote">📋 청구가 상세</div>
           ${state.lmr[key] ? lmrQuoteRowsDynamic : `
           <div class="bd-row"><span>항공운임 (견적)${c.disc_rpk ? `<span style="font-size:.62rem;color:#60a5fa;margin-left:5px;">(₩${Math.round(c.disc_rpk).toLocaleString()}/kg)</span>` : ''}</span><span class="bd-val">${fmtWon(c.pub_disc)}</span></div>
           ${hasSur ? surRows : ''}
-          <div class="bd-row sub-item"><span>유류할증료</span><span class="bd-val">${fmtWon((c.pub_fuel||0)+(c.sur_fuel_pub||0))}</span></div>`}
+          <div class="bd-row sub-item"><span>유류할증료</span><span class="bd-val">${fmtWon(effFuelQuote)}</span></div>`}
           ${usClearRow}
           ${upsIntlRow}
           ${(state.extraCosts[key]||[]).filter(e=>e.name&&e.amt>0).map(e=>`<div class="bd-row sub-item" style="color:#4ade80;"><span>${e.name}</span><span class="bd-val">${fmtWon(e.amt)}</span></div>`).join('')}
@@ -3646,17 +3709,19 @@ function buildEmailHtml(res) {
     const expiry = FEXPIRY[key] || '';
     const fuelPct = (c.fuel_pct||0).toFixed(2);
     const base    = Math.round(c.pub_disc || c.pub_base || 0);
-    const fuelAmt = Math.round((c.pub_fuel||0)+(c.sur_fuel_pub||0));
+    const removedSetE  = _removedSet(key);
+    const surRemovalE  = _surRemoval(key, c);
+    const fuelAmt = Math.round(Math.max(0, (c.pub_fuel||0)+(c.sur_fuel_pub||0) - surRemovalE.fuelDelta));
     const rpkStr  = c.disc_rpk ? ` <span style="font-size:9px;color:#888;">(₩${Math.round(c.disc_rpk).toLocaleString()}/kg)</span>` : '';
     const isUsEmail   = (res.dest_country === 'United States of America' || res.dest_country === 'United States');
     const isFedexEmail = (key === 'fedex' || key === 'fedex_e');
-    const emailUsClearFee = (isUsEmail && isFedexEmail && res.mode === '수출' && !state.lmr[key]) ? 3900 : 0;
+    const emailUsClearFee = (isUsEmail && isFedexEmail && res.mode === '수출' && !state.lmr[key] && !removedSetE.has('usClear')) ? 3900 : 0;
     const isUpsEmail      = (key === 'ups2f' || key === 'ups');
-    const emailUpsIntlFee = (isUsEmail && isUpsEmail && res.mode === '수출') ? 3642 : 0;
+    const emailUpsIntlFee = (isUsEmail && isUpsEmail && res.mode === '수출' && !removedSetE.has('upsIntl')) ? 3642 : 0;
     const emailExtraSum = (state.extraCosts[key]||[]).reduce((s,e)=>s+(parseFloat(e.amt)||0),0);
-    const total   = Math.round((c.total_quote||0) + emailUsClearFee + emailUpsIntlFee + emailExtraSum);
+    const total   = Math.round((c.total_quote||0) - surRemovalE.total + emailUsClearFee + emailUpsIntlFee + emailExtraSum);
     const rpk     = c.disc_rpk ? ` (${Math.round(c.disc_rpk).toLocaleString('ko-KR')}원/kg)` : '';
-    const surs    = (c.surs||[]);
+    const surs    = (c.surs||[]).map((s,i)=>({...s,_idx:i})).filter(s => !removedSetE.has('sur:'+s._idx));
     lines.push(''); lines.push(name + lmrTag); lines.push('');
     if (state.lmr[key]) {
       // LMR 적용 시 — 청구가는 최신 c 데이터(할인율 반영) 사용
@@ -3824,14 +3889,16 @@ function generatePdf() {
     const pdfIsUs     = (res.dest_country === 'United States of America' || res.dest_country === 'United States');
     const pdfIsFedex  = (key === 'fedex' || key === 'fedex_e');
     const pdfIsExport = (res.mode === '수출');
-    const pdfUsClear   = (pdfIsUs && pdfIsFedex && pdfIsExport && !state.lmr[key]) ? 3900 : 0;
+    const removedSetP = _removedSet(key);
+    const pdfUsClear   = (pdfIsUs && pdfIsFedex && pdfIsExport && !state.lmr[key] && !removedSetP.has('usClear')) ? 3900 : 0;
     const pdfIsUps     = (key === 'ups2f' || key === 'ups');
-    const pdfUpsIntl   = (pdfIsUs && pdfIsUps && pdfIsExport) ? 3642 : 0;
-    const total   = Math.round((c.total_quote||0) + pdfUsClear + pdfUpsIntl + pdfExtraSum);
+    const pdfUpsIntl   = (pdfIsUs && pdfIsUps && pdfIsExport && !removedSetP.has('upsIntl')) ? 3642 : 0;
+    const pdfSurRemoval = _surRemoval(key, c);
+    const total   = Math.round((c.total_quote||0) - pdfSurRemoval.total + pdfUsClear + pdfUpsIntl + pdfExtraSum);
     const fuelPct = (c.fuel_pct||0).toFixed(2);
-    const surs    = (c.surs||[]);
+    const surs    = (c.surs||[]).map((s,i)=>({...s,_idx:i})).filter(s => !removedSetP.has('sur:'+s._idx));
     const base    = Math.round(c.pub_disc || c.pub_base || 0);
-    const fuelAmt = Math.round((c.pub_fuel||0)+(c.sur_fuel_pub||0));
+    const fuelAmt = Math.round(Math.max(0, (c.pub_fuel||0)+(c.sur_fuel_pub||0) - pdfSurRemoval.fuelDelta));
     const rpkStr  = c.disc_rpk ? ` <span style="font-size:9px;color:#888;">(₩${Math.round(c.disc_rpk).toLocaleString()}/kg)</span>` : '';
     const pdfUsClearRow = pdfUsClear > 0
       ? `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:10px;"><span style="color:#555;">US 인바운드 처리 수수료</span><span>₩3,900</span></div>`
