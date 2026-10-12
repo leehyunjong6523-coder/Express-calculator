@@ -1794,7 +1794,7 @@ let state = {
   ttOverride:  { dhl:'', fedex:'', fedex_e:'', ups2f:'', ems:'', ocs:'' }, // 소요일 수정
   extraCosts:  { dhl:[], fedex:[], fedex_e:[], ups2f:[], ems:[], ocs:[] }, // 추가비용
   // 자동계산된 추가비용(원격지요금·급증수수료·US통관료 등) 중 이번 견적에서 제외한 항목.
-  // 값: Set of id — sur 항목은 'sur:<c.surs 배열 인덱스>', FedEx 수입 처리 수수료(美/EU)는 'usClear', UPS 국제 처리 수수료는 'upsIntl'.
+  // 값: Set of id — sur 항목은 'sur:<c.surs 배열 인덱스>', FedEx 수입 처리 수수료(US/EU)는 'usClear', UPS 국제 처리 수수료는 'upsIntl'.
   removedExtra: { dhl:new Set(), fedex:new Set(), fedex_e:new Set(), ups2f:new Set(), ocs:new Set() },
 };
 
@@ -3500,14 +3500,21 @@ function renderResults(res) {
       const isFedexCard = (key === 'fedex' || key === 'fedex_e');
       const isUpsCard   = (key === 'ups2f' || key === 'ups');
       const isExport    = (res.mode === '수출');
-      // LMR 적용 시 수수료는 LMR 금액에 이미 포함 → 중복 방지
-      const usClearFeeRaw = (isFedexImportFeeRoute && isFedexCard && isExport && !state.lmr[key]) ? 3900 : 0;
+      // 견적(청구가)측 — LMR 여부와 무관하게 항상 고객에게 청구 (LMR은 원가표만 교체할 뿐 청구가는 앱이 별도 계산)
+      const usImportFeeApplies = isFedexImportFeeRoute && isFedexCard && isExport;
+      const usClearFeeRaw = usImportFeeApplies ? 3900 : 0;
+      // 원가측 — LMR 적용 시엔 직원이 붙여넣은 LMR 원가표에 이미 포함되어 있으므로 중복 계상 방지를 위해 생략
+      const usClearFeeCostRaw = (usImportFeeApplies && !state.lmr[key]) ? 3900 : 0;
       // UPS 미국 수출: 국제 처리 수수료 건당 3,642원 (UPS는 미국만 — EU 정책 별도 확인 전까지 미적용)
       const upsIntlFeeRaw = (isUsRoute && isUpsCard && isExport) ? 3642 : 0;
-      const usClearFee  = removedSet.has('usClear') ? 0 : usClearFeeRaw;
+      const usClearFee     = removedSet.has('usClear') ? 0 : usClearFeeRaw;
+      const usClearFeeCost = removedSet.has('usClear') ? 0 : usClearFeeCostRaw;
       const upsIntlFee  = removedSet.has('upsIntl') ? 0 : upsIntlFeeRaw;
       const usClearRow  = usClearFeeRaw > 0 && !removedSet.has('usClear')
-        ? `<div class="bd-row sub-item"><span>  수입 처리 수수료(美/EU)</span><span class="bd-val">${fmtWon(usClearFeeRaw)}<button class="sur-del-btn" onclick="event.stopPropagation();removeAutoItem('${key}','usClear')" title="이 항목 제외">✕</button></span></div>`
+        ? `<div class="bd-row sub-item"><span>  수입 처리 수수료(US/EU)</span><span class="bd-val">${fmtWon(usClearFeeRaw)}<button class="sur-del-btn" onclick="event.stopPropagation();removeAutoItem('${key}','usClear')" title="이 항목 제외">✕</button></span></div>`
+        : '';
+      const usClearRowCost = usClearFeeCostRaw > 0 && !removedSet.has('usClear')
+        ? `<div class="bd-row sub-item"><span>  수입 처리 수수료(US/EU)</span><span class="bd-val">${fmtWon(usClearFeeCostRaw)}<button class="sur-del-btn" onclick="event.stopPropagation();removeAutoItem('${key}','usClear')" title="이 항목 제외">✕</button></span></div>`
         : '';
       const upsIntlRow  = upsIntlFeeRaw > 0 && !removedSet.has('upsIntl')
         ? `<div class="bd-row sub-item"><span>  국제 처리 수수료</span><span class="bd-val">${fmtWon(upsIntlFeeRaw)}<button class="sur-del-btn" onclick="event.stopPropagation();removeAutoItem('${key}','upsIntl')" title="이 항목 제외">✕</button></span></div>`
@@ -3521,7 +3528,7 @@ function renderResults(res) {
       const isWwef = freightFlag && state.wwef[key];
       const extraCostSum  = (state.extraCosts[key]||[]).filter(e=>e.name&&e.amt>0).reduce((s,e)=>s+(parseFloat(e.amt)||0),0);
       const adjCostBase   = (isWwef ? state.wwef[key].total_cost
-                          : (state.lmr[key] ? state.lmr[key].total_cost : c.total_cost - surRemoval.total) + usClearFee + upsIntlFee) + extraCostSum;
+                          : (state.lmr[key] ? state.lmr[key].total_cost : c.total_cost - surRemoval.total) + usClearFeeCost + upsIntlFee) + extraCostSum;
       const adjQuoteBase  = c.total_quote - surRemoval.total + usClearFee + upsIntlFee + extraCostSum;  // 항상 최신값
 
       // LMR 적용 시 quote_rows도 최신 c 데이터로 동적 생성
@@ -3582,7 +3589,7 @@ function renderResults(res) {
           ${c.net_fee > 0 ? `<div class="bd-row sub-item"><span>계정수수료 3%</span><span class="bd-val">${fmtWon(c.net_fee)}</span></div>` : ''}
           ${surRows}
           <div class="bd-row sub-item"><span>유류할증료 (원가)</span><span class="bd-val">${fmtWon(effFuelCost)}</span></div>`}
-          ${usClearRow}
+          ${usClearRowCost}
           ${upsIntlRow}
           ${(state.extraCosts[key]||[]).filter(e=>e.name&&e.amt>0).map(e=>`<div class="bd-row sub-item"><span>${e.name}</span><span class="bd-val">${fmtWon(e.amt)}</span></div>`).join('')}
           <div class="bd-row total-row"><span>▶ 원가 합계</span><span class="bd-val">${fmtWon(adjCostBase)}</span></div>
@@ -3728,7 +3735,8 @@ function buildEmailHtml(res) {
     const isUsEmail   = (res.dest_country === 'United States of America' || res.dest_country === 'United States');
     const isFedexImportFeeEmail = FEDEX_IMPORT_FEE_COUNTRIES.has(res.dest_country);
     const isFedexEmail = (key === 'fedex' || key === 'fedex_e');
-    const emailUsClearFee = (isFedexImportFeeEmail && isFedexEmail && res.mode === '수출' && !state.lmr[key] && !removedSetE.has('usClear')) ? 3900 : 0;
+    // 견적(청구가)이므로 LMR 여부와 무관하게 항상 청구 (LMR은 원가표만 교체 — 청구가는 앱이 별도 계산)
+    const emailUsClearFee = (isFedexImportFeeEmail && isFedexEmail && res.mode === '수출' && !removedSetE.has('usClear')) ? 3900 : 0;
     const isUpsEmail      = (key === 'ups2f' || key === 'ups');
     const emailUpsIntlFee = (isUsEmail && isUpsEmail && res.mode === '수출' && !removedSetE.has('upsIntl')) ? 3642 : 0;
     const emailExtraSum = (state.extraCosts[key]||[]).reduce((s,e)=>s+(parseFloat(e.amt)||0),0);
@@ -3745,7 +3753,7 @@ function buildEmailHtml(res) {
       surs.filter(s=>s.name!=='__freight__').forEach(s =>
         lines.push(`${s.name} : ${Math.round(s.amount).toLocaleString('ko-KR')}원`)
       );
-      if (emailUsClearFee > 0) lines.push(`수입 처리 수수료(美/EU) : ${emailUsClearFee.toLocaleString('ko-KR')}원`);
+      if (emailUsClearFee > 0) lines.push(`수입 처리 수수료(US/EU) : ${emailUsClearFee.toLocaleString('ko-KR')}원`);
       if (emailUpsIntlFee > 0) lines.push(`국제 처리 수수료 : ${emailUpsIntlFee.toLocaleString('ko-KR')}원`);
       lines.push(''); lines.push(`TOTAL : ${total.toLocaleString('ko-KR')}원`);
     } else {
@@ -3754,7 +3762,7 @@ function buildEmailHtml(res) {
       lines.push(`운임${rpk} : ${base.toLocaleString('ko-KR')}원`);
       lines.push(`유류할증료 : ${fuelAmt.toLocaleString('ko-KR')}원`);
       surs.forEach(s => lines.push(`${s.name} : ${Math.round(s.amount).toLocaleString('ko-KR')}원`));
-      if (emailUsClearFee > 0) lines.push(`수입 처리 수수료(美/EU) : ${emailUsClearFee.toLocaleString('ko-KR')}원`);
+      if (emailUsClearFee > 0) lines.push(`수입 처리 수수료(US/EU) : ${emailUsClearFee.toLocaleString('ko-KR')}원`);
       if (emailUpsIntlFee > 0) lines.push(`국제 처리 수수료 : ${emailUpsIntlFee.toLocaleString('ko-KR')}원`);
       lines.push(''); lines.push(`TOTAL : ${total.toLocaleString('ko-KR')}원`);
     }
@@ -3904,7 +3912,8 @@ function generatePdf() {
     const pdfIsFedex  = (key === 'fedex' || key === 'fedex_e');
     const pdfIsExport = (res.mode === '수출');
     const removedSetP = _removedSet(key);
-    const pdfUsClear   = (pdfIsFedexImportFee && pdfIsFedex && pdfIsExport && !state.lmr[key] && !removedSetP.has('usClear')) ? 3900 : 0;
+    // 견적(청구가)이므로 LMR 여부와 무관하게 항상 청구 (LMR은 원가표만 교체 — 청구가는 앱이 별도 계산)
+    const pdfUsClear   = (pdfIsFedexImportFee && pdfIsFedex && pdfIsExport && !removedSetP.has('usClear')) ? 3900 : 0;
     const pdfIsUps     = (key === 'ups2f' || key === 'ups');
     const pdfUpsIntl   = (pdfIsUs && pdfIsUps && pdfIsExport && !removedSetP.has('upsIntl')) ? 3642 : 0;
     const pdfSurRemoval = _surRemoval(key, c);
@@ -3915,7 +3924,7 @@ function generatePdf() {
     const fuelAmt = Math.round(Math.max(0, (c.pub_fuel||0)+(c.sur_fuel_pub||0) - pdfSurRemoval.fuelDelta));
     const rpkStr  = c.disc_rpk ? ` <span style="font-size:9px;color:#888;">(₩${Math.round(c.disc_rpk).toLocaleString()}/kg)</span>` : '';
     const pdfUsClearRow = pdfUsClear > 0
-      ? `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:10px;"><span style="color:#555;">수입 처리 수수료(美/EU)</span><span>₩3,900</span></div>`
+      ? `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:10px;"><span style="color:#555;">수입 처리 수수료(US/EU)</span><span>₩3,900</span></div>`
       : '';
     const pdfUpsIntlRow = pdfUpsIntl > 0
       ? `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:10px;"><span style="color:#555;">국제 처리 수수료</span><span>₩3,642</span></div>`
