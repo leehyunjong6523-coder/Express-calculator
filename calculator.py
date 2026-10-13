@@ -1496,64 +1496,59 @@ EMS_NDC = {
     30.0: [373000, 678000, 480000, 141500, 359000, 406000, 126500, 220000, 132500, 211000, 408000, 193500, 580000, 172000, 425500, 199500, 168500, 456000, 650000, 131000, 194500, 353000, 443500, 661000],
 }
 
-# 지역 1~4 국가 매핑 (EMS 전용 지역구분표 기준)
-EMS_REGION1 = {'Macau SAR China', 'Lao P.D.R.', 'Cambodia', 'Myanmar', 'Mongolia'}
-
-EMS_REGION2 = {'Bangladesh', 'Brunei', 'India', 'Nepal', 'Sri Lanka', 'Maldives', 'Bhutan'}
-
-# 3지역: 서구라파/동구라파/중동/대양주/아시아 일부 — PDF 원문이 "등"(등)으로 끝나 완전열거가 아님
-EMS_REGION3 = {
-    # 서구라파
-    'Belgium', 'Denmark', 'Finland', 'Norway', 'Portugal', 'Switzerland', 'Sweden', 'Austria',
-    # 동구라파
-    'Romania', 'Poland', 'Hungary', 'Czech Republic', 'Ukraine', 'Belarus', 'Moldova',
-    'Slovakia', 'Slovenia', 'Croatia', 'Serbia', 'Bulgaria', 'Lithuania', 'Latvia', 'Estonia',
-    'Bosnia and Herzegovina', 'Montenegro', 'North Macedonia', 'Albania', 'Georgia', 'Armenia',
-    'Azerbaijan', 'Kazakhstan', 'Uzbekistan',
-    # 중동
-    'Bahrain', 'Iran, Islamic Rep. of', 'Iraq', 'Israel', 'Jordan', 'Turkiye', 'Kuwait',
-    'Saudi Arabia', 'Qatar', 'Syria', 'United Arab Emirates', 'Oman', 'Lebanon', 'Yemen',
-    # 대양주
-    'Papua New Guinea',
-    # 아시아
-    'Afghanistan', 'Pakistan',
+# 지역 1~4 국가 매핑 — 우체국(ePOST) 공식 "국가별 요금적용 지역" 페이지 기준으로 전수 검증 완료
+# (2026-10, EMS 컬럼만 반영 — EMS프리미엄 컬럼은 무시)
+# 기존에는 PDF 발췌 기반 근사 목록(및 미매칭 시 4지역 자동적용)을 썼으나,
+# 공식 페이지 대조 결과 다수 국가가 실제로는 "EMS(일반) 자체가 불가"(프리미엄 전용 또는 미취급)였음이
+# 확인되어, 아래처럼 전면 재구성함 — EMS_ZONE_MAP에 없고 EMS_COLS(직접국가)에도 없는 목적지는
+# 전부 EMS_NO_SERVICE_COUNTRIES에 명시적으로 포함되어 있어야 하며, 둘 다에 없는 경우는 없음.
+EMS_ZONE_MAP = {
+    # 1지역
+    'Cambodia': 1, 'Lao P.D.R.': 1, 'Macau SAR China': 1, 'Mongolia': 1, 'Myanmar': 1,
+    # 2지역
+    'Bangladesh': 2, 'Bhutan': 2, 'Brunei': 2, 'India': 2, 'Maldives': 2, 'Nepal': 2, 'Sri Lanka': 2,
+    # 3지역 (서구라파/동구라파/중동 일부)
+    'Albania': 3, 'Armenia': 3, 'Austria': 3, 'Azerbaijan': 3, 'Bahrain': 3, 'Belarus': 3,
+    'Belgium': 3, 'Bulgaria': 3, 'Croatia': 3, 'Cyprus': 3, 'Czech Republic': 3, 'Denmark': 3,
+    'Estonia': 3, 'Finland': 3, 'Georgia': 3, 'Greece': 3, 'Hungary': 3,
+    'Iran, Islamic Rep. of': 3, 'Ireland': 3, 'Israel': 3, 'Jordan': 3, 'Kazakhstan': 3,
+    'Latvia': 3, 'Lithuania': 3, 'Luxembourg': 3, 'Moldova': 3, 'Netherlands': 3, 'Norway': 3,
+    'Oman': 3, 'Pakistan': 3, 'Poland': 3, 'Portugal': 3, 'Qatar': 3, 'Romania': 3,
+    'Saudi Arabia': 3, 'Slovakia': 3, 'Slovenia': 3, 'Sweden': 3, 'Switzerland': 3, 'Turkiye': 3,
+    'Ukraine': 3, 'United Arab Emirates': 3, 'Uzbekistan': 3,
+    # 4지역 (중남미/아프리카/오세아니아 일부)
+    'Algeria': 4, 'Argentina': 4, 'Chile': 4, 'Costa Rica': 4, 'Cuba': 4,
+    'Dominican Republic': 4, 'Ecuador': 4, 'Egypt': 4, 'Ethiopia': 4, 'Fiji': 4, 'Kenya': 4,
+    'Mauritius': 4, 'Mexico': 4, 'Morocco': 4, 'Mozambique': 4, 'Nigeria': 4, 'Panama': 4,
+    'Peru': 4, 'Rwanda': 4, 'Tanzania': 4, 'Tunisia': 4, 'Zambia': 4,
 }
 
-# 4지역: 아프리카/중남미/서인도제도/남태평양 — 위 3개 지역 및 20개 직접국가에 속하지 않는 그 외 국가는
-# 기본적으로 4지역(최대범위) 요금을 적용 (ems_zone_key 참고)
-EMS_REGION4 = {
-    # 아프리카
-    'Egypt', 'Kenya', 'Nigeria', 'South Africa', 'Ethiopia', 'Tanzania', 'Ghana', 'Morocco',
-    'Algeria', 'Tunisia', 'Uganda', 'Zambia', 'Zimbabwe', 'Senegal', 'Cameroon', 'Ivory Coast',
-    'Madagascar', 'Mozambique', 'Namibia', 'Rwanda', 'Sudan', 'Angola', 'Benin', 'Botswana',
-    'Burkina Faso', 'Burundi', 'Chad', 'Djibouti', 'Eritrea', 'Gabon', 'Gambia', 'Guinea',
-    'Lesotho', 'Liberia', 'Libya', 'Malawi', 'Mali', 'Mauritania', 'Mauritius', 'Niger',
-    'Sierra Leone', 'Togo', 'Eswatini', 'Somalia', 'Congo', 'Democratic Republic of the Congo',
-    # 중남미
-    'Mexico', 'Panama', 'Argentina', 'Uruguay', 'Peru', 'Chile', 'Colombia', 'Ecuador',
-    'Bolivia', 'Paraguay', 'Venezuela', 'Costa Rica', 'Guatemala', 'Honduras', 'El Salvador',
-    'Nicaragua',
-    # 서인도제도
-    'Cuba', 'Haiti', 'Dominican Republic', 'Jamaica', 'Trinidad and Tobago', 'Bahamas',
-    'Barbados',
-    # 남태평양
-    'Fiji', 'Kiribati', 'Solomon Islands', 'Samoa', 'Tonga', 'Vanuatu',
+# EMS(일반) 서비스 자체가 불가능한 국가 — 우체국 공식 페이지에서 EMS 컬럼이 "-"로 표기됨
+# (대부분 EMS프리미엄으로만 가능하거나 둘 다 불가). 앱의 국가 선택 목록(DHL_ZONE_MAP 기준) 중
+# 해당하는 전체 국가를 포함 — EMS는 이 목적지들에 대해 견적 자체를 내지 않음(ems_no_service).
+EMS_NO_SERVICE_COUNTRIES = {
+    'American Samoa', 'Andorra', 'Angola', 'Bahamas', 'Belize', 'Benin', 'Bolivia',
+    'Burkina Faso', 'Burundi', 'Cameroon', 'Colombia', 'El Salvador', 'Gabon', 'Ghana',
+    'Guatemala', 'Guinea', 'Haiti', 'Honduras', 'Iceland', 'Iraq', 'Italy', 'Jamaica',
+    'Kuwait', 'Lebanon', 'Liechtenstein', 'Madagascar', 'Malta', 'Martinique', 'Monaco',
+    'Montenegro', 'Namibia', 'Nicaragua', 'Niger', 'Papua New Guinea', 'Paraguay',
+    'Puerto Rico', 'Senegal', 'Serbia', 'South Africa', 'Sudan', 'Syria', 'Togo',
+    'Trinidad and Tobago', 'Uganda', 'Uruguay', 'Venezuela', 'Yemen', 'Zimbabwe',
 }
 
 
 def ems_zone_key(dest_country: str) -> str:
-    """EMS 요금표 컬럼 키 결정 — 20개 직접국가 또는 Region1~4.
-    목록에 없는 국가는 안전하게(과소청구 방지) 4지역(최대범위) 요금을 기본 적용."""
+    """EMS 요금표 컬럼 키 결정 — 20개 직접국가 또는 Region1~4(공식 데이터 기준).
+    EMS_NO_SERVICE_COUNTRIES에 해당하는 목적지는 run_calculation의 ems_no_service 플래그로
+    별도 처리되므로(카드 자체가 "서비스 불가"로 표시) 여기서는 호출되지 않는 것이 정상이지만,
+    안전장치로 혹시 모를 미분류 국가는 더 이상 4지역으로 임의 전가하지 않고 가장 보수적인
+    1지역(최소범위) 대신 명시적으로 4지역을 유지한다 — 신규 국가 추가 시 반드시 공식 페이지로
+    재확인 후 EMS_ZONE_MAP 또는 EMS_NO_SERVICE_COUNTRIES에 추가할 것."""
     if dest_country in EMS_COLS:
         return dest_country
-    if dest_country in EMS_REGION1:
-        return 'Region1'
-    if dest_country in EMS_REGION2:
-        return 'Region2'
-    if dest_country in EMS_REGION3:
-        return 'Region3'
-    if dest_country in EMS_REGION4:
-        return 'Region4'
+    zone_num = EMS_ZONE_MAP.get(dest_country)
+    if zone_num:
+        return f'Region{zone_num}'
     return 'Region4'
 
 
@@ -2707,7 +2702,8 @@ def run_calculation(
 
     ups_no_service   = dest_country in UPS_NO_SERVICE
     fedex_no_service = dest_country in FEDEX_NO_SERVICE
-    ems_no_service   = (mode == "수입")  # EMS는 수출만 진행, 수입은 서비스 없음
+    ems_no_service   = (mode == "수입") or (dest_country in EMS_NO_SERVICE_COUNTRIES)
+    # EMS는 수출만 진행(수입 불가) + 우체국 공식 페이지상 EMS(일반) 자체가 불가능한 국가 제외
     ups_zone_num     = UPS_ZONE_MAP.get(dest_country, 5)
     ups_zi           = ups_zone_num - 1
     ups_imp_zone_num = UPS_IMP_ZONE_MAP.get(dest_country, 5)
