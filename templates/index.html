@@ -3992,9 +3992,22 @@ function generatePdf() {
       <div style="font-size:12px;line-height:1.8;padding:8px;border:1px solid #dee2e6;">${notes.split('\n').join('<br>')}</div>
     </div>` : '';
 
+  // PDF 저장 파일명: (YYYY.MM.DD) 업체명 출발국가(2자리)-도착국가(2자리)
+  // 브라우저의 "PDF로 저장" 대화상자는 문서 <title>을 기본 파일명으로 제안하므로(확장자는
+  // 브라우저가 자동으로 붙임) 여기서는 .pdf를 붙이지 않는다.
+  const _pad2     = n => String(n).padStart(2, '0');
+  const _fnNow    = new Date();
+  const _fnDate   = `${_fnNow.getFullYear()}.${_pad2(_fnNow.getMonth()+1)}.${_pad2(_fnNow.getDate())}`;
+  const _fnIso    = (res.dest_iso || '').toUpperCase();
+  const _fnFrom   = isImp ? _fnIso : 'KR';
+  const _fnTo     = isImp ? 'KR' : _fnIso;
+  const _fnRoute  = (_fnFrom && _fnTo) ? `${_fnFrom}-${_fnTo}` : '';
+  const _fnCust   = (customer && customer !== '—' ? customer : '').replace(/[\\\/:*?"<>|]/g, '').trim();
+  const pdfFileName = `(${_fnDate})${_fnCust ? ' ' + _fnCust : ''}${_fnRoute ? ' ' + _fnRoute : ''}`.trim();
+
   const html = `<!DOCTYPE html><html lang="ko" style="--pdf-color:${isImp ? '#8B1A1A' : '#003366'};--pdf-light:${isImp ? '#fff5f5' : '#f8f9ff'};--pdf-text:${isImp ? '#ffffff' : '#ffffff'}"><head>
 <meta charset="UTF-8">
-<title>Airbridge Quotation ${quoteNum}</title>
+<title>${pdfFileName}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;900&display=swap" rel="stylesheet">
 <style>
@@ -4132,7 +4145,7 @@ ${notesBlock}
     const blob = new Blob([html], {type: 'text/html;charset=utf-8'});
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = blobUrl; a.target = '_blank'; a.rel = 'noopener'; a.download = `견적서_${quoteNum || 'quote'}.html`;
+    a.href = blobUrl; a.target = '_blank'; a.rel = 'noopener'; a.download = `${pdfFileName || ('견적서_' + (quoteNum || 'quote'))}.html`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
