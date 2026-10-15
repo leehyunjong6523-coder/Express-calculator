@@ -465,6 +465,13 @@ _COUNTRY_ISO = {
     "Hong Kong SAR China":"HK","Macau SAR China":"MO",
     "Syria":"SY","Iran, Islamic Rep. of":"IR","Iraq":"IQ",
     "Korea, Republic of":"KR",
+    "Albania":"AL","American Samoa":"AS","Andorra":"AD","Angola":"AO",
+    "Armenia":"AM","Azerbaijan":"AZ","Bahamas":"BS","Bahrain":"BH",
+    "Belgium":"BE","Belize":"BZ","Brunei":"BN","Burundi":"BI","Cuba":"CU",
+    "Georgia":"GE","Guinea":"GN","Haiti":"HT","Liechtenstein":"LI",
+    "Luxembourg":"LU","Martinique":"MQ","Moldova":"MD","Monaco":"MC",
+    "Papua New Guinea":"PG","Rwanda":"RW","Singapore":"SG","Sudan":"SD",
+    "Trinidad and Tobago":"TT","Uzbekistan":"UZ","Yemen":"YE",
 }
 
 import json as _json, os as _os, re as _re
@@ -2973,6 +2980,7 @@ def run_calculation(
     return {
         "dest_country":      dest_country,
         "dest_kr":           COUNTRY_KR.get(dest_country, dest_country),
+        "dest_iso":          _COUNTRY_ISO.get(dest_country, ""),
         "mode":              mode,
         "is_doc":            is_doc,
         "dhl_zone":          dhl_zone,
