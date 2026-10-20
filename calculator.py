@@ -117,7 +117,7 @@ _DHL_EDS_DEST_CHINA_HK = {"China (People's Republic)", "Hong Kong SAR China", "M
 
 _DHL_EDS_DEST_ASIA = {
     "Bangladesh","Japan","Nepal","Sri Lanka","Bhutan","Lao P.D.R.","Pakistan",
-    "Taiwan China","Brunei","Malaysia","Philippines","Thailand","Cambodia",
+    "Taiwan China","Taiwan, China","Brunei","Malaysia","Philippines","Thailand","Cambodia",
     "Maldives","Singapore","East Timor (Timor-Leste)","India","Indonesia",
     "Mongolia","South Korea","Vietnam","Myanmar",
 }
@@ -2784,18 +2784,24 @@ def run_calculation(
             if dims[0] > 121 or dims[1] > 76 or _fx_girth > 266 or _fx_vol > 169901:
                 _fx_vol_cond = True
         # 특대형 화물 취급 요금
-        elif (dims[0] > 243 or _fx_girth > 330 or w > 50 or _fx_vol > 283168):
+        # (FedEx 원문: 중량 조건은 '실제 중량' 기준 — 용적중량/청구중량이 아님)
+        elif (dims[0] > 243 or _fx_girth > 330 or ct["wt"] > 50 or _fx_vol > 283168):
             s_fx["특대형"] = 86000
             _fx_nonstd = True
             if dims[0] > 121 or dims[1] > 76 or _fx_girth > 266 or _fx_vol > 169901:
                 _fx_vol_cond = True
         else:
-            if w > 25:
-                s_fx["추가취급(중량)"] = 35600
+            # 추가취급(중량)·추가취급(용적)은 금액이 같고, 2종 이상 해당해도
+            # "할인 적용 후 가장 높은 금액 하나만" 부과(FedEx 원문) → 1건만 계상
+            _fx_ahs_w = ct["wt"] > 25
+            _fx_ahs_v = (dims[0] > 121 or dims[1] > 76 or _fx_girth > 266 or _fx_vol > 169901)
+            if _fx_ahs_w or _fx_ahs_v:
+                if _fx_ahs_w and _fx_ahs_v: _fx_ahs_name = "추가취급(용적·중량)"
+                elif _fx_ahs_w:             _fx_ahs_name = "추가취급(중량)"
+                else:                       _fx_ahs_name = "추가취급(용적)"
+                s_fx[_fx_ahs_name] = 35600
                 _fx_nonstd = True
-            if dims[0] > 121 or dims[1] > 76 or _fx_girth > 266 or _fx_vol > 169901:
-                s_fx["추가취급(용적)"] = 35600
-                _fx_nonstd = True
+            if _fx_ahs_v:
                 _fx_vol_cond = True
 
         # 비표준 화물 초과수요 추가요금 (2026-09-21~, 소포당 정액, 위 조건 하나라도 해당 시)
@@ -2809,13 +2815,14 @@ def run_calculation(
         total_chargeable_fedex += _fx_ct_w * ct.get("qty", 1)
 
         # UPS surs — 비규격품(AHC)/대형포장물(LPS-MBW)/최대허용한도초과(OML)
-        # 2026-09-27~2027-02-06: 한시 인상 요율, 그 외 기간: 평시 요율
+        # 기본 요율(21,400 / 69,200 / 307,900)은 항상 적용된다.
+        # 2026-09-27~2027-02-06 에는 UPS '수요증가 추가 요금(Demand Surcharge)'이
+        # 위 수수료에 해당하는 포장물마다 **추가로** 별도 부과된다 (기본 요율을 대체하지 않음).
+        #   비규격품 +2,580 / 대형포장물 +9,020 / 최대허용한도초과 +286,240 (포장물당, 유류할증료 대상)
+        _UPS_AHC_FEE, _UPS_LPS_FEE, _UPS_OML_FEE = 21400, 69200, 307900
         _ups_d = _dt.date.today()
         _ups_surge_period = (_dt.date(2026,9,27) <= _ups_d <= _dt.date(2027,2,6))
-        if _ups_surge_period:
-            _UPS_AHC_FEE, _UPS_LPS_FEE, _UPS_OML_FEE = 2580, 9020, 286240
-        else:
-            _UPS_AHC_FEE, _UPS_LPS_FEE, _UPS_OML_FEE = 21400, 69200, 307900
+        _UPS_AHC_DEM, _UPS_LPS_DEM, _UPS_OML_DEM = (2580, 9020, 286240) if _ups_surge_period else (0, 0, 0)
 
         s_ups = {}
         girth = (dims[1] + dims[2]) * 2          # 둘레: (폭×2)+(높이×2)
@@ -2824,14 +2831,17 @@ def run_calculation(
         # 최대허용한도초과(OML): 중량70kg / 길이274cm / 길이+둘레 400cm 초과 시 (최우선)
         if ct["wt"] > 70 or dims[0] > 274 or length_girth_sum > 400:
             s_ups["최대허용한도초과"] = _UPS_OML_FEE
+            if _UPS_OML_DEM: s_ups["수요증가 추가요금(최대허용한도초과)"] = _UPS_OML_DEM
             s_ups["__freight__"] = 1
         # 대형포장물(LPS-MBW): 길이+둘레 300~400cm (OML 미해당)
         elif length_girth_sum > 300:
             s_ups["대형포장물"] = _UPS_LPS_FEE
+            if _UPS_LPS_DEM: s_ups["수요증가 추가요금(대형포장물)"] = _UPS_LPS_DEM
             # 대형포장물 최소 청구중량 40kg (해당 박스만 적용, UPS 전용)
         # 비규격품(AHC): 최장변 122cm 또는 차장변 76cm 또는 실중량 25kg 초과 (대형포장물 미해당 시만)
         elif dims[0] > 122 or dims[1] > 76 or ct["wt"] > 25:
             s_ups["비규격품(OSP)"] = _UPS_AHC_FEE
+            if _UPS_AHC_DEM: s_ups["수요증가 추가요금(비규격품)"] = _UPS_AHC_DEM
 
         for k, v in s_ups.items(): sur_ups_ct[k] = sur_ups_ct.get(k, 0) + v * ct.get("qty", 1)
 
