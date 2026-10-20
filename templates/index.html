@@ -3136,6 +3136,7 @@ const UPS_SURGE_EXPORT_P2 = {
   US:          { rate: 2430, name: 'UPS 급증긴급수수료 (미국)' },
   Americas:    { rate: 2430, name: 'UPS 급증긴급수수료 (미주)' },
   AsiaPacific: { rate:  140, name: 'UPS 급증긴급수수료 (아시아태평양)' },
+  ChinaHK:     { rate:  140, name: 'UPS 급증긴급수수료 (아시아태평양)' },   // 중국·홍콩·마카오 = UPS 표상 Asia Pacific
   AuNz:        { rate:  140, name: 'UPS 급증긴급수수료 (호주·뉴질랜드)' },
   RestOfWorld: { rate: 2430, name: 'UPS 급증긴급수수료 (Rest of World)' }
 };
@@ -3186,7 +3187,7 @@ function _upsSurgePeriod(mode) {
 // P2(9/27~) 신규 지역구분용 국가 Set
 const UPS_SURGE_REGIONS_P2 = {
   AuNz: new Set(['Australia','New Zealand']),
-  ChinaHK: new Set(["China (People\u2019s Republic)",'Hong Kong SAR China','Macau SAR China']),
+  ChinaHK: new Set(["China (People's Republic)","China (People\u2019s Republic)",'Hong Kong SAR China','Macau SAR China']),
   ISMEA: new Set([
     'Afghanistan','Algeria','Angola','Azerbaijan','Bahrain','Bangladesh',
     'Benin','Botswana','Burkina Faso','Burundi','Cameroon','Cape Verde',
@@ -3195,7 +3196,7 @@ const UPS_SURGE_REGIONS_P2 = {
     'Kenya','Kuwait','Kyrgyzstan','Lebanon','Lesotho','Liberia',
     'Madagascar','Malawi','Maldives','Mali','Mauritania','Mauritius',
     'Mayotte','Morocco','Mozambique','Namibia','Nepal','Niger','Nigeria',
-    'Oman','Congo (Republic)','Ivory Coast','Tunisia','Reunion Island',
+    'Oman','Pakistan','Qatar','Congo (Republic)','Ivory Coast','Tunisia','Reunion Island',
     'Rwanda','Saudi Arabia','Sri Lanka','Senegal','Seychelles',
     'Sierra Leone','South Africa','Swaziland','Tanzania',
     'Congo (Democratic Republic)','Togo','Turkmenistan','United Arab Emirates',
@@ -3211,7 +3212,7 @@ const UPS_SURGE_REGIONS_P2 = {
     'Montenegro','Netherlands','North Macedonia','Norway',
     'Poland','Portugal','Romania','Russia','San Marino',
     'Serbia','Slovakia','Slovenia','Spain','Sweden',
-    'Switzerland','Turkey','Ukraine','United Kingdom'
+    'Switzerland','Turkey','Turkiye','Ukraine','United Kingdom'
   ]),
   US: new Set(['United States of America','United States']),
   Americas: new Set([
@@ -3229,13 +3230,34 @@ const UPS_SURGE_REGIONS_P2 = {
     'American Samoa','Brunei','Cambodia','Guam','India','Indonesia',
     'Japan','Lao P.D.R.','Malaysia','Mongolia','Myanmar',
     'New Caledonia','Northern Mariana Islands','Philippines',
-    'Singapore','Samoa','Taiwan China','Thailand','Vietnam'
+    'Singapore','Samoa','Taiwan China','Taiwan, China','Thailand','Vietnam'
   ]),
   RestOfWorld: new Set([
     'Central African Republic','Cook Islands','Micronesia',
     'Faeroe Islands','Greenland'
   ])
 };
+
+// 수입 P3(2026-09-27~): 출발지 기준 지역. Rest of ISMEA·Europe·이스라엘 등은 한국행 N.A.(미적용)
+const UPS_SURGE_REGIONS_IMP_P3 = {
+  UAE: new Set(['United Arab Emirates']),
+  MiddleEast: new Set(['Bahrain','Bangladesh','Jordan','Kuwait','Lebanon','Nepal','Oman','Pakistan','Qatar','Saudi Arabia','Sri Lanka']),
+  US: UPS_SURGE_REGIONS_P2.US,
+  Americas: UPS_SURGE_REGIONS_P2.Americas,
+  ChinaHK: UPS_SURGE_REGIONS_P2.ChinaHK,
+  AsiaPacific: new Set([
+    'American Samoa','Australia','Brunei','Cambodia','Guam','India','Indonesia','Japan',
+    'Lao P.D.R.','Malaysia','Mongolia','Myanmar','New Caledonia','New Zealand',
+    'Northern Mariana Islands','Philippines','Samoa','Singapore','Taiwan China','Taiwan, China',
+    'Thailand','Vietnam'
+  ])
+};
+function _getSurgeRegionImpP3(dest) {
+  for (var region in UPS_SURGE_REGIONS_IMP_P3) {
+    if (UPS_SURGE_REGIONS_IMP_P3[region].has(dest)) return region;
+  }
+  return null;
+}
 
 function _getSurgeRegionP2(dest) {
   for (var region in UPS_SURGE_REGIONS_P2) {
@@ -3271,12 +3293,13 @@ function applyUpsSurgeFee(res) {
     var region4 = _getSurgeRegion(dest);
     if (region4) entry = UPS_SURGE_IMPORT_P2[region4];
   } else if (period === 'IMPORT_P3') {
-    var region5 = _getSurgeRegionP2(dest);
+    var region5 = _getSurgeRegionImpP3(dest);
     if (region5) entry = UPS_SURGE_IMPORT_P3[region5];
   }
   if (!entry) return; // N.A.
 
-  var chg = res._rounded_chargeable || res.total_chargeable || 0;
+  // renderResults에서 _rounded_chargeable가 세팅되기 전에 호출될 수 있으므로 여기서 직접 반올림
+  var chg = res._rounded_chargeable || roundChargeable(res.total_chargeable || 0);
   var surgeBase = Math.round(entry.rate * chg);
 
   ['ups','ups2f'].forEach(function(key) {
@@ -3289,6 +3312,8 @@ function applyUpsSurgeFee(res) {
     c.surs.push({ name: entry.name, amount: surgeBase });  // 급증수수료: 기본금액만
     // 유류할증료 항목에 급증수수료의 유류할증분 합산
     c.sur_fuel_pub  = (c.sur_fuel_pub || 0) + surgeFuel;
+    c.sur_fuel      = (c.sur_fuel     || 0) + surgeFuel;   // 원가 상세의 유류할증료 행에도 반영 (total_cost와 행 합계 일치)
+    c.sur_total     = (c.sur_total    || 0) + surgeBase;   // 급증 항목 개별 삭제(✕) 시 유류분 환산이 맞도록
     c.pub_fuel      = (c.pub_fuel     || 0);  // pub_fuel은 그대로
     // total에는 기본 + 유류 모두 반영
     c.total_quote = (c.total_quote || 0) + surgeBase + surgeFuel;
