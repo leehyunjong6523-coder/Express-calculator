@@ -206,6 +206,18 @@ _DHL_EDS_TABLE = {
     "row":        {"china_hk":1500,"asia":1500,"oceania":1500,"europe":1500, "americas":1500, "mea":1500, "row":1500},
 }
 
+def get_dhl_demand_rate(dest_country: str, mode: str = "수출", calc_date=None) -> int:
+    """DHL 초과 수요 추가요금 kg당 단가(KRW). 적용기간 밖이거나 해당 없으면 0"""
+    d = calc_date or _dt.date.today()
+    if not (_DHL_EDS_START <= d <= _DHL_EDS_END):
+        return 0
+    if mode == "수입":
+        origin, dest = _dhl_eds_origin_region(dest_country), "asia"
+    else:
+        origin, dest = "other_asia", _dhl_eds_dest_region(dest_country)
+    return _DHL_EDS_TABLE.get(origin, {}).get(dest, 0)
+
+
 def get_dhl_demand_surcharge(dest_country: str, chargeable_wt: float, mode: str = "수출", calc_date=None) -> int:
     """DHL 초과 수요 추가요금 (2026-10-01~2027-02-05 한시적, kg당 KRW)
     한국은 출발지 기준 '이외 아시아 지역', 목적지 기준 '아시아'에 속함(오세아니아는 별도).
@@ -226,6 +238,19 @@ def get_dhl_demand_surcharge(dest_country: str, chargeable_wt: float, mode: str 
     if rate <= 0:
         return 0
     return math.ceil(rate * chargeable_wt)
+
+
+def get_fedex_eds_rate(fx_zone: str, dest_country: str = "", mode: str = "수출", service: str = "IP") -> int:
+    """FedEx 초과수요 추가요금 kg당 단가(KRW). 해당 없으면 0"""
+    if not _FEDEX_EDS_ENABLED:
+        return 0
+    region = _FEDEX_EDS_REGION.get(dest_country) or _FEDEX_EDS_ZONE_FALLBACK.get(fx_zone)
+    if region is None:
+        return 0
+    r_ip, r_ec, r_imp = _FEDEX_EDS_RATES[region]
+    if mode == "수입":
+        return r_imp
+    return r_ip if service == "IP" else r_ec
 
 
 def get_fedex_eds(fx_zone: str, chargeable_wt: float, dest_country: str = "", mode: str = "수출", service: str = "IP") -> int:
@@ -3037,6 +3062,32 @@ def run_calculation(
             sur_ups_ct["외곽지역 픽업(EAS)"] = _ups_eas_sur["pickup"]
             total_sur_ups += _ups_eas_sur["pickup"]
 
+    # ── kg당으로 계산되는 추가비용: 화면/이메일/PDF에 (금액/kg) 로 표기하기 위한 단가 정보 ──
+    #    값 = (kg당 단가, 최소요금이 적용되어 정액이 된 경우 True)
+    _meta_dhl = {}
+    if "외곽지역(RAS)" in sur_dhl_ct:
+        _meta_dhl["외곽지역(RAS)"] = (DHL_REMOTE_SUR_KG, ceil10(DHL_REMOTE_SUR_KG * _total_w) < DHL_REMOTE_SUR_MIN)
+    _dhl_dem_rate = get_dhl_demand_rate(dest_country, mode=mode)
+    if "초과수요" in sur_dhl_ct and _dhl_dem_rate > 0:
+        _meta_dhl["초과수요"] = (_dhl_dem_rate, False)
+
+    _meta_fx_ip, _meta_fx_ec = {}, {}
+    for _meta, _svc, _dct in ((_meta_fx_ip, "IP", sur_fedex_ct_ip), (_meta_fx_ec, "Economy", sur_fedex_ct_ec)):
+        _r = get_fedex_eds_rate(fx_zone, dest_country, mode, _svc)
+        if "초과수요(EDS)" in _dct and _r > 0:
+            _meta["초과수요(EDS)"] = (_r, math.ceil(_r * _fx_total_w) < _FEDEX_EDS_MIN)
+        for _nm, _k in (("서비스외지역 픽업(OPA)", "opa"), ("서비스외지역 배송(ODA)", "oda")):
+            if _nm in _dct and _fx_tier.get(_k) is not None:
+                _kg  = (_FEDEX_OPA_KG  if _k == "opa" else _FEDEX_ODA_KG ).get(_fx_tier[_k], 0)
+                _fix = (_FEDEX_OPA_FIX if _k == "opa" else _FEDEX_ODA_FIX).get(_fx_tier[_k], 0)
+                if _kg > 0:
+                    _meta[_nm] = (_kg, ceil10(_kg * _fx_total_w) < _fix)
+
+    _meta_ups = {}
+    for _nm in ("외곽지역 배송(EAS)", "외곽지역 픽업(EAS)"):
+        if _nm in sur_ups_ct:
+            _meta_ups[_nm] = (UPS_EAS_KG, ceil10(UPS_EAS_KG * _total_w) < UPS_EAS_FIX)
+
     # ── DHL ──
     if mode == "수출":
         total_pub_dhl, total_net_dhl, dhl_rpk = dhl_lookup(_total_w, dhl_zi, is_doc)
@@ -3101,8 +3152,21 @@ def run_calculation(
     res_ocs     = calc_carrier("OCS",           total_pub_ocs,      total_net_ocs,      0,               fuel_ocs,   disc_ocs,   cost_fuel=25.0)  # 원가측 유류할증 25% 고정
 
     # ── 부가서비스 목록 (표시용) ──
-    def _sur_list(d):
-        return [{"name": k, "amount": v} for k, v in d.items() if k != "__freight__"]
+    def _sur_list(d, meta=None):
+        """추가비용 목록. meta = {항목명: (kg당 단가, 최소요금 적용 여부)} → kg당으로 계산되는 항목에 per_kg 표기용 정보 부여"""
+        meta = meta or {}
+        out = []
+        for k, v in d.items():
+            if k == "__freight__":
+                continue
+            e = {"name": k, "amount": v}
+            m = meta.get(k)
+            if m and m[0] > 0:
+                e["per_kg"] = m[0]
+                if m[1]:
+                    e["min_applied"] = True
+            out.append(e)
+        return out
 
     return {
         "dest_country":      dest_country,
@@ -3133,10 +3197,10 @@ def run_calculation(
         "wt_ups":            _wt_ups,
         "carriers": {
             # disc_rpk = 실제 청구 항공운임 ÷ 청구중량 → 10원 단위 올림
-            "dhl":     {**res_dhl,     "surs": _sur_list(sur_dhl_ct),   "fuel_pct": fuel_dhl,   "disc_pct": disc_dhl,    "surcharge_5pct": _dhl_5pct, "rpk": dhl_rpk,   "disc_rpk": ceil10(res_dhl.get("pub_disc",0)   / _wt_dhl)   if dhl_rpk   and _wt_dhl   else None, "chargeable_wt": _wt_dhl},
-            "fedex":   {**res_fedex,   "surs": _sur_list(sur_fedex_ct_ip), "fuel_pct": fuel_fedex, "disc_pct": disc_fedex,  "rpk": fx_rpk,    "disc_rpk": ceil10(res_fedex.get("pub_disc",0)  / _wt_fedex) if fx_rpk    and _wt_fedex else None, "chargeable_wt": _wt_fedex, "is_freight": _fx_is_freight_ip},
-            "fedex_e": {**res_fedex_e, "surs": _sur_list(sur_fedex_ct_ec), "fuel_pct": fuel_fedex, "disc_pct": disc_fedex_e,"rpk": fx_ec_rpk, "disc_rpk": ceil10(res_fedex_e.get("pub_disc",0)/ _wt_fedex) if fx_ec_rpk and _wt_fedex else None, "chargeable_wt": _wt_fedex, "is_freight": _fx_is_freight_ec},
-            "ups2f":   {**res_ups2f,   "surs": _sur_list(sur_ups_ct),   "fuel_pct": fuel_ups,   "disc_pct": disc_ups,    "rpk": ups_rpk,   "disc_rpk": ceil10(res_ups2f.get("pub_disc",0)  / _wt_ups)   if ups_rpk   and _wt_ups   else None, "chargeable_wt": _wt_ups},
+            "dhl":     {**res_dhl,     "surs": _sur_list(sur_dhl_ct, _meta_dhl),   "fuel_pct": fuel_dhl,   "disc_pct": disc_dhl,    "surcharge_5pct": _dhl_5pct, "rpk": dhl_rpk,   "disc_rpk": ceil10(res_dhl.get("pub_disc",0)   / _wt_dhl)   if dhl_rpk   and _wt_dhl   else None, "chargeable_wt": _wt_dhl},
+            "fedex":   {**res_fedex,   "surs": _sur_list(sur_fedex_ct_ip, _meta_fx_ip), "fuel_pct": fuel_fedex, "disc_pct": disc_fedex,  "rpk": fx_rpk,    "disc_rpk": ceil10(res_fedex.get("pub_disc",0)  / _wt_fedex) if fx_rpk    and _wt_fedex else None, "chargeable_wt": _wt_fedex, "is_freight": _fx_is_freight_ip},
+            "fedex_e": {**res_fedex_e, "surs": _sur_list(sur_fedex_ct_ec, _meta_fx_ec), "fuel_pct": fuel_fedex, "disc_pct": disc_fedex_e,"rpk": fx_ec_rpk, "disc_rpk": ceil10(res_fedex_e.get("pub_disc",0)/ _wt_fedex) if fx_ec_rpk and _wt_fedex else None, "chargeable_wt": _wt_fedex, "is_freight": _fx_is_freight_ec},
+            "ups2f":   {**res_ups2f,   "surs": _sur_list(sur_ups_ct, _meta_ups),   "fuel_pct": fuel_ups,   "disc_pct": disc_ups,    "rpk": ups_rpk,   "disc_rpk": ceil10(res_ups2f.get("pub_disc",0)  / _wt_ups)   if ups_rpk   and _wt_ups   else None, "chargeable_wt": _wt_ups},
             "ocs":     {**res_ocs,     "surs": [],                      "fuel_pct": fuel_ocs,   "disc_pct": disc_ocs,    "rpk": ocs_rpk,   "disc_rpk": ceil10(res_ocs.get("pub_disc",0)    / _total_w)  if ocs_rpk   and _total_w  else None, "chargeable_wt": _total_w},
             # EMS: 우체국 공시요금에서 고객할인율(disc_ems) 적용한 금액이 견적가, 원가는 공시요금표에서 20% 할인(고정) — 박스별(boxes) 개별 명세 포함
             "ems": {
