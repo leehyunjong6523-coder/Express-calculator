@@ -3572,6 +3572,10 @@ function renderResults(res) {
       const upsIntlRow  = upsIntlFeeRaw > 0 && !removedSet.has('upsIntl')
         ? `<div class="bd-row sub-item"><span>  국제 처리 수수료</span><span class="bd-val">${fmtWon(upsIntlFeeRaw)}<button class="sur-del-btn" onclick="event.stopPropagation();removeAutoItem('${key}','upsIntl')" title="이 항목 제외">✕</button></span></div>`
         : '';
+      // UPS 지역 추가요금 중 EAS 가 아닌 유형(원거리 RAS·배송지역 DAS 등) 해당 시 — 요율표 미반영이므로 금액 별도 확인 안내
+      const upsAreaNoteRow = (isUpsCard && res.ups_area_other_label)
+        ? `<div class="bd-row sub-item" style="color:#fbbf24;font-size:.66rem;"><span>⚠️ UPS ${res.ups_area_other_label} 추가요금 대상 — 금액 별도 확인 (미반영)</span></div>`
+        : '';
       const surRemoval = _surRemoval(key, c);
       const hasRemovedAuto = removedSet.size > 0;
       const effFuelCost  = Math.max(0, (c.net_fuel||0) + (c.sur_fuel||0)     - surRemoval.fuelDelta);
@@ -3655,6 +3659,7 @@ function renderResults(res) {
           <div class="bd-row sub-item"><span>유류할증료</span><span class="bd-val">${fmtWon(effFuelQuote)}</span></div>`}
           ${usClearRow}
           ${upsIntlRow}
+          ${upsAreaNoteRow}
           ${(state.extraCosts[key]||[]).filter(e=>e.name&&e.amt>0).map(e=>`<div class="bd-row sub-item" style="color:#4ade80;"><span>${e.name}</span><span class="bd-val">${fmtWon(e.amt)}</span></div>`).join('')}
           <div class="bd-row total-row"><span>▶ 견적가 (고객)</span><span class="bd-val" style="color:var(--acc-bright);font-size:.88rem;">${fmtWon(adjQuoteBase)}</span></div>
         </div>
