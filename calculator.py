@@ -35,72 +35,85 @@ DHL_ZONE_MAP = {
     "Yemen":8,"Zambia":8,"Zimbabwe":8,
 }
 # ────────────────────────────────────────────────────────────
-# FedEx 초과수요 추가요금 (2026-09-21~, kg당 원화)
+# FedEx 초과수요 추가요금 (EDS) — 2026-10-19 시행분 (대한민국 발송 기준, 원화)
+#   · 전 지역 kg당 요금 × 청구중량 (1원 올림), 발송물당 최소 360원
+#   · 미국/캐나다/멕시코/LAC 수출은 Priority(IP)=2,310 / Economy=1,730 (kg당, 정액 아님)
+#   · 수입은 ImportOne 열 기준
+# 지역별 (수출 Priority, 수출 Economy, 수입) kg당 단가
 # ────────────────────────────────────────────────────────────
-# 수출 (한국→도착지) Zone별 기본 단가
-_FEDEX_EDS_EXPORT_ZONE = {
-    "A": 260,   # 아시아 (싱가포르, 홍콩, 대만, 중국, 마카오 등)
-    "B": 260,   # 아시아 (일본, 괌 등 — 개별 국가에서 재확인)
-    "C": 260,   # 아시아 (인도네시아, 말레이시아, 필리핀, 태국 — 베트남 별도)
-    "D": 260,   # 아시아 기타 (인도 별도)
-    "G": 1870,  # 유럽 (2026-09-21: 1600→1870)
-    "H": 1870,  # 유럽 + 이스라엘 (2026-09-21: 1600→1870)
-    "I": 0,     # 라틴 아메리카(LAC) — Priority/Economy 별도 처리로 이관
-    "J": 2250,  # MEISA 그룹1 (기본)
+_FEDEX_EDS_RATES = {
+    "ASIA1":     (260,  260,  260),    # 아시아 1 (중국·홍콩·마카오·대만·싱가포르·태국·말레이시아·필리핀 등)
+    "AUS_NZ_FJ": (720,  720,  260),    # 호주, 피지, 뉴질랜드
+    "GUAM_JP":   (260,  260,  0),      # 괌, 일본
+    "VIETNAM":   (0,    0,    0),      # 베트남
+    "USA_PR":    (2310, 1730, 0),      # 미국, 푸에르토리코
+    "CANADA":    (2310, 1730, 0),      # 캐나다
+    "MEXICO":    (2310, 1730, 0),      # 멕시코
+    "LAC":       (2310, 1730, 0),      # 라틴 아메리카 및 카리브해
+    "ISRAEL":    (1870, 1870, 150),    # 이스라엘
+    "EUROPE":    (1870, 1870, 150),    # 유럽 (러시아·튀르키예·코카서스 포함)
+    "INDIA":     (230,  230,  790),    # 인도
+    "MEISA1":    (2250, 2250, 1600),   # 중동/인도 아대륙/아프리카 그룹 1
+    "MEISA2":    (3600, 3600, 1600),   # 중동/인도 아대륙/아프리카 그룹 2
 }
-# 수출 국가별 예외 단가 (Zone 기본값 override, 정액)
-_FEDEX_EDS_EXPORT_COUNTRY = {
-    "Vietnam": 0,                         # 베트남: 0원
-    "India": 160,                         # 인도: 0→160원 (2026-09-21)
-    "Australia": 720,                     # 호주: 430→720원 (2026-09-21)
-    "New Zealand": 720,                   # 뉴질랜드: 430→720원
-    "Fiji": 720,                          # 피지: 신규 720원
-    # MEISA 그룹2 → 3600원
-    "Algeria":3600,"Angola":3600,"Benin":3600,"Botswana":3600,
-    "Burkina Faso":3600,"Burundi":3600,"Cameroon":3600,"Cape Verde":3600,
-    "Chad":3600,"Congo":3600,"Ivory Coast":3600,"Djibouti":3600,
-    "Eritrea":3600,"Ethiopia":3600,"Gabon":3600,"Gambia":3600,
-    "Ghana":3600,"Guinea":3600,"Iraq":3600,"Kazakhstan":3600,
-    "Kenya":3600,"Lebanon":3600,"Lesotho":3600,"Liberia":3600,
-    "Libya":3600,"Madagascar":3600,"Malawi":3600,"Mali":3600,
-    "Mauritania":3600,"Mauritius":3600,"Morocco":3600,"Mozambique":3600,
-    "Namibia":3600,"Niger":3600,"Nigeria":3600,"Pakistan":3600,
-    "Qatar":3600,"Rwanda":3600,"Senegal":3600,"Seychelles":3600,
-    "South Africa":3600,"Swaziland":3600,"Tanzania":3600,"Togo":3600,
-    "Tunisia":3600,"Uganda":3600,"Zambia":3600,"Zimbabwe":3600,
+_FEDEX_EDS_MIN = 360   # 발송물당 최소 요금 (요율이 0인 지역은 부과하지 않음)
+# 국가 → 지역 (원문 지역/국가 목록과 1:1 대조, 원문에 없는 국가는 아래 Zone 기준 대체값 사용)
+_FEDEX_EDS_REGION = {
+    # ASIA1 (15)
+    "American Samoa":"ASIA1", "Brunei":"ASIA1", "Cambodia":"ASIA1", "China (People's Republic)":"ASIA1",
+    "Hong Kong SAR China":"ASIA1", "Indonesia":"ASIA1", "Lao P.D.R.":"ASIA1", "Macau SAR China":"ASIA1",
+    "Malaysia":"ASIA1", "Mongolia":"ASIA1", "Papua New Guinea":"ASIA1", "Philippines":"ASIA1",
+    "Singapore":"ASIA1", "Taiwan, China":"ASIA1", "Thailand":"ASIA1",
+    # AUS_NZ_FJ (3)
+    "Australia":"AUS_NZ_FJ", "Fiji":"AUS_NZ_FJ", "New Zealand":"AUS_NZ_FJ",
+    # GUAM_JP (2)
+    "Guam":"GUAM_JP", "Japan":"GUAM_JP",
+    # VIETNAM (1)
+    "Vietnam":"VIETNAM",
+    # USA_PR (2)
+    "Puerto Rico":"USA_PR", "United States of America":"USA_PR",
+    # CANADA (1)
+    "Canada":"CANADA",
+    # MEXICO (1)
+    "Mexico":"MEXICO",
+    # LAC (23)
+    "Argentina":"LAC", "Bahamas":"LAC", "Belize":"LAC", "Bolivia":"LAC", "Brazil":"LAC", "Chile":"LAC",
+    "Colombia":"LAC", "Costa Rica":"LAC", "Dominican Republic":"LAC", "Ecuador":"LAC", "El Salvador":"LAC",
+    "Guatemala":"LAC", "Haiti":"LAC", "Honduras":"LAC", "Jamaica":"LAC", "Martinique":"LAC",
+    "Nicaragua":"LAC", "Panama":"LAC", "Paraguay":"LAC", "Peru":"LAC", "Trinidad and Tobago":"LAC",
+    "Uruguay":"LAC", "Venezuela":"LAC",
+    # ISRAEL (1)
+    "Israel":"ISRAEL",
+    # EUROPE (45)
+    "Albania":"EUROPE", "Andorra":"EUROPE", "Armenia":"EUROPE", "Austria":"EUROPE", "Azerbaijan":"EUROPE",
+    "Belarus":"EUROPE", "Belgium":"EUROPE", "Bulgaria":"EUROPE", "Croatia":"EUROPE", "Cyprus":"EUROPE",
+    "Czech Republic":"EUROPE", "Denmark":"EUROPE", "Estonia":"EUROPE", "Finland":"EUROPE", "France":"EUROPE",
+    "Georgia":"EUROPE", "Germany":"EUROPE", "Greece":"EUROPE", "Hungary":"EUROPE", "Iceland":"EUROPE",
+    "Ireland":"EUROPE", "Italy":"EUROPE", "Latvia":"EUROPE", "Liechtenstein":"EUROPE", "Lithuania":"EUROPE",
+    "Luxembourg":"EUROPE", "Malta":"EUROPE", "Moldova":"EUROPE", "Monaco":"EUROPE", "Montenegro":"EUROPE",
+    "Netherlands":"EUROPE", "Norway":"EUROPE", "Poland":"EUROPE", "Portugal":"EUROPE", "Romania":"EUROPE",
+    "Russia":"EUROPE", "Serbia":"EUROPE", "Slovakia":"EUROPE", "Slovenia":"EUROPE", "Spain":"EUROPE",
+    "Sweden":"EUROPE", "Switzerland":"EUROPE", "Turkiye":"EUROPE", "Ukraine":"EUROPE",
+    "United Kingdom":"EUROPE",
+    # INDIA (1)
+    "India":"INDIA",
+    # MEISA1 (13)
+    "Bahrain":"MEISA1", "Bangladesh":"MEISA1", "Bhutan":"MEISA1", "Egypt":"MEISA1", "Jordan":"MEISA1",
+    "Kuwait":"MEISA1", "Maldives":"MEISA1", "Nepal":"MEISA1", "Oman":"MEISA1", "Saudi Arabia":"MEISA1",
+    "Sri Lanka":"MEISA1", "United Arab Emirates":"MEISA1", "Uzbekistan":"MEISA1",
+    # MEISA2 (32)
+    "Algeria":"MEISA2", "Angola":"MEISA2", "Benin":"MEISA2", "Burkina Faso":"MEISA2", "Burundi":"MEISA2",
+    "Cameroon":"MEISA2", "Ethiopia":"MEISA2", "Gabon":"MEISA2", "Ghana":"MEISA2", "Guinea":"MEISA2",
+    "Iraq":"MEISA2", "Kazakhstan":"MEISA2", "Kenya":"MEISA2", "Lebanon":"MEISA2", "Madagascar":"MEISA2",
+    "Mauritius":"MEISA2", "Morocco":"MEISA2", "Mozambique":"MEISA2", "Namibia":"MEISA2", "Niger":"MEISA2",
+    "Nigeria":"MEISA2", "Pakistan":"MEISA2", "Qatar":"MEISA2", "Rwanda":"MEISA2", "Senegal":"MEISA2",
+    "South Africa":"MEISA2", "Tanzania":"MEISA2", "Togo":"MEISA2", "Tunisia":"MEISA2", "Uganda":"MEISA2",
+    "Zambia":"MEISA2", "Zimbabwe":"MEISA2",
 }
-# 수출 — 서비스별(Priority/Economy) 정액 적용 국가 (미국/캐나다/멕시코/LAC)
-# 정액: 청구중량 곱하지 않음 (건당 고정 부가금)
-_FEDEX_EDS_EXPORT_FLAT_PRIORITY = 2310   # kg당 아님 — 발송물당 정액
-_FEDEX_EDS_EXPORT_FLAT_ECONOMY  = 1730
-_FEDEX_EDS_EXPORT_FLAT_COUNTRIES = {
-    "United States of America", "Canada", "Mexico", "Puerto Rico",
-    # LAC (라틴 아메리카 및 카리브해)
-    "Anguilla","Antigua and Barbuda","Argentina","Aruba","Bahamas",
-    "Barbados","Belize","Bermuda","Bolivia","Brazil",
-    "British Virgin Islands","Cayman Islands","Chile","Colombia",
-    "Costa Rica","Curacao","Dominica","Dominican Republic","Ecuador",
-    "El Salvador","French Guiana","Grenada","Guadeloupe","Guatemala",
-    "Guyana","Haiti","Honduras","Jamaica","Martinique","Montserrat",
-    "Nicaragua","Panama","Paraguay","Peru","Saint Lucia",
-    "Saint Vincent and the Grenadines","Suriname",
-    "Trinidad and Tobago","Turks and Caicos Islands",
-    "U.S. Virgin Islands","Uruguay","Venezuela",
-}
-# 수입 (출발지→한국) 국가별 단가
-_FEDEX_EDS_IMPORT_ZONE = {
-    "A": 260,   # 아시아
-    "D": 260,   # 아시아 기타
-    "G": 150,   # 유럽
-    "H": 150,   # 유럽 + 이스라엘
-    "J": 1600,  # MEISA (그룹1+2 동일)
-}
-_FEDEX_EDS_IMPORT_COUNTRY = {
-    "Australia": 260, "New Zealand": 260, "Fiji": 260,
-    "India": 790,   # 0→790원 (2026-09-21)
-    "Vietnam": 0,
-    "United States of America": 0, "Canada": 0, "Mexico": 0,
-    "Japan": 0, "Guam": 0,
+# 원문 목록에 없는 국가(예: 시리아, 예멘)는 FedEx Zone 기준으로 가장 가까운 지역 적용
+_FEDEX_EDS_ZONE_FALLBACK = {
+    "A": "ASIA1", "B": "ASIA1", "C": "ASIA1", "D": "ASIA1",
+    "G": "EUROPE", "H": "EUROPE", "I": "LAC", "J": "MEISA1",
 }
 _FEDEX_EDS_ENABLED = True   # False 로 바꾸면 전체 비활성화
 
@@ -216,28 +229,25 @@ def get_dhl_demand_surcharge(dest_country: str, chargeable_wt: float, mode: str 
 
 
 def get_fedex_eds(fx_zone: str, chargeable_wt: float, dest_country: str = "", mode: str = "수출", service: str = "IP") -> int:
-    """FedEx 초과수요 추가요금
-    - 일반: kg당 요금 × 청구중량 (1원 올림)
-    - 미국/캐나다/멕시코/LAC 수출: 서비스별(Priority=IP/Economy) 발송물당 정액
+    """FedEx 초과수요 추가요금 (2026-10-19 시행)
+    - 전 지역 kg당 요금 × 청구중량 (1원 올림), 발송물당 최소 360원
+    - 수출: 미국/캐나다/멕시코/LAC 는 Priority(IP)=2,310 / Economy=1,730, 그 외는 서비스 무관 동일
+    - 수입: ImportOne 열 기준 (미국·캐나다·멕시코·LAC·일본·괌·베트남 0원)
+    - 요율 0원인 지역은 최소요금도 부과하지 않음
     """
     if not _FEDEX_EDS_ENABLED:
         return 0
-
-    if mode != "수입" and dest_country in _FEDEX_EDS_EXPORT_FLAT_COUNTRIES:
-        # Priority(=IP) / Economy 정액 (kg 곱하지 않음)
-        return _FEDEX_EDS_EXPORT_FLAT_PRIORITY if service == "IP" else _FEDEX_EDS_EXPORT_FLAT_ECONOMY
-
-    if mode == "수입":
-        rate = _FEDEX_EDS_IMPORT_COUNTRY.get(dest_country, None)
-        if rate is None:
-            rate = _FEDEX_EDS_IMPORT_ZONE.get(fx_zone, 0)
-    else:
-        rate = _FEDEX_EDS_EXPORT_COUNTRY.get(dest_country, None)
-        if rate is None:
-            rate = _FEDEX_EDS_EXPORT_ZONE.get(fx_zone, 0)
-    if rate == 0:
+    region = _FEDEX_EDS_REGION.get(dest_country) or _FEDEX_EDS_ZONE_FALLBACK.get(fx_zone)
+    if region is None:
         return 0
-    return math.ceil(rate * chargeable_wt)
+    r_ip, r_ec, r_imp = _FEDEX_EDS_RATES[region]
+    if mode == "수입":
+        rate = r_imp
+    else:
+        rate = r_ip if service == "IP" else r_ec
+    if rate <= 0:
+        return 0
+    return max(_FEDEX_EDS_MIN, math.ceil(rate * chargeable_wt))
 DHL_PUB_DOC={  # 서류 2kg 이하
     0.5:[59000,62200,63100,73300,75700,81900,92000,108100],
     1.0:[88200,88600,93900,106400,108200,132500,145900,171400],
@@ -686,35 +696,37 @@ FEDEX_ZONE_MAP_EN = {
     # Zone C
     "Indonesia":"C","Malaysia":"C","Philippines":"C","Thailand":"C","Vietnam":"C",
     # Zone D
-    "Brunei":"D","Cambodia":"D","Guam":"D","India":"D","Lao P.D.R.":"D","Mongolia":"D","Myanmar":"D",
+    "Brunei":"D","Cambodia":"D","Guam":"D","India":"D","Lao P.D.R.":"D","Mongolia":"D",
     # Zone E (US West Coast)  — 현재 앱은 US 단일 취급
     # Zone F
     "Australia":"F","Canada":"F","Mexico":"F","New Zealand":"F","Puerto Rico":"F",
     "United States of America":"F",
     # Zone G (서유럽)
-    "Andorra":"G","Austria":"G","Belgium":"G","Bulgaria":"G","Canary Islands":"G",
-    "Czech Republic":"G","Denmark":"G","Estonia":"G","Faroe Islands":"G","Finland":"G",
+    "Austria":"G","Belgium":"G","Canary Islands":"G",
+    "Czech Republic":"G","Denmark":"G","Faroe Islands":"G","Finland":"G",
     "France":"G","Germany":"G","Greece":"G","Greenland":"G","Hungary":"G","Ireland":"G",
-    "Italy":"G","Latvia":"G","Liechtenstein":"G","Lithuania":"G","Luxembourg":"G",
-    "Malta":"G","Monaco":"G","Netherlands":"G","Norway":"G","Poland":"G","Portugal":"G",
-    "Romania":"G","San Marino":"G","Slovakia":"G","Spain":"G","Sweden":"G","Switzerland":"G",
+    "Italy":"G","Liechtenstein":"G","Luxembourg":"G",
+    "Monaco":"G","Netherlands":"G","Norway":"G","Poland":"G","Portugal":"G",
+    "San Marino":"G","Slovakia":"G","Spain":"G","Sweden":"G","Switzerland":"G",
     "United Kingdom":"G","Vatican City":"G",
     # Zone H (동유럽/중앙아시아/기타 유럽)
     "Albania":"H","Armenia":"H","Azerbaijan":"H","Belarus":"H","Bosnia and Herzegovina":"H",
     "Croatia":"H","Cyprus":"H","Georgia":"H","Gibraltar":"H","Iceland":"H","Israel":"H",
     "Kazakhstan":"H","Kosovo":"H","Kyrgyzstan":"H","Moldova":"H","Montenegro":"H",
     "Russia":"H","Serbia":"H","Slovenia":"H","Turkiye":"H","Ukraine":"H","Uzbekistan":"H",
+    # 2026 FedEx 지역구분표(PDF) 기준 H: 기존 G 로 잘못 분류되어 있던 국가
+    "Andorra":"H","Bulgaria":"H","Estonia":"H","Latvia":"H","Lithuania":"H","Malta":"H","Romania":"H",
     # Zone I (중남미/카리브/태평양)
     "American Samoa":"I","Anguilla":"I","Antigua":"I","Argentina":"I","Aruba":"I",
     "Bahamas":"I","Barbados":"I","Belize":"I","Bermuda":"I","Bolivia":"I","Bonaire":"I",
     "Brazil":"I","British Virgin Islands":"I","Cayman Islands":"I","Chile":"I",
-    "Colombia":"I","Cook Islands":"I","Costa Rica":"I","Cuba":"I","Curacao":"I",
+    "Colombia":"I","Cook Islands":"I","Costa Rica":"I","Curacao":"I",
     "Dominica":"I","Dominican Republic":"I","Ecuador":"I","El Salvador":"I","Fiji":"I",
     "French Guiana":"I","French Polynesia":"I","Grenada":"I","Guadeloupe":"I",
     "Guatemala":"I","Guyana":"I","Haiti":"I","Honduras":"I","Jamaica":"I",
     "Marshall Islands":"I","Martinique":"I","Micronesia":"I","Montserrat":"I",
     "New Caledonia":"I","Nicaragua":"I","Palau":"I","Panama":"I","Papua New Guinea":"I",
-    "Paraguay":"I","Peru":"I","Puerto Rico":"I","Reunion":"I","Samoa":"I",
+    "Paraguay":"I","Peru":"I","Reunion":"I","Samoa":"I",
     "Solomon Islands":"I","St. Barthelemy":"I","St. Kitts":"I","St. Lucia":"I",
     "St. Maarten":"I","St. Vincent":"I","Suriname":"I","Tahiti":"I",
     "Timor-Leste":"I","Tonga":"I","Trinidad and Tobago":"I",
@@ -732,7 +744,7 @@ FEDEX_ZONE_MAP_EN = {
     "Mozambique":"J","Namibia":"J","Nepal":"J","Niger":"J","Nigeria":"J","Oman":"J",
     "Pakistan":"J","Qatar":"J","Rwanda":"J","Saudi Arabia":"J","Senegal":"J",
     "Seychelles":"J","Sierra Leone":"J","Somalia":"J","South Africa":"J",
-    "South Sudan":"J","Sri Lanka":"J","Sudan":"J","Syria":"J","Tajikistan":"J",
+    "South Sudan":"J","Sri Lanka":"J","Syria":"J","Tajikistan":"J",
     "Tanzania":"J","Togo":"J","Tunisia":"J","Turkmenistan":"J","Uganda":"J",
     "United Arab Emirates":"J","Yemen":"J","Zambia":"J","Zimbabwe":"J",
 }
@@ -938,27 +950,34 @@ UPS_ZONE_MAP = {
     "Kenya":9,"Lebanon":9,"Liberia":9,"Madagascar":9,"Malawi":9,
     "Mali":9,"Moldova":9,"Montenegro":9,"Morocco":9,"Mozambique":9,
     "Namibia":9,"Niger":9,"Nigeria":9,
-    "Russia":9,"Rwanda":9,"Senegal":9,"Serbia":9,"Sierra Leone":9,"Sudan":9,
+    "Rwanda":9,"Senegal":9,"Serbia":9,"Sierra Leone":9,"Sudan":9,
     "Tanzania":9,"Togo":9,"Tunisia":9,"Uganda":9,"Zambia":9,"Zimbabwe":9,
     # Zone 10: 중국 남부 + 홍콩
     "Hong Kong SAR China":10,
     # ── UPS PDF 2026 기준 서비스 가능 추가 국가 ──
-    "Cyprus":8,"Guam":8,"Mongolia":9,"Nepal":9,"Martinique":8,
+    "Cyprus":8,"Guam":8,"Martinique":8,
+    # ── 2026-05-06 UPS 원가/할인율 엑셀(KR Zone, WXS)로 재확인·보정 ──
+    "Mongolia":8,"Nepal":8,"Russia":8,                      # 기존 9 → 8
+    "American Samoa":8,"Andorra":6,"Azerbaijan":8,"Bahamas":8,"Belize":8,
+    "Iraq":8,"Uzbekistan":8,"Mauritius":9,"Belarus":9,       # 기존 누락(기본 Zone5로 계산되던 국가)
+    "Bhutan":8,"Fiji":8,"Papua New Guinea":8,"Yemen":9,      # 엑셀에 수출 Saver 존 있음 → 서비스 가능
     # ── 서비스불가(아래 국가들은 UPS_NO_SERVICE에 별도 관리) ──
     # Bhutan, Fiji, Papua New Guinea, Yemen, Cuba, Syria, Iraq(수출불가), North Korea
 }
 # ── UPS 서비스 불가 국가 (2026 UPS PDF 기준 — 수출 WW Express Saver 전 서비스 "-") ──
 UPS_NO_SERVICE = {
-    "Bhutan",                 # 모든 UPS 서비스 "-"
-    "Fiji",                   # 수출 WW Express Saver "-"
-    "Papua New Guinea",       # 모든 UPS 서비스 "-"
-    "Yemen",                  # 모든 UPS 서비스 "-"
-    "Cuba",                   # UPS PDF 미등재 (미국 제재 대상)
-    "Iran, Islamic Rep. of",  # UPS PDF 미등재 — DHL만 서비스
+    # 2026-05-06 UPS 엑셀(KR Zone)에 등재된 부탄·피지·파푸아뉴기니·예멘은 서비스 가능으로 변경
+    "Cuba",                   # UPS 존표 미등재 (미국 제재 대상)
+    "Iran, Islamic Rep. of",  # UPS 존표 미등재 — DHL만 서비스
+    "Syria",                  # UPS 존표 미등재
+    "Sudan",                  # UPS 존표 미등재 (South Sudan 만 별도)
 }
 # ── FedEx 서비스 불가 국가 (2026 FedEx PDF 기준) ──
 FEDEX_NO_SERVICE = {
     "Iran, Islamic Rep. of",  # FedEx PDF 미등재 — DHL만 서비스
+    "Cuba",                   # FedEx 2026 지역구분표(PDF) 미등재 (미국 제재 대상)
+    "Sudan",                  # FedEx PDF 미등재 (South Sudan 만 등재)
+    "Myanmar",                # FedEx PDF 미등재
 }
 
 # ── UPS Published 요금 (2026 Export WXS, Zone 1~10) ──
@@ -1578,6 +1597,8 @@ def ems_lookup_box(dest_country: str, wt: float, L: float, W: float, H: float, i
     quote = 공시요금에서 고객할인율(disc)을 적용한 실제 견적가"""
     vol_wt = (L * W * H) / 6000.0
     chg_wt = max(wt, vol_wt)
+    # 서류 요금표는 2kg까지 — 2kg 초과 서류는 우체국 기준 물품(비서류) 요금표 적용
+    is_doc = bool(is_doc) and chg_wt <= max(EMS_DOC.keys())
     bracket = ems_weight_bracket(chg_wt, is_doc)
     zone_key = ems_zone_key(dest_country)
     table = EMS_DOC if is_doc else EMS_NDC
@@ -1604,7 +1625,7 @@ def ems_calc_total(dest_country: str, ct_data: list, is_doc: bool, disc: float =
     total_pub = 0
     total_quote = 0
     total_cost = 0
-    max_wt = max(EMS_DOC.keys()) if is_doc else max(EMS_NDC.keys())
+    max_wt = max(EMS_NDC.keys())   # EMS 1건(박스)당 최대 30kg — 초과 시 진행불가(ems_no_service)
     over_limit = False
     for ct in ct_data:
         qty = ct.get("qty", 1)
@@ -1644,8 +1665,8 @@ OCS_ZONE_MAP = {
     "Austria": 8, "Ireland": 8, "Italy": 8, "Spain": 8, "Sweden": 8,
     "South Africa": 9, "United Arab Emirates": 9, "Pakistan": 9, "Argentina": 9, "Brazil": 9,
 }
-# 엑셀 원본에 전체 국가별 Zone 분류표가 없어 위 20개국만 명시됨 — 나머지 국가는
-# 안전하게(과소청구 방지) Zone 9(최대범위)를 기본 적용
+# 엑셀 원본(26년_운임표.xlsx)에 Zone 별로 명시된 27개국만 진행 — 나머지 국가는
+# OCS 진행불가(ocs_no_service)로 처리한다 (이전: Zone 9 기본 적용).
 
 OCS_PUB_DOC = {  # 개시(Full Tariff) 서류, 0.5~2.5kg
     0.5: [37640, 38420, 39960, 40390, 51970, 51530, 60160, 64320, 76220],
@@ -2221,9 +2242,11 @@ UPS_IMP_ZONE_MAP = {
     "Philippines":1,"Singapore":1,
     # ── Zone 2: 홍콩, 일본, 태국, 베트남 ──
     "Hong Kong SAR China":2,"Japan":2,"Thailand":2,"Vietnam":2,
-    # ── Zone 3: 중국, 인도, 말레이시아, 파키스탄, 대만, 마카오, 피지 ──
-    "China (People\'s Republic)":3,"India":3,"Malaysia":3,"Pakistan":3,
+    # ── Zone 3: 말레이시아, 파키스탄, 대만, 마카오 ──
+    "Malaysia":3,"Pakistan":3,
     "Taiwan, China":3,"Macau SAR China":3,
+    # ── 수입 엑셀(IN 시트) 국가 전용 열: 중국(남부 제외)=Zone1 공시표, 인도=Zone4 공시표 ──
+    "China (People\'s Republic)":1,"India":4,
     # ── Zone 4: 호주, 방글라데시, 부탄, 브루나이, 캄보디아, 괌, 인도네시아,
     #            몽골, 미얀마, 네팔, 뉴질랜드, 스리랑카 ──
     "Australia":4,"Bangladesh":4,"Bhutan":4,"Brunei":4,
@@ -2252,6 +2275,56 @@ UPS_IMP_ZONE_MAP = {
     "Togo":9,"Trinidad and Tobago":9,"Tunisia":9,"Uruguay":9,"Venezuela":9,
     "Zimbabwe":9,
 }
+
+# ═══════════════════════════════════════════════════════════
+# UPS 국가별 지역(Zone) 구분 — 2026-10-20 UPS 서비스 가이드 원문 기준
+#   UPS Worldwide Express Saver 열만 사용:  국가: (수출 존, 수입 존)   None = 해당 방향 UPS Saver 서비스 불가("-")
+#   쿠바·이란·수단·시리아는 가이드에 등재되지 않아 (None, None)
+# 위의 개별 매핑(UPS_ZONE_MAP / UPS_NO_SERVICE / UPS_IMP_ZONE_MAP)은 이 표로 덮어쓴다.
+# ═══════════════════════════════════════════════════════════
+_UPS_GUIDE_ZONES = {
+    "Albania":(9,9), "Algeria":(9,9), "American Samoa":(9,9), "Andorra":(6,None),
+    "Angola":(9,8), "Argentina":(8,8), "Armenia":(9,9), "Australia":(4,4),
+    "Austria":(7,7), "Azerbaijan":(8,7), "Bahamas":(8,9), "Bahrain":(8,7),
+    "Bangladesh":(8,4), "Belarus":(9,8), "Belgium":(6,6), "Belize":(8,None),
+    "Benin":(9,9), "Bhutan":(None,None), "Bolivia":(8,9), "Brazil":(8,9),
+    "Brunei":(3,4), "Bulgaria":(8,9), "Burkina Faso":(9,9), "Burundi":(9,9),
+    "Cambodia":(8,4), "Cameroon":(9,9), "Canada":(5,5), "Chile":(8,9),
+    "China (People's Republic)":(1,3), "Colombia":(8,9), "Costa Rica":(8,9), "Croatia":(8,9),
+    "Cuba":(None,None), "Cyprus":(8,7), "Czech Republic":(6,7), "Denmark":(7,7),
+    "Dominican Republic":(8,9), "Ecuador":(8,9), "Egypt":(8,9), "El Salvador":(8,9),
+    "Estonia":(9,7), "Ethiopia":(9,9), "Fiji":(None,None), "Finland":(7,7),
+    "France":(6,6), "Gabon":(9,9), "Georgia":(9,9), "Germany":(6,6),
+    "Ghana":(9,9), "Greece":(7,7), "Guatemala":(8,9), "Guinea":(9,9),
+    "Haiti":(8,9), "Honduras":(8,9), "Hong Kong SAR China":(10,2), "Hungary":(8,7),
+    "Iceland":(8,8), "India":(4,3), "Indonesia":(3,4), "Iran, Islamic Rep. of":(None,None),
+    "Iraq":(9,None), "Ireland":(7,7), "Israel":(9,8), "Italy":(6,6),
+    "Jamaica":(8,9), "Japan":(2,2), "Jordan":(9,8), "Kazakhstan":(9,None),
+    "Kenya":(9,8), "Kuwait":(8,9), "Lao P.D.R.":(8,4), "Latvia":(8,7),
+    "Lebanon":(9,9), "Liechtenstein":(6,7), "Lithuania":(8,9), "Luxembourg":(6,7),
+    "Macau SAR China":(1,3), "Madagascar":(9,8), "Malaysia":(3,3), "Maldives":(8,9),
+    "Malta":(8,9), "Martinique":(8,9), "Mauritius":(9,9), "Mexico":(5,5),
+    "Moldova":(9,7), "Monaco":(6,6), "Mongolia":(9,9), "Montenegro":(9,7),
+    "Morocco":(9,9), "Mozambique":(9,9), "Myanmar":(8,4), "Namibia":(9,9),
+    "Nepal":(9,9), "Netherlands":(6,6), "New Zealand":(4,4), "Nicaragua":(8,9),
+    "Niger":(9,9), "Nigeria":(9,9), "Norway":(7,7), "Oman":(8,9),
+    "Pakistan":(8,3), "Panama":(8,9), "Papua New Guinea":(None,None), "Paraguay":(8,9),
+    "Peru":(8,9), "Philippines":(3,1), "Poland":(6,7), "Portugal":(7,7),
+    "Puerto Rico":(5,5), "Qatar":(8,8), "Romania":(8,8), "Russia":(8,9),
+    "Rwanda":(9,9), "Saudi Arabia":(8,9), "Senegal":(9,9), "Serbia":(9,7),
+    "Singapore":(1,1), "Slovakia":(6,7), "Slovenia":(8,7), "South Africa":(8,9),
+    "Spain":(6,6), "Sri Lanka":(8,4), "Sudan":(None,None), "Sweden":(6,7),
+    "Switzerland":(6,7), "Syria":(None,None), "Taiwan, China":(1,3), "Tanzania":(9,7),
+    "Thailand":(3,2), "Togo":(9,9), "Trinidad and Tobago":(8,9), "Tunisia":(9,None),
+    "Turkiye":(8,8), "Uganda":(9,8), "Ukraine":(8,9), "United Arab Emirates":(8,8),
+    "United Kingdom":(6,6), "United States of America":(5,5), "Uruguay":(8,9), "Uzbekistan":(9,9),
+    "Venezuela":(8,9), "Vietnam":(2,2), "Yemen":(None,None), "Zambia":(9,8),
+    "Zimbabwe":(9,8),
+}
+UPS_ZONE_MAP         = {k: v[0] for k, v in _UPS_GUIDE_ZONES.items() if v[0]}
+UPS_NO_SERVICE       = {k for k, v in _UPS_GUIDE_ZONES.items() if not v[0]}   # 수출 불가
+UPS_IMP_ZONE_MAP     = {k: v[1] for k, v in _UPS_GUIDE_ZONES.items() if v[1]}
+UPS_IMP_NO_SERVICE   = {k for k, v in _UPS_GUIDE_ZONES.items() if not v[1]}   # 수입 불가
 
 # ── UPS 수입 DOC (0.5~5.0kg, Zone 1~9) ──
 UPS_IMP_DOC = {
@@ -2327,73 +2400,102 @@ UPS_IMP_OVER = {
 # ══════════════════════════════════════════════════════════
 
 # ── 2F94A8 수입 원가: 서류(DOC ≤5.0kg) Zone 1~9 ──
+# 출처: UPS_수입_요금_원가_2026_05_06_.xlsx (IN 시트, LETTER/DOC 행 할인율 60% → 원가 = 공시가 × 40%)
 UPS_IMP_2F_DOC = {
     # Zone:    1      2      3      4      5      6      7      8      9
-    0.5: [14910,17070,16200,27760,22600,23280,24270,29610,36030],
-    1.0: [23370,23760,23850,41520,32790,36630,38880,45690,51600],
-    1.5: [31470,31920,32400,54360,43770,50580,53850,64230,67200],
-    2.0: [39060,39960,40770,66760,53520,61680,67860,81090,82110],
-    2.5: [47430,48660,49410,80280,64950,75480,83640,99630,97440],
-    3.0: [51300,54090,55320,92360,70200,83310,91710,111510,107370],
-    3.5: [54600,58140,60870,102440,75060,90540,98520,123510,116340],
-    4.0: [58410,61650,65970,110520,79440,97650,105180,133380,125640],
-    4.5: [60840,64530,69360,117480,84210,104550,111900,140910,135030],
-    5.0: [62760,67470,72660,124840,88620,110520,118620,148620,145860],
+    0.5: [19880,22760,21600,27760,28000,31040,32360,39480,48040],
+    1.0: [31160,31680,31800,41520,43720,48840,51840,60920,68800],
+    1.5: [41960,42560,43200,54360,58360,67440,71800,85640,89600],
+    2.0: [52080,53280,54360,66760,71360,82240,90480,108120,109480],
+    2.5: [63240,64880,65880,80280,86600,100640,111520,132840,129920],
+    3.0: [68400,72120,73760,92360,93600,111080,122280,148680,143160],
+    3.5: [72800,77520,81160,102440,100080,120720,131360,164680,155120],
+    4.0: [77880,82200,87960,110520,105920,130200,140240,177840,167520],
+    4.5: [81120,86040,92480,117480,112280,139400,149200,187880,180040],
+    5.0: [83680,89960,96880,124840,118160,147360,158160,198160,194480],
 }
 # ── 2F94A8 수입 원가: 물품(PKG, 0.5~20.0kg) Zone 1~9 ──
+# 출처: UPS_수입_요금_원가_2026_05_06_.xlsx (IN 시트, 2F94A8 열)
 UPS_IMP_2F_PKG = {
-    # Zone:     1      2      3      4      5      6      7      8      9
-    0.5:  [40260,40710,43740,66160,46680,48540,51630,64410,65550],
-    1.0:  [43290,43980,46770,71640,52050,55500,59850,76110,72660],
-    1.5:  [46320,46890,49860,77640,56850,62430,68160,85650,80940],
-    2.0:  [49440,49950,52920,83440,61500,69300,76260,95400,91230],
-    2.5:  [52140,52890,56160,89200,66270,76260,84510,104880,101520],
-    3.0:  [54570,55800,59460,96240,70920,83310,91710,114930,110700],
-    3.5:  [56880,58710,62760,103480,75060,90540,98520,124770,119940],
-    4.0:  [59010,61650,65970,110520,79440,97650,105180,133380,129540],
-    4.5:  [60840,64530,69360,117480,84210,104550,111900,140910,139230],
-    5.0:  [62760,67470,72660,124840,88620,111630,118620,148620,148830],
-    5.5:  [64620,70770,75870,130320,93000,118320,125460,155520,155760],
-    6.0:  [66420,73830,79260,135720,97350,123000,132360,163830,164820],
-    6.5:  [68100,77130,82500,141280,101670,127680,139020,172860,173910],
-    7.0:  [69810,80190,85710,146800,105900,132390,145950,181800,182910],
-    7.5:  [71340,83460,89070,152360,109620,136980,152700,190800,192030],
-    8.0:  [74160,86220,92040,157800,113820,141870,160230,198690,199830],
-    8.5:  [76980,88980,94950,163200,117960,146400,167670,206700,207870],
-    9.0:  [79890,91740,97890,168760,122040,151080,175110,214620,215790],
-    9.5:  [82890,94410,100920,174320,126180,155790,182640,222600,223830],
-    10.0: [85770,97170,103950,179920,130380,160380,190050,232860,234120],
-    10.5: [88710,99150,106020,184280,133470,164220,196710,240750,242100],
-    11.0: [91590,103050,108150,188800,136740,168240,203310,248670,248610],
-    11.5: [94500,107130,110400,193240,140010,172170,209790,258540,259200],
-    12.0: [96630,111300,112590,197760,143100,176040,216420,267270,267690],
-    12.5: [98400,115500,115740,202360,146430,180060,222900,277110,276090],
-    13.0: [100170,119640,117660,206800,149730,183930,229560,284490,284250],
-    13.5: [102030,123720,121590,211520,152850,187920,235620,290400,289410],
-    14.0: [103830,127350,125940,216040,156000,191910,242280,295110,294390],
-    14.5: [105570,129660,130260,220640,159300,195870,248850,300780,302370],
-    15.0: [107340,131820,134610,225160,162510,199800,255480,308550,310200],
-    15.5: [109170,132180,138840,227000,165690,204510,258090,317610,319290],
-    16.0: [111120,132930,140280,229120,168750,209790,260670,326640,328440],
-    16.5: [112830,133440,140550,231240,171930,216090,263400,335640,337530],
-    17.0: [114720,133770,140850,233160,175020,222390,265950,344730,346740],
-    17.5: [116580,134160,141690,235000,177240,228120,268470,353610,355710],
-    18.0: [117930,134610,141780,236880,179550,234120,273720,358830,360840],
-    18.5: [119130,134940,141870,238600,181890,239520,278910,364140,365160],
-    19.0: [120480,135450,142170,240480,186090,245160,283800,368640,373170],
-    19.5: [123000,135930,142380,242120,189510,250770,288600,373170,381300],
-    20.0: [126120,136320,142800,245000,194100,255870,293160,379080,390720],
+    0.5: [14225,14249,21870,19021,24896,23946,25127,30702,45667],
+    1.0: [14225,14660,23385,20597,27760,24605,26534,36279,50620],
+    1.5: [14225,15630,24930,22322,30320,27677,30218,40827,56388],
+    2.0: [14225,16650,26460,23989,32800,30723,33809,45474,63557],
+    2.5: [14225,17630,28080,25645,35344,33809,37466,49993,70726],
+    3.0: [14552,18600,29730,27669,37824,36934,40658,54783,77121],
+    3.5: [15168,19570,31380,29751,40032,40139,43677,59474,83558],
+    4.0: [15736,20550,32985,31775,42368,43292,46630,63578,90246],
+    4.5: [16224,21510,34680,33776,44912,46351,49609,67167,96997],
+    5.0: [16736,22490,36330,35892,47264,49489,52588,70842,103685],
+    5.5: [17232,23590,37935,37467,49600,52455,55621,74131,108513],
+    6.0: [17712,24610,39630,39020,51920,54530,58680,78092,114825],
+    6.5: [18160,25710,41250,40618,54224,56605,61632,82397,121157],
+    7.0: [18616,26730,42855,42205,56480,58693,64705,86658,127427],
+    7.5: [19024,27820,44535,43804,58464,60728,67697,90948,133781],
+    8.0: [19776,28740,46020,45368,60704,62896,71035,94709,139215],
+    8.5: [20528,29660,47475,46920,62912,64904,74334,98527,144816],
+    9.0: [21304,30580,48945,48519,65088,66979,77632,102302,150334],
+    9.5: [22104,31470,50460,50117,67296,69067,80970,106106,155935],
+    10.0: [22872,32390,51975,51727,69536,71102,84256,110997,163104],
+    10.5: [23656,33050,53010,52981,71184,72804,87208,114758,168663],
+    11.0: [24424,34350,54075,54280,72928,74586,90134,118533,173198],
+    11.5: [25200,35710,55200,55557,74672,76329,93007,123237,180576],
+    12.0: [25768,37100,56295,56856,76320,78044,95946,127399,186491],
+    12.5: [26240,38500,57870,58179,78096,79827,98819,132089,192343],
+    13.0: [26712,39880,58830,59455,79856,81542,101772,135607,198028],
+    13.5: [27208,41240,60795,60812,81520,83311,104458,138424,201622],
+    14.0: [27688,42450,62970,62112,83200,85080,107411,140669,205092],
+    14.5: [28152,43220,65130,63434,84960,86836,110324,143372,210651],
+    15.0: [28624,43940,67305,64734,86672,88578,113263,147076,216106],
+    15.5: [29112,44060,69420,65263,88368,90666,114420,151394,222439],
+    16.0: [29632,44310,70140,65872,90000,93007,115564,155698,228813],
+    16.5: [30088,44480,70275,66482,91696,95800,116774,159988,235146],
+    17.0: [30592,44590,70425,67034,93344,98593,117905,164321,241562],
+    17.5: [31088,44720,70845,67563,94528,101133,119022,168554,247811],
+    18.0: [31448,44870,70890,68103,95760,103793,121349,171042,251385],
+    18.5: [31768,44980,70935,68598,97008,106187,123650,173573,254395],
+    19.0: [32128,45150,71085,69138,99248,108688,125818,175718,259975],
+    19.5: [32800,45310,71190,69610,101072,111175,127946,177878,265639],
+    20.0: [33632,45440,71400,70438,103520,113436,129968,180695,272202],
 }
 # ── 2F94A8 수입 원가: 초과중량(20kg+) kg당 Zone 1~9 ──
 UPS_IMP_2F_OVER = {
     #  max_kg: Zone 1~9
-    44:      [6300,6750,7080,12200,9540,12780,14400,18660,19140],
-    70:      [6300,6750,7080,12200,9540,12780,13530,18660,19140],
-    99:      [5730,6270,6750,11640,9000,12390,12870,18420,18780],
-    299:     [5730,6270,6750,11440,9000,12390,12870,18420,18780],
-    499:     [5370,5850,6570,10840,8730,12270,12600,17940,16890],
-    999:     [5370,5850,6570,10840,8730,12270,12600,17940,16890],
-    9999999: [5370,5850,6570,10840,8730,12270,12600,17940,16890],
+    44: [1680,2250,3540,3508,5088,4090,5952,8895,13334],
+    70: [1680,2250,3540,3508,5088,4090,5952,8895,13334],
+    99: [1662,2215,3375,3492,4800,3965,5320,8780,13083],
+    299: [1662,2215,3375,3492,4800,3965,5320,8780,13083],
+    499: [1665,2204,3285,3469,4656,3926,5208,8551,11767],
+    999: [1665,2204,3285,3469,4656,3926,5208,8551,11767],
+    9999999: [1665,2204,3285,3469,4656,3926,5208,8551,11767],
+}
+# ── 2F94A8 수입 원가: 국가별 전용 원가 열 (IN 시트 'ONLY' 열) ──
+# 공시가는 pub_zone 의 공시표를 그대로 사용하고, 원가만 이 표를 사용한다.
+UPS_IMP_2F_SPECIAL = {
+    'Vietnam': {
+        'pub_zone': 2,
+        'doc_ratio': 0.4,
+        'pkg': {0.5: 14249, 1.0: 14249, 1.5: 14249, 2.0: 14249, 2.5: 14986, 3.0: 15810, 3.5: 16635, 4.0: 17468, 4.5: 18284, 5.0: 19117, 5.5: 20052, 6.0: 20919, 6.5: 21854, 7.0: 22721, 7.5: 23647, 8.0: 24429, 8.5: 25211, 9.0: 25993, 9.5: 26750, 10.0: 27532, 10.5: 28093, 11.0: 29198, 11.5: 30354, 12.0: 31535, 12.5: 32725, 13.0: 33898, 13.5: 35054, 14.0: 36083, 14.5: 36737, 15.0: 37349, 15.5: 37451, 16.0: 37664, 16.5: 37808, 17.0: 37902, 17.5: 38012, 18.0: 38140, 18.5: 38233, 19.0: 38378, 19.5: 38514, 20.0: 38624},
+        'over': {44: 1913, 70: 1913, 99: 1881, 299: 1881, 499: 1872, 999: 1872, 9999999: 1872},
+    },
+    'Malaysia': {
+        'pub_zone': 3,
+        'doc_ratio': 0.4,
+        'pkg': {0.5: 14288, 1.0: 14288, 1.5: 14288, 2.0: 14288, 2.5: 14789, 3.0: 15658, 3.5: 16527, 4.0: 17372, 4.5: 18265, 5.0: 19134, 5.5: 19979, 6.0: 20872, 6.5: 21725, 7.0: 22570, 7.5: 23455, 8.0: 24237, 8.5: 25004, 9.0: 25778, 9.5: 26576, 10.0: 27374, 10.5: 27919, 11.0: 28480, 11.5: 29072, 12.0: 29649, 12.5: 30478, 13.0: 30984, 13.5: 32019, 14.0: 33164, 14.5: 34302, 15.0: 35447, 15.5: 36561, 16.0: 36940, 16.5: 37012, 17.0: 37091, 17.5: 37312, 18.0: 37335, 18.5: 37359, 19.0: 37438, 19.5: 37493, 20.0: 37604},
+        'over': {44: 1864, 70: 1864, 99: 1845, 299: 1845, 499: 1840, 999: 1840, 9999999: 1840},
+    },
+    'India': {
+        'pub_zone': 4,
+        'doc_ratio': 0.311239,
+        'pkg': {0.5: 53217, 1.0: 56904, 1.5: 60663, 2.0: 64386, 2.5: 68328, 3.0: 72343, 3.5: 76358, 4.0: 80264, 4.5: 84388, 5.0: 88403, 5.5: 92309, 6.0: 96433, 6.5: 100375, 7.0: 104281, 7.5: 108369, 8.0: 111982, 8.5: 115523, 9.0: 119100, 9.5: 122786, 10.0: 126473, 10.5: 128991, 11.0: 131583, 11.5: 134320, 12.0: 136985, 12.5: 140817, 13.0: 143153, 13.5: 147935, 14.0: 153227, 14.5: 158483, 15.0: 163776, 15.5: 168922, 16.0: 170674, 16.5: 171003, 17.0: 171368, 17.5: 172390, 18.0: 172499, 18.5: 172609, 19.0: 172974, 19.5: 173229, 20.0: 173740},
+        'over': {44: 8614, 70: 8614, 99: 8595, 299: 8595, 499: 8563, 999: 8563, 9999999: 8563},
+    },
+    "China (People's Republic)": {
+        'pub_zone': 1,
+        'doc_ratio': 0.4346,
+        'pkg': {0.5: 14288, 1.0: 14288, 1.5: 14288, 2.0: 14288, 2.5: 14288, 3.0: 15063, 3.5: 15899, 4.0: 16712, 4.5: 17571, 5.0: 18407, 5.5: 19220, 6.0: 20079, 6.5: 20900, 7.0: 21713, 7.5: 22564, 8.0: 23317, 8.5: 24054, 9.0: 24799, 9.5: 25566, 10.0: 26334, 10.5: 26858, 11.0: 27398, 11.5: 27968, 12.0: 28523, 12.5: 29321, 13.0: 29807, 13.5: 30803, 14.0: 31905, 14.5: 32999, 15.0: 34101, 15.5: 35173, 16.0: 35538, 16.5: 35606, 17.0: 35682, 17.5: 35895, 18.0: 35918, 18.5: 35940, 19.0: 36016, 19.5: 36070, 20.0: 36176},
+        'over': {44: 1794, 70: 1794, 99: 1778, 299: 1778, 499: 1774, 999: 1774, 9999999: 1774},
+    },
 }
 
 # ── B8733R 수입 원가: 서류(DOC ≤5.0kg) Zone 1~9 ──
@@ -2541,8 +2643,20 @@ def dhl_imp_cost_lookup(w, zi, is_doc=False):
     else:           br = "300+"
     return ceil10(DHL_IMP_COST_OVER[br][zi] * rw)
 
-def ups_imp_cost_lookup(w, zi, is_doc=False, acct="2F94A8"):
-    """UPS 수입 원가 조회 (계정별 계약 원가 테이블)"""
+def ups_imp_cost_lookup(w, zi, is_doc=False, acct="2F94A8", dest_country=""):
+    """UPS 수입 원가 조회 (계정별 계약 원가 테이블)
+    2F94A8: 수입 엑셀(IN 시트)의 국가 전용 원가 열(베트남/말레이시아/인도/중국 남부 제외)이 있으면 우선 적용."""
+    sp = UPS_IMP_2F_SPECIAL.get(dest_country) if acct == "2F94A8" else None
+    if sp:
+        if is_doc and w <= 5.0:
+            k = math.ceil(w * 2) / 2
+            pub = next(UPS_IMP_DOC[key][sp["pub_zone"] - 1] for key in sorted(UPS_IMP_DOC) if key >= k)
+            return ceil10(pub * sp["doc_ratio"])
+        if w <= 20.0:
+            k = math.ceil(w * 2) / 2
+            return ceil10(next(sp["pkg"][key] for key in sorted(sp["pkg"]) if key >= k))
+        rw = int(math.ceil(w))
+        return ceil10(next(sp["over"][mw] * rw for mw in sorted(sp["over"]) if rw <= mw))
     doc_tbl  = UPS_IMP_2F_DOC  if acct == "2F94A8" else UPS_IMP_B8_DOC
     pkg_tbl  = UPS_IMP_2F_PKG  if acct == "2F94A8" else UPS_IMP_B8_PKG
     over_tbl = UPS_IMP_2F_OVER if acct == "2F94A8" else UPS_IMP_B8_OVER
@@ -2651,7 +2765,9 @@ def run_calculation(
 
     ocs_zone = OCS_ZONE_MAP.get(dest_country, 9)
     ocs_zi   = ocs_zone - 1
-    ocs_no_service = (mode == "수입")  # OCS는 수출 전용 서비스
+    # OCS: 수출 전용 + 요금표(Zone 분류)에 등재된 27개국만 진행 — 나머지 국가는 진행불가
+    ocs_no_service = (mode == "수입") or (dest_country not in OCS_ZONE_MAP)
+    ocs_no_service_reason = "import" if mode == "수입" else ("country" if dest_country not in OCS_ZONE_MAP else "")
 
     _COUNTRY_TO_FEDEX = {
         "Japan":"일본","China (People's Republic)":"중국 (남부 제외)","Hong Kong SAR China":"홍콩",
@@ -2707,13 +2823,16 @@ def run_calculation(
 
     fx_zi = FEDEX_ZONES.index(fx_zone)
 
-    ups_no_service   = dest_country in UPS_NO_SERVICE
+    # UPS Saver 가능 여부는 수출/수입 방향별로 다름 (2026-10-20 서비스 가이드 기준)
+    ups_no_service   = (dest_country in UPS_IMP_NO_SERVICE) if mode == "수입" else (dest_country in UPS_NO_SERVICE)
     fedex_no_service = dest_country in FEDEX_NO_SERVICE
     ems_no_service   = (mode == "수입") or (dest_country in EMS_NO_SERVICE_COUNTRIES)
     # EMS는 수출만 진행(수입 불가) + 우체국 공식 페이지상 EMS(일반) 자체가 불가능한 국가 제외
     ups_zone_num     = UPS_ZONE_MAP.get(dest_country, 5)
     ups_zi           = ups_zone_num - 1
-    ups_imp_zone_num = UPS_IMP_ZONE_MAP.get(dest_country, 5)
+    # 수입 존: 수입 존표에 없는 국가는 (원문 없음) 수출 존으로 준용 — 기존처럼 일괄 Zone 5(미국 요금)로 처리하면
+    # 알바니아·불가리아 등 고존 국가가 크게 저평가됨. 수출 존도 없으면 UPS 미취급(UPS_NO_SERVICE).
+    ups_imp_zone_num = UPS_IMP_ZONE_MAP.get(dest_country) or UPS_ZONE_MAP.get(dest_country, 5)
     ups_imp_zi       = ups_imp_zone_num - 1
 
     # ── 외곽지역 ──
@@ -2875,27 +2994,15 @@ def run_calculation(
         total_sur_dhl += _dhl_demand
     total_sur_fedex = sum(sur_fedex_ct.values())
 
-    # FedEx 초과수요 추가요금 (2026-09-21~, kg당 또는 정액, 국가별/서비스별 차등)
-    _fedex_flat_country = (mode != "수입") and (dest_country in _FEDEX_EDS_EXPORT_FLAT_COUNTRIES)
-    if _fedex_flat_country:
-        # 미국/캐나다/멕시코/LAC 수출: IP·Economy 각각 다른 정액 (발송물당, kg 곱하지 않음)
-        _eds_ip  = get_fedex_eds(fx_zone, _fx_total_w, dest_country=dest_country, mode=mode, service="IP")
-        _eds_ec  = get_fedex_eds(fx_zone, _fx_total_w, dest_country=dest_country, mode=mode, service="Economy")
-        sur_fedex_ct_ip = dict(sur_fedex_ct)
-        sur_fedex_ct_ec = dict(sur_fedex_ct)
-        if _eds_ip > 0: sur_fedex_ct_ip["초과수요(EDS)"] = _eds_ip
-        if _eds_ec > 0: sur_fedex_ct_ec["초과수요(EDS)"] = _eds_ec
-        total_sur_fedex_ip = total_sur_fedex + _eds_ip
-        total_sur_fedex_ec = total_sur_fedex + _eds_ec
-    else:
-        _eds = get_fedex_eds(fx_zone, _fx_total_w, dest_country=dest_country, mode=mode)
-        if _eds > 0:
-            sur_fedex_ct["초과수요(EDS)"] = _eds
-            total_sur_fedex += _eds
-        sur_fedex_ct_ip = sur_fedex_ct
-        sur_fedex_ct_ec = sur_fedex_ct
-        total_sur_fedex_ip = total_sur_fedex
-        total_sur_fedex_ec = total_sur_fedex
+    # FedEx 초과수요 추가요금 (2026-10-19~, 전 지역 kg당 · 최소 360원, IP/Economy 별도 산출)
+    _eds_ip  = get_fedex_eds(fx_zone, _fx_total_w, dest_country=dest_country, mode=mode, service="IP")
+    _eds_ec  = get_fedex_eds(fx_zone, _fx_total_w, dest_country=dest_country, mode=mode, service="Economy")
+    sur_fedex_ct_ip = dict(sur_fedex_ct)
+    sur_fedex_ct_ec = dict(sur_fedex_ct)
+    if _eds_ip > 0: sur_fedex_ct_ip["초과수요(EDS)"] = _eds_ip
+    if _eds_ec > 0: sur_fedex_ct_ec["초과수요(EDS)"] = _eds_ec
+    total_sur_fedex_ip = total_sur_fedex + _eds_ip
+    total_sur_fedex_ec = total_sur_fedex + _eds_ec
 
     # FedEx ODA/OPA 추가요금 (IP/Economy 공통이므로 양쪽 dict에 반영)
     _fx_tier = get_fedex_oda_opa_tier(dest_country, remote_postal, remote_city)
@@ -2959,12 +3066,22 @@ def run_calculation(
     if mode == "수출":
         total_pub_ups_2F, total_net_ups_2F, ups_rpk = ups_lookup(_ups_total_w, ups_zi, is_doc, "2F94A8", dest_country)
     else:
-        total_pub_ups_2F = ups_imp_lookup(_total_w, ups_imp_zi, is_doc)
-        total_net_ups_2F = ups_imp_cost_lookup(_total_w, ups_imp_zi, is_doc, "2F94A8")
+        # 대형포장물(LPS-MBW) 최소 청구중량 40kg 는 수입에도 동일 적용 (_ups_total_w)
+        total_pub_ups_2F = ups_imp_lookup(_ups_total_w, ups_imp_zi, is_doc)
+        total_net_ups_2F = ups_imp_cost_lookup(_ups_total_w, ups_imp_zi, is_doc, "2F94A8", dest_country)
         ups_rpk = None
 
     # ── EMS (국제특급우편) ── 우체국 공시요금, 할인/계정 개념 없음, C/T(박스)별 개별 계산
     res_ems = ems_calc_total(dest_country, ct_data, is_doc, disc_ems)
+    # EMS는 박스 1개당 30kg 초과 시 진행불가 (기존: 30kg 가격으로 막고 배지만 표시 → 과소청구)
+    ems_no_service_reason = ""
+    if mode == "수입":
+        ems_no_service_reason = "import"
+    elif dest_country in EMS_NO_SERVICE_COUNTRIES:
+        ems_no_service_reason = "country"
+    elif res_ems.get("over_limit"):
+        ems_no_service = True
+        ems_no_service_reason = "weight"
 
     # ── OCS ── 공시(Full Tariff)/원가(적용 운임표) 구조는 DHL과 동일, 수출 전용
     total_pub_ocs, total_net_ocs, ocs_rpk = ocs_lookup(_total_w, ocs_zi, is_doc)
@@ -2995,7 +3112,7 @@ def run_calculation(
         "is_doc":            is_doc,
         "dhl_zone":          dhl_zone,
         "fx_zone":           fx_zone,
-        "ups_zone":          ups_zone_num,
+        "ups_zone":          ups_imp_zone_num if mode == "수입" else ups_zone_num,
         "is_remote":         is_remote,
         "remote_sur":        sur_dhl_ct.get("외곽지역(RAS)", 0) if is_remote else 0,
         "conflict":          dest_country in DHL_CONFLICT_COUNTRIES,
@@ -3003,8 +3120,10 @@ def run_calculation(
         "ups_no_service":    ups_no_service,
         "fedex_no_service":  fedex_no_service,
         "ems_no_service":    ems_no_service,
+        "ems_no_service_reason": ems_no_service_reason,
         "ocs_no_service":    ocs_no_service,
-        "ocs_zone":          ocs_zone,
+        "ocs_no_service_reason": ocs_no_service_reason,
+        "ocs_zone":          OCS_ZONE_MAP.get(dest_country),
         "ups_freight_flag":  ups_freight_flag,
         "total_actual_wt":   round(total_actual_wt, 1),
         "total_vol_wt":      round(total_vol_wt, 1),
