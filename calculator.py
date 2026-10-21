@@ -512,6 +512,135 @@ _COUNTRY_ISO = {
 import json as _json, os as _os, re as _re
 
 
+# ── 외곽지역 조회 공통 헬퍼 (FedEx ODA/OPA · UPS EAS · DHL RAS 공용) ──────────
+import unicodedata as _ud
+
+_GB_LIKE   = {"GB", "GG", "JE", "IM"}   # 영국식 우편번호(바깥 코드 + 안쪽 3자리)
+_PREFIX_CC = {"TW"}                     # DHL 자료가 3자리 구(區) 코드 단위로도 등재된 국가
+
+def _postal_norm(p) -> str:
+    """우편번호 정규화: 공백·하이픈 제거 + 대문자"""
+    return _re.sub(r"[\s\-]", "", str(p)).upper().strip()
+
+def _city_key(s) -> str:
+    """도시명 정규화: 악센트 제거 + 소문자 + 공백 정리 (Považská → povazska)"""
+    s = _ud.normalize("NFKD", str(s))
+    s = "".join(ch for ch in s if not _ud.combining(ch))
+    return _re.sub(r"\s+", " ", s).strip().lower()
+
+def _postal_stats(values):
+    """자료에 등재된 숫자 우편번호의 (최대 자리수, 자리수 집합)"""
+    lens = set()
+    for v in values:
+        v = _postal_norm(v)
+        if v.isdigit():
+            lens.add(len(v))
+    return (max(lens) if lens else 0), lens
+
+def _postal_cands(cc: str, pn: str, maxlen: int = 0, lens=(), prefix: bool = False) -> list:
+    """입력 우편번호를 자료 형식에 맞춰 비교할 후보들로 변환
+       · 네덜란드식 1234AB → 1234
+       · 자료의 최대 자리수보다 길면 앞 자리만 (브라질 8자리 CEP·미국 ZIP+4)
+       · prefix=True(DHL 대만): 3자리 구 코드로도 등재 → 입력의 앞 N자리도 비교"""
+    out = [pn]
+    m = _re.match(r"\d+", pn)
+    d = pn
+    if m and m.group() != pn:
+        d = m.group()
+        out.append(d)
+    if d.isdigit():
+        if maxlen and len(d) > maxlen:
+            out.append(d[:maxlen])
+        if prefix and cc in _PREFIX_CC:
+            out += [d[:L] for L in sorted(lens) if L < len(d)]
+    seen, res = set(), []
+    for x in out:
+        if x and x not in seen:
+            seen.add(x); res.append(x)
+    return res
+
+_GB_NAT = _re.compile(r"^([A-Z]{1,2})(\d{1,2})([A-Z]?)$")
+
+def _gb_nat(x):
+    """영국 바깥코드 → (지역문자, 번호, 접미) — IV4~IV11 같은 구간을 자연순으로 비교하기 위함"""
+    m = _GB_NAT.match(x)
+    return (m.group(1), int(m.group(2)), m.group(3)) if m else None
+
+def _gb_keys(pn: str) -> dict:
+    """영국식 우편번호 → 비교 키 {F:전체, S:섹터(AB31 5), O:바깥코드(AB31), A:지역 문자(AB)}
+       (맨 뒤 3자리가 안쪽 코드 — 'AB3 8XY' 의 섹터는 AB38 이고 바깥코드는 AB3)"""
+    out = pn[:-3] if len(pn) >= 5 else pn
+    m = _re.match(r"[A-Z]+", out)
+    return {"F": pn, "S": pn[:-2] if len(pn) >= 5 else None, "O": out, "A": m.group() if m else None}
+
+_compiled_ranges = {}
+
+def _compiled_rows(rows):
+    """[[시작, 끝, ...], ...] 구간표를 한 번만 정규화·정수화해 캐시 (조회 속도용)"""
+    ent = _compiled_ranges.get(id(rows))
+    if ent is None or ent[0] is not rows:
+        comp, lens = [], set()
+        for row in rows:
+            raw = str(row[0]).strip()
+            b = _postal_norm(row[0])
+            e = _postal_norm(row[1]) or b
+            num = b.isdigit() and e.isdigit()
+            if b.isdigit(): lens.add(len(b))
+            if e.isdigit(): lens.add(len(e))
+            comp.append((num, b, e, int(b) if num else 0, int(e) if num else 0, row, " " in raw))
+        ent = (rows, comp, (max(lens) if lens else 0), lens)
+        _compiled_ranges[id(rows)] = ent
+    return ent
+
+def _scan_rows(cc: str, rows, pn: str, cands=None, all_hits: bool = False):
+    """입력 우편번호가 속하는 구간 행을 반환 (all_hits=False: 첫 행 또는 None / True: 겹치는 모든 행 리스트)
+       숫자 구간은 정수 비교(엑셀에서 앞자리 0이 빠진 자료 대응), 영문 포함 구간은 같은 길이끼리 문자열 비교,
+       영국식은 지역문자·바깥코드·섹터 단위로 비교"""
+    _, comp, maxlen, lens = _compiled_rows(rows)
+    if cands is None:
+        cands = _postal_cands(cc, pn, maxlen, lens)
+    ints = [int(x) for x in cands if x.isdigit()]
+    gb = _gb_keys(pn) if cc in _GB_LIKE else None
+    hits = []
+    for num, b, e, ib, ie, row, sp in comp:
+        if not b:
+            continue
+        ok = False
+        if num:
+            for v in ints:
+                if ib <= v <= ie:
+                    ok = True; break
+        elif gb is not None:
+            kind = "S" if sp else ("A" if b.isalpha() else "O")
+            key = gb[kind]
+            if key:
+                if kind == "O":
+                    nb, ne, nk = _gb_nat(b), _gb_nat(e), _gb_nat(key)
+                    if nb and ne and nk:
+                        # FedEx 는 한 자리 구역을 'HS1X'처럼 X 로 채워 4자리로 등재 → 'HS1' 도 비교
+                        ok = nb[0] == nk[0] == ne[0] and (nb[1:] <= nk[1:] <= ne[1:]
+                                                           or (nk[2] == "" and nb[1:] <= (nk[1], "X") <= ne[1:]))
+                    else:
+                        ok = len(key) == len(b) == len(e) and b <= key <= e
+                elif kind == "A":
+                    ok = b <= key <= e
+                else:
+                    ok = len(key) == len(b) == len(e) and b <= key <= e
+        else:
+            for x in cands:
+                if len(x) == len(b) == len(e) and b <= x <= e:
+                    ok = True; break
+        if ok:
+            if not all_hits:
+                return row
+            hits.append(row)
+    return hits if all_hits else None
+
+def _is_catch_all(b, e) -> bool:
+    """국가 전체를 뜻하는 구간(000000~999999)"""
+    b, e = _postal_norm(b), _postal_norm(e)
+    return b.isdigit() and e.isdigit() and int(b) == 0 and len(e) > 0 and set(e) == {"9"}
+
 # ── FedEx ODA/OPA 요금표 ──────────────────────────────────────────
 # OPA (픽업), ODA (배송) 각각 동일 구조
 # Tier A: OPA=없음, ODA=4,200원
@@ -538,11 +667,8 @@ def _load_fedex_oda_opa():
     return _fedex_oda_opa_data
 
 def get_fedex_oda_opa_tier(country_name: str, postal_code: str = "", city_name: str = "") -> dict:
-    """FedEx ODA/OPA 티어 반환 → {"opa": "A"/"B"/"C", "oda": "A"/"B"/"C"}
-    우편번호·도시명 모두 없으면 조회 불가 → None 반환 (수수료 0)"""
-    # 조회할 정보가 없으면 수수료 없음
-    if not postal_code.strip() and not city_name.strip():
-        return {"opa": None, "oda": None}
+    """FedEx ODA/OPA 티어 반환 → {"opa": "A"/"B"/"C"/None, "oda": "A"/"B"/"C"/None}
+    우편번호·도시명 모두 없으면 조회 불가 → None 반환 (수수료 0). Parcel Services 기준."""
     cc = _COUNTRY_ISO.get(country_name, "")
     if not cc:
         return {"opa": None, "oda": None}
@@ -550,28 +676,26 @@ def get_fedex_oda_opa_tier(country_name: str, postal_code: str = "", city_name: 
     postal_data = db.get("p", {}).get(cc, [])
     city_data   = db.get("c", {}).get(cc, {})
 
+    # 국가 전체가 서비스외지역인 경우(000000~999999)는 입력 없이도 적용
+    for b, e, opa, oda in postal_data:
+        if _is_catch_all(b, e):
+            return {"opa": opa, "oda": oda}
+    if not str(postal_code).strip() and not str(city_name).strip():
+        return {"opa": None, "oda": None}
+
     # 우편번호로 조회
-    if postal_code:
-        pn = _re.sub(r"[\s\-]", "", str(postal_code)).strip()
-        # 숫자 우편번호
-        pn_num = None
-        try: pn_num = int(pn)
-        except: pass
-        for row in postal_data:
-            b, e, opa, oda = row
-            # 숫자 비교 가능하면 숫자로
-            try:
-                if pn_num is not None and int(b) <= pn_num <= int(e):
-                    return {"opa": opa, "oda": oda}
-            except:
-                if b <= pn <= e:
-                    return {"opa": opa, "oda": oda}
+    pn = _postal_norm(postal_code)
+    if pn:
+        hits = _scan_rows(cc, postal_data, pn, all_hits=True)
+        if hits:   # 구간이 겹치면 가장 높은 등급 적용
+            _rk = {None: 0, "A": 1, "B": 2, "C": 3}
+            return {"opa": max((h[2] for h in hits), key=lambda t: _rk.get(t, 0)),
+                    "oda": max((h[3] for h in hits), key=lambda t: _rk.get(t, 0))}
 
     # 도시명으로 조회
-    if city_name:
-        cn = city_name.strip().lower()
-        if cn in city_data:
-            r = city_data[cn]
+    if str(city_name).strip():
+        r = city_data.get(_city_key(city_name))
+        if r:
             return {"opa": r[0], "oda": r[1]}
 
     return {"opa": None, "oda": None}  # 매칭 없음 → 수수료 없음
@@ -608,36 +732,57 @@ def _load_ups_eas():
         _ups_eas_data = {"p": {}, "c": {}}
     return _ups_eas_data
 
+# EAS 외 UPS 지역 추가요금 유형 → 화면 안내용 이름 (금액은 요율표 미반영)
+UPS_AREA_LABELS = {
+    "RAS": "원거리 지역 서비스(RAS)", "RAS-EXT": "원거리 지역 서비스-외곽(RAS)",
+    "DAS": "배송 지역(DAS)",          "DAS-EXT": "배송 지역-외곽(DAS)",
+    "PAS": "픽업 지역(PAS)",          "PAS-EXT": "픽업 지역-외곽(PAS)",
+    "CPA": "혼잡한 집하 지역",        "RPA": "원격 집하 지역", "RPA-EXT": "원격 집하 지역-확장",
+}
+
+def _ups_area_type(v) -> str:
+    """ups_eas.json 값 → 유형 코드. 0/없음='' · 구버전 1/True='EAS' · 문자열(EAS/RAS/DAS 등)은 그대로"""
+    if not v:
+        return ""
+    if v is True or v == 1:
+        return "EAS"
+    return str(v)
+
+def _ups_area_result(pu, de) -> dict:
+    pt, dt = _ups_area_type(pu), _ups_area_type(de)
+    # pickup/delivery 는 '외곽 지역 서비스(EAS)' 해당 여부 — 금액 계산 대상.
+    # *_type 은 EAS 외 유형(원거리 RAS, 배송지역 DAS 등)까지 포함한 원본 유형 코드.
+    return {"pickup": pt == "EAS", "delivery": dt == "EAS", "pickup_type": pt, "delivery_type": dt}
+
 def get_ups_eas(country_name: str, postal_code: str = "", city_name: str = "") -> dict:
-    """UPS 외곽지역 여부 → {"pickup": bool, "delivery": bool}"""
+    """UPS 외곽지역 여부 → {"pickup": bool, "delivery": bool, "pickup_type": str, "delivery_type": str}"""
     cc = _COUNTRY_ISO.get(country_name, "")
     if not cc:
-        return {"pickup": False, "delivery": False}
+        return _ups_area_result(0, 0)
     db = _load_ups_eas()
     postal_data = db.get("p", {}).get(cc, [])
     city_data   = db.get("c", {}).get(cc, {})
 
-    if postal_code:
-        pn = _re.sub(r"[\s\-]", "", str(postal_code)).strip()
-        pn_num = None
-        try: pn_num = int(pn)
-        except: pass
-        for row in postal_data:
-            b, e, pu, de = row
-            try:
-                if pn_num is not None and int(b) <= pn_num <= int(e):
-                    return {"pickup": bool(pu), "delivery": bool(de)}
-            except:
-                if b <= pn <= e:
-                    return {"pickup": bool(pu), "delivery": bool(de)}
+    # 국가 전체가 외곽지역인 경우(000000~999999): 앙골라 등 — 입력 없이도 적용
+    for b, e, pu, de in postal_data:
+        if _is_catch_all(b, e):
+            return _ups_area_result(pu, de)
 
-    if city_name:
-        cn = city_name.strip().lower()
-        if cn in city_data:
-            r = city_data[cn]
-            return {"pickup": bool(r[0]), "delivery": bool(r[1])}
+    pn = _postal_norm(postal_code)
+    if pn:
+        hits = _scan_rows(cc, postal_data, pn, all_hits=True)
+        if hits:   # 겹치면 금액 계산 대상인 EAS 를 우선
+            def _pick(i):
+                vals = [h[i] for h in hits if h[i]]
+                return "EAS" if "EAS" in vals else (vals[0] if vals else 0)
+            return _ups_area_result(_pick(2), _pick(3))
 
-    return {"pickup": False, "delivery": False}
+    if str(city_name).strip():
+        r = city_data.get(_city_key(city_name))
+        if r:
+            return _ups_area_result(r[0], r[1])
+
+    return _ups_area_result(0, 0)
 
 def calc_ups_eas_sur(eas_info: dict, chargeable_wt: float) -> dict:
     """UPS EAS 추가요금 계산 → {"pickup": int, "delivery": int}"""
@@ -651,17 +796,40 @@ def calc_ups_eas_sur(eas_info: dict, chargeable_wt: float) -> dict:
 
 
 
+_dhl_remote_data = None
+_dhl_remote_idx  = {}
+
 def _load_dhl_remote() -> dict:
     """dhl_remote.json 로드 (앱 실행 시 1회, 메모리 캐시)"""
+    global _dhl_remote_data
+    if _dhl_remote_data is not None:
+        return _dhl_remote_data
     _path = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "dhl_remote.json")
     try:
         with open(_path, "r", encoding="utf-8") as _f:
-            return _json.load(_f)
+            _dhl_remote_data = _json.load(_f)
     except Exception:
-        return {}
+        _dhl_remote_data = {}
+    return _dhl_remote_data
 
 def _normalize_postal(p: str) -> str:
-    return _re.sub(r"[\s\-]", "", str(p)).upper().strip()
+    return _postal_norm(p)
+
+def _dhl_remote_index(cc: str, entry: dict):
+    """국가별 조회용 색인(집합·최대 자리수) — 최초 1회만 생성"""
+    idx = _dhl_remote_idx.get(cc)
+    if idx is None:
+        exact  = entry.get("exact", [])
+        ranges = entry.get("ranges", [])
+        maxlen, lens = _postal_stats(list(exact) + [v for r in ranges for v in r])
+        if cc in _GB_LIKE:
+            ex = set(_re.sub(r"\s+", " ", str(x).upper()).strip() for x in exact)
+        else:
+            ex = set(map(_postal_norm, exact))
+        idx = {"exact": ex, "maxlen": maxlen, "lens": lens,
+               "cities": [_city_key(c).upper() for c in entry.get("cities", [])]}
+        _dhl_remote_idx[cc] = idx
+    return idx
 
 def check_dhl_remote_area(country_name: str, postal_code: str = "", city_name: str = "") -> bool:
     """
@@ -674,37 +842,33 @@ def check_dhl_remote_area(country_name: str, postal_code: str = "", city_name: s
     cc = _COUNTRY_ISO.get(country_name, "")
     if not cc:
         return False
-    _rd = _load_dhl_remote()
-    entry = _rd.get(cc)
-    if not entry:
+    entry = _load_dhl_remote().get(cc)
+    if not entry or not isinstance(entry, dict):
         return False
+    idx = _dhl_remote_index(cc, entry)
 
-    # 1) 도시명 체크
-    if city_name:
-        city_up = city_name.upper().strip()
-        for c in entry.get("cities", []):
-            if city_up == c or city_up in c:
+    # 1) 도시명 체크 (악센트 무시, 3글자 이상은 부분 일치 허용)
+    if str(city_name).strip():
+        city_up = _city_key(city_name).upper()
+        for c in idx["cities"]:
+            if city_up == c or (len(city_up) >= 3 and city_up in c):
                 return True
 
     # 2) 우편번호 체크
-    if postal_code:
-        pn = _normalize_postal(postal_code)
-        # exact match
-        if pn in entry.get("exact", []):
+    pn = _postal_norm(postal_code)
+    if pn:
+        cands = _postal_cands(cc, pn, idx["maxlen"], idx["lens"], prefix=True)
+        if cc in _GB_LIKE:
+            g = _gb_keys(pn)
+            outward = g["O"]
+            sector  = (outward + " " + pn[-3]) if len(pn) >= 5 else None
+            full    = (outward + " " + pn[-3:]) if len(pn) >= 5 else None
+            if any(k and k in idx["exact"] for k in (outward, sector, full, g["A"])):
+                return True
+        elif any(c in idx["exact"] for c in cands):
             return True
-        # range match
-        _is_num = bool(_re.match(r"^\d+$", pn))
-        _pn_int = int(pn) if _is_num else None
-        for (pf, pt) in entry.get("ranges", []):
-            if _is_num and _re.match(r"^\d+$", pf) and _re.match(r"^\d+$", pt):
-                if _pn_int is not None and int(pf) <= _pn_int <= int(pt):
-                    return True
-            else:
-                _pn_norm = _normalize_postal(pn)
-                _pf_norm = _normalize_postal(pf)
-                _pt_norm = _normalize_postal(pt)
-                if _pf_norm <= _pn_norm <= _pt_norm:
-                    return True
+        if _scan_rows(cc, entry.get("ranges", []), pn, cands):
+            return True
     return False
 
 # ═══════════════════════════════════════════════════
@@ -3031,6 +3195,12 @@ def run_calculation(
 
     # FedEx ODA/OPA 추가요금 (IP/Economy 공통이므로 양쪽 dict에 반영)
     _fx_tier = get_fedex_oda_opa_tier(dest_country, remote_postal, remote_city)
+    # 수출(한국→해외): 해외 '배송지'만 서비스외지역(ODA) 대상 / 수입(해외→한국): 해외 '픽업지'만 서비스외지역(OPA) 대상
+    # (한국 쪽 픽업·배송은 해당 없음 — UPS EAS 와 같은 방향 규칙)
+    if mode == "수출":
+        _fx_tier = {"opa": None, "oda": _fx_tier["oda"]}
+    else:
+        _fx_tier = {"opa": _fx_tier["opa"], "oda": None}
     _fx_oda_opa = calc_fedex_oda_opa_sur(_fx_tier, _fx_total_w)
     if _fx_oda_opa["opa"] > 0:
         sur_fedex_ct["서비스외지역 픽업(OPA)"] = _fx_oda_opa["opa"]
@@ -3053,6 +3223,10 @@ def run_calculation(
     # 수출: 목적지 배송(delivery)만 적용 / 수입: 픽업(pickup)만 적용
     _ups_eas = get_ups_eas(dest_country, remote_postal, remote_city)
     _ups_eas_sur = calc_ups_eas_sur(_ups_eas, _total_w)
+    # EAS 가 아닌 UPS 지역 추가요금(원거리 RAS·배송지역 DAS 등) 대상이면 유형만 알린다 (요율표 미반영 — 금액 별도 확인)
+    _ups_area_other = (_ups_eas["delivery_type"] if mode == "수출" else _ups_eas["pickup_type"]) or ""
+    if _ups_area_other == "EAS":
+        _ups_area_other = ""
     if mode == "수출":
         if _ups_eas_sur["delivery"] > 0:
             sur_ups_ct["외곽지역 배송(EAS)"] = _ups_eas_sur["delivery"]
@@ -3182,6 +3356,8 @@ def run_calculation(
         "conflict":          dest_country in DHL_CONFLICT_COUNTRIES,
         "sanction":          dest_country in DHL_SANCTION_COUNTRIES,
         "ups_no_service":    ups_no_service,
+        "ups_area_other":    _ups_area_other,
+        "ups_area_other_label": UPS_AREA_LABELS.get(_ups_area_other, _ups_area_other),
         "fedex_no_service":  fedex_no_service,
         "ems_no_service":    ems_no_service,
         "ems_no_service_reason": ems_no_service_reason,
