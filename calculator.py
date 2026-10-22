@@ -719,10 +719,12 @@ UPS_EAS_FIX = 31400
 UPS_EAS_KG  = 570
 UPS_RAS_FIX = 34200
 UPS_RAS_KG  = 640
-# 지역표의 유형 → 적용 요금군.  DAS(배송 지역 추가 요금)는 UPS 안내상 EAS 의 다른 이름, PAS(픽업 지역)는 그 픽업 쪽,
-# RPA(원격 집하 지역)는 접근이 어려운 지역의 픽업이므로 RAS 와 같은 요금군으로 본다.
-# '-외곽지역/확장(EXT)' 유형과 혼잡한 집하 지역(CPA)은 안내문에 요금이 없어 계산하지 않고 화면 안내만 한다.
-_UPS_AREA_CLASS = {"EAS": "EAS", "DAS": "EAS", "PAS": "EAS", "RAS": "RAS", "RPA": "RAS"}
+# 지역표의 유형 → 적용 요금군.  UPS 한국 안내에는 요금이 두 가지(외곽 EAS / 원거리 RAS)뿐이라 아래처럼 묶는다.
+#   DAS(배송 지역 추가 요금)=EAS 의 다른 이름, PAS(픽업 지역)=그 픽업 쪽, RPA(원격 집하 지역)=접근이 어려운 지역의 픽업=RAS,
+#   '-외곽지역/확장(EXT)' 유형은 같은 계열의 요금군을 적용(별도 요금표가 확인되면 여기만 분리).
+#   혼잡한 집하 지역(CPA)은 요금 근거가 없어 계산하지 않고 화면 안내만 한다.
+_UPS_AREA_CLASS = {"EAS": "EAS", "DAS": "EAS", "PAS": "EAS", "DAS-EXT": "EAS", "PAS-EXT": "EAS",
+                   "RAS": "RAS", "RPA": "RAS", "RAS-EXT": "RAS", "RPA-EXT": "RAS"}
 _UPS_CLASS_RANK = {"": 0, "EAS": 1, "RAS": 2}
 
 _ups_eas_data = None
@@ -739,12 +741,9 @@ def _load_ups_eas():
         _ups_eas_data = {"p": {}, "c": {}}
     return _ups_eas_data
 
-# 금액을 계산하지 않는 UPS 지역 추가요금 유형(EXT·확장·혼잡 집하) → 화면 안내용 이름
+# 금액을 계산하지 않는 UPS 지역 추가요금 유형 → 화면 안내용 이름
 UPS_AREA_LABELS = {
-    "RAS-EXT": "원거리 지역 서비스-외곽(RAS)",
-    "DAS-EXT": "배송 지역-외곽(DAS)",
-    "PAS-EXT": "픽업 지역-외곽(PAS)",
-    "CPA": "혼잡한 집하 지역", "RPA-EXT": "원격 집하 지역-확장",
+    "CPA": "혼잡한 집하 지역",
 }
 
 def _ups_area_type(v) -> str:
@@ -3235,7 +3234,7 @@ def run_calculation(
     # 수출: 목적지 배송(delivery)만 적용 / 수입: 픽업(pickup)만 적용
     _ups_eas = get_ups_eas(dest_country, remote_postal, remote_city)
     _ups_eas_sur = calc_ups_eas_sur(_ups_eas, _total_w)
-    # 요금표가 없어 계산하지 못하는 유형(외곽-EXT·확장·혼잡 집하 등)이면 유형만 알린다 (금액 별도 확인)
+    # 요금 근거가 없어 계산하지 못하는 유형(혼잡 집하 CPA 등)이면 유형만 알린다 (금액 별도 확인)
     _ups_area_other = (_ups_eas["delivery_type"] if mode == "수출" else _ups_eas["pickup_type"]) or ""
     if _ups_area_other in _UPS_AREA_CLASS:
         _ups_area_other = ""
