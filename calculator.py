@@ -713,10 +713,17 @@ def calc_fedex_oda_opa_sur(tier_info: dict, chargeable_wt: float) -> dict:
     }
 
 
-# ── UPS 외곽지역 서비스(EAS) ─────────────────────────────────────
-# 픽업/배송 각각: max(31,400원, 570원×kg)
+# ── UPS 외곽지역 서비스(EAS) · 원거리 지역 서비스(RAS) ──────────────────
+# 픽업/배송 각각: EAS = max(31,400원, 570원×kg) / RAS = max(34,200원, 640원×kg)   (유류할증료 부과)
 UPS_EAS_FIX = 31400
 UPS_EAS_KG  = 570
+UPS_RAS_FIX = 34200
+UPS_RAS_KG  = 640
+# 지역표의 유형 → 적용 요금군.  DAS(배송 지역 추가 요금)는 UPS 안내상 EAS 의 다른 이름, PAS(픽업 지역)는 그 픽업 쪽,
+# RPA(원격 집하 지역)는 접근이 어려운 지역의 픽업이므로 RAS 와 같은 요금군으로 본다.
+# '-외곽지역/확장(EXT)' 유형과 혼잡한 집하 지역(CPA)은 안내문에 요금이 없어 계산하지 않고 화면 안내만 한다.
+_UPS_AREA_CLASS = {"EAS": "EAS", "DAS": "EAS", "PAS": "EAS", "RAS": "RAS", "RPA": "RAS"}
+_UPS_CLASS_RANK = {"": 0, "EAS": 1, "RAS": 2}
 
 _ups_eas_data = None
 
@@ -732,12 +739,12 @@ def _load_ups_eas():
         _ups_eas_data = {"p": {}, "c": {}}
     return _ups_eas_data
 
-# EAS 외 UPS 지역 추가요금 유형 → 화면 안내용 이름 (금액은 요율표 미반영)
+# 금액을 계산하지 않는 UPS 지역 추가요금 유형(EXT·확장·혼잡 집하) → 화면 안내용 이름
 UPS_AREA_LABELS = {
-    "RAS": "원거리 지역 서비스(RAS)", "RAS-EXT": "원거리 지역 서비스-외곽(RAS)",
-    "DAS": "배송 지역(DAS)",          "DAS-EXT": "배송 지역-외곽(DAS)",
-    "PAS": "픽업 지역(PAS)",          "PAS-EXT": "픽업 지역-외곽(PAS)",
-    "CPA": "혼잡한 집하 지역",        "RPA": "원격 집하 지역", "RPA-EXT": "원격 집하 지역-확장",
+    "RAS-EXT": "원거리 지역 서비스-외곽(RAS)",
+    "DAS-EXT": "배송 지역-외곽(DAS)",
+    "PAS-EXT": "픽업 지역-외곽(PAS)",
+    "CPA": "혼잡한 집하 지역", "RPA-EXT": "원격 집하 지역-확장",
 }
 
 def _ups_area_type(v) -> str:
@@ -750,9 +757,11 @@ def _ups_area_type(v) -> str:
 
 def _ups_area_result(pu, de) -> dict:
     pt, dt = _ups_area_type(pu), _ups_area_type(de)
-    # pickup/delivery 는 '외곽 지역 서비스(EAS)' 해당 여부 — 금액 계산 대상.
-    # *_type 은 EAS 외 유형(원거리 RAS, 배송지역 DAS 등)까지 포함한 원본 유형 코드.
-    return {"pickup": pt == "EAS", "delivery": dt == "EAS", "pickup_type": pt, "delivery_type": dt}
+    pc, dc = _UPS_AREA_CLASS.get(pt, ""), _UPS_AREA_CLASS.get(dt, "")
+    # pickup_class/delivery_class: 금액을 계산하는 요금군("EAS"·"RAS", 없으면 "")
+    # pickup/delivery: EAS 요금군 여부(하위 호환) · *_type: 원본 유형 코드(EXT·CPA 등 미계산 유형 포함)
+    return {"pickup": pc == "EAS", "delivery": dc == "EAS", "pickup_class": pc, "delivery_class": dc,
+            "pickup_type": pt, "delivery_type": dt}
 
 def get_ups_eas(country_name: str, postal_code: str = "", city_name: str = "") -> dict:
     """UPS 외곽지역 여부 → {"pickup": bool, "delivery": bool, "pickup_type": str, "delivery_type": str}"""
@@ -771,10 +780,12 @@ def get_ups_eas(country_name: str, postal_code: str = "", city_name: str = "") -
     pn = _postal_norm(postal_code)
     if pn:
         hits = _scan_rows(cc, postal_data, pn, all_hits=True)
-        if hits:   # 겹치면 금액 계산 대상인 EAS 를 우선
+        if hits:   # 겹치면 요금이 높은 군(RAS > EAS)을 우선, 그다음 금액 계산 대상 유형 > 미계산 유형
             def _pick(i):
-                vals = [h[i] for h in hits if h[i]]
-                return "EAS" if "EAS" in vals else (vals[0] if vals else 0)
+                vals = [_ups_area_type(h[i]) for h in hits if h[i]]
+                if not vals:
+                    return 0
+                return max(vals, key=lambda t: (_UPS_CLASS_RANK[_UPS_AREA_CLASS.get(t, "")], t in _UPS_AREA_CLASS))
             return _ups_area_result(_pick(2), _pick(3))
 
     if str(city_name).strip():
@@ -785,13 +796,14 @@ def get_ups_eas(country_name: str, postal_code: str = "", city_name: str = "") -
     return _ups_area_result(0, 0)
 
 def calc_ups_eas_sur(eas_info: dict, chargeable_wt: float) -> dict:
-    """UPS EAS 추가요금 계산 → {"pickup": int, "delivery": int}"""
-    def _calc(flag):
-        if not flag: return 0
-        return max(UPS_EAS_FIX, ceil10(UPS_EAS_KG * chargeable_wt))
+    """UPS 외곽(EAS)/원거리(RAS) 추가요금 계산 → {"pickup": int, "delivery": int}"""
+    def _calc(cls):
+        if cls == "EAS": return max(UPS_EAS_FIX, ceil10(UPS_EAS_KG * chargeable_wt))
+        if cls == "RAS": return max(UPS_RAS_FIX, ceil10(UPS_RAS_KG * chargeable_wt))
+        return 0
     return {
-        "pickup":   _calc(eas_info["pickup"]),
-        "delivery": _calc(eas_info["delivery"]),
+        "pickup":   _calc(eas_info.get("pickup_class", "EAS" if eas_info.get("pickup") else "")),
+        "delivery": _calc(eas_info.get("delivery_class", "EAS" if eas_info.get("delivery") else "")),
     }
 
 
@@ -3223,18 +3235,19 @@ def run_calculation(
     # 수출: 목적지 배송(delivery)만 적용 / 수입: 픽업(pickup)만 적용
     _ups_eas = get_ups_eas(dest_country, remote_postal, remote_city)
     _ups_eas_sur = calc_ups_eas_sur(_ups_eas, _total_w)
-    # EAS 가 아닌 UPS 지역 추가요금(원거리 RAS·배송지역 DAS 등) 대상이면 유형만 알린다 (요율표 미반영 — 금액 별도 확인)
+    # 요금표가 없어 계산하지 못하는 유형(외곽-EXT·확장·혼잡 집하 등)이면 유형만 알린다 (금액 별도 확인)
     _ups_area_other = (_ups_eas["delivery_type"] if mode == "수출" else _ups_eas["pickup_type"]) or ""
-    if _ups_area_other == "EAS":
+    if _ups_area_other in _UPS_AREA_CLASS:
         _ups_area_other = ""
-    if mode == "수출":
-        if _ups_eas_sur["delivery"] > 0:
-            sur_ups_ct["외곽지역 배송(EAS)"] = _ups_eas_sur["delivery"]
-            total_sur_ups += _ups_eas_sur["delivery"]
-    else:  # 수입
-        if _ups_eas_sur["pickup"] > 0:
-            sur_ups_ct["외곽지역 픽업(EAS)"] = _ups_eas_sur["pickup"]
-            total_sur_ups += _ups_eas_sur["pickup"]
+    _ups_cls = _ups_eas["delivery_class"] if mode == "수출" else _ups_eas["pickup_class"]
+    _ups_area_nm = None
+    if _ups_cls:
+        _ups_amt  = _ups_eas_sur["delivery"] if mode == "수출" else _ups_eas_sur["pickup"]
+        _ups_area_nm = {("EAS", "수출"): "외곽지역 배송(EAS)", ("EAS", "수입"): "외곽지역 픽업(EAS)",
+                        ("RAS", "수출"): "원거리지역 배송(RAS)", ("RAS", "수입"): "원거리지역 픽업(RAS)"}[(_ups_cls, mode)]
+        if _ups_amt > 0:
+            sur_ups_ct[_ups_area_nm] = _ups_amt
+            total_sur_ups += _ups_amt
 
     # ── kg당으로 계산되는 추가비용: 화면/이메일/PDF에 (금액/kg) 로 표기하기 위한 단가 정보 ──
     #    값 = (kg당 단가, 최소요금이 적용되어 정액이 된 경우 True)
@@ -3261,6 +3274,9 @@ def run_calculation(
     for _nm in ("외곽지역 배송(EAS)", "외곽지역 픽업(EAS)"):
         if _nm in sur_ups_ct:
             _meta_ups[_nm] = (UPS_EAS_KG, ceil10(UPS_EAS_KG * _total_w) < UPS_EAS_FIX)
+    for _nm in ("원거리지역 배송(RAS)", "원거리지역 픽업(RAS)"):
+        if _nm in sur_ups_ct:
+            _meta_ups[_nm] = (UPS_RAS_KG, ceil10(UPS_RAS_KG * _total_w) < UPS_RAS_FIX)
 
     # ── DHL ──
     if mode == "수출":
