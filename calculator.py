@@ -1,7 +1,13 @@
 import math
 import json
 import os
+import datetime as _dt
 from functools import lru_cache
+
+def _today_kst():
+    """한국시간(KST, UTC+9) 기준 오늘 날짜 — 서버(Render)는 UTC라 date.today() 를 쓰면 한국 0~9시에 하루 어긋남"""
+    return _dt.datetime.now(_dt.timezone(_dt.timedelta(hours=9))).date()
+
 
 # ═══════════════════════════════════════════════════
 # 데이터: DHL
@@ -36,6 +42,7 @@ DHL_ZONE_MAP = {
 }
 # ────────────────────────────────────────────────────────────
 # FedEx 초과수요 추가요금 (EDS) — 2026-10-19 시행분 (대한민국 발송 기준, 원화)
+#   ※ 2026-11-02 부터는 아래 _FEDEX_EDS_RATES_NOV 적용 (날짜 자동 전환)
 #   · 전 지역 kg당 요금 × 청구중량 (1원 올림), 발송물당 최소 360원
 #   · 미국/캐나다/멕시코/LAC 수출은 Priority(IP)=2,310 / Economy=1,730 (kg당, 정액 아님)
 #   · 수입은 ImportOne 열 기준
@@ -56,6 +63,15 @@ _FEDEX_EDS_RATES = {
     "MEISA1":    (2250, 2250, 1600),   # 중동/인도 아대륙/아프리카 그룹 1
     "MEISA2":    (3600, 3600, 1600),   # 중동/인도 아대륙/아프리카 그룹 2
 }
+# 2026-11-02 시행분: 10/19 표 대비 변경은 베트남 수입(ImportOne) 0 → 260 원/kg 하나뿐 (나머지 전 지역 동일)
+_FEDEX_EDS_NOV_START = _dt.date(2026, 11, 2)
+_FEDEX_EDS_RATES_NOV = dict(_FEDEX_EDS_RATES)
+_FEDEX_EDS_RATES_NOV["VIETNAM"] = (0, 0, 260)
+
+def _fedex_eds_rates_for(calc_date=None):
+    d = calc_date or _today_kst()
+    return _FEDEX_EDS_RATES_NOV if d >= _FEDEX_EDS_NOV_START else _FEDEX_EDS_RATES
+
 _FEDEX_EDS_MIN = 360   # 발송물당 최소 요금 (요율이 0인 지역은 부과하지 않음)
 # 국가 → 지역 (원문 지역/국가 목록과 1:1 대조, 원문에 없는 국가는 아래 Zone 기준 대체값 사용)
 _FEDEX_EDS_REGION = {
@@ -208,7 +224,7 @@ _DHL_EDS_TABLE = {
 
 def get_dhl_demand_rate(dest_country: str, mode: str = "수출", calc_date=None) -> int:
     """DHL 초과 수요 추가요금 kg당 단가(KRW). 적용기간 밖이거나 해당 없으면 0"""
-    d = calc_date or _dt.date.today()
+    d = calc_date or _today_kst()
     if not (_DHL_EDS_START <= d <= _DHL_EDS_END):
         return 0
     if mode == "수입":
@@ -222,7 +238,7 @@ def get_dhl_demand_surcharge(dest_country: str, chargeable_wt: float, mode: str 
     """DHL 초과 수요 추가요금 (2026-10-01~2027-02-05 한시적, kg당 KRW)
     한국은 출발지 기준 '이외 아시아 지역', 목적지 기준 '아시아'에 속함(오세아니아는 별도).
     """
-    d = calc_date or _dt.date.today()
+    d = calc_date or _today_kst()
     if not (_DHL_EDS_START <= d <= _DHL_EDS_END):
         return 0
     if mode == "수입":
@@ -247,7 +263,7 @@ def get_fedex_eds_rate(fx_zone: str, dest_country: str = "", mode: str = "수출
     region = _FEDEX_EDS_REGION.get(dest_country) or _FEDEX_EDS_ZONE_FALLBACK.get(fx_zone)
     if region is None:
         return 0
-    r_ip, r_ec, r_imp = _FEDEX_EDS_RATES[region]
+    r_ip, r_ec, r_imp = _fedex_eds_rates_for()[region]
     if mode == "수입":
         return r_imp
     return r_ip if service == "IP" else r_ec
@@ -265,7 +281,7 @@ def get_fedex_eds(fx_zone: str, chargeable_wt: float, dest_country: str = "", mo
     region = _FEDEX_EDS_REGION.get(dest_country) or _FEDEX_EDS_ZONE_FALLBACK.get(fx_zone)
     if region is None:
         return 0
-    r_ip, r_ec, r_imp = _FEDEX_EDS_RATES[region]
+    r_ip, r_ec, r_imp = _fedex_eds_rates_for()[region]
     if mode == "수입":
         rate = r_imp
     else:
@@ -3139,7 +3155,7 @@ def run_calculation(
         # 위 수수료에 해당하는 포장물마다 **추가로** 별도 부과된다 (기본 요율을 대체하지 않음).
         #   비규격품 +2,580 / 대형포장물 +9,020 / 최대허용한도초과 +286,240 (포장물당, 유류할증료 대상)
         _UPS_AHC_FEE, _UPS_LPS_FEE, _UPS_OML_FEE = 21400, 69200, 307900
-        _ups_d = _dt.date.today()
+        _ups_d = _today_kst()
         _ups_surge_period = (_dt.date(2026,9,27) <= _ups_d <= _dt.date(2027,2,6))
         _UPS_AHC_DEM, _UPS_LPS_DEM, _UPS_OML_DEM = (2580, 9020, 286240) if _ups_surge_period else (0, 0, 0)
 

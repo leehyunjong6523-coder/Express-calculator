@@ -14,7 +14,7 @@ try:
     import requests as _requests
 except ImportError:
     _requests = None
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from flask import Flask, render_template, request, jsonify, send_file, session
 
 from calculator import run_calculation, get_countries, COUNTRY_KR
@@ -163,7 +163,7 @@ def index():
     countries = get_countries()
     customer_list = get_customer_list()
     settings = _get_settings()
-    quote_num = f"AB-{datetime.now().strftime('%Y%m%d')}-001"
+    quote_num = f"AB-{datetime.now(timezone(timedelta(hours=9))).strftime('%Y%m%d')}-001"
     return render_template(
         "index.html",
         countries=countries,
